@@ -57,7 +57,10 @@ export async function GET(request: NextRequest) {
         updated_at: row.updated_at,
         metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
         tags: row.tags ? JSON.parse(row.tags) : [],
-        archived: row.archived === 1
+        archived: row.archived === 1,
+        parsed: row.parsed === 1,
+        entity_type: row.entity_type,
+        ai_suggestion: row.ai_suggestion ? JSON.parse(row.ai_suggestion) : undefined
       }
 
       if (row.todo_id) {

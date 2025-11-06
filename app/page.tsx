@@ -588,7 +588,7 @@ export default function Home() {
                         const response = await apiClient.createItem(newItem)
                         const parseResponse = await parseIdea(response.item.id, 'task')
                         if (parseResponse.success) {
-                          loadData()
+                          await loadData()
                         }
                         setCaptureText('')
                         setAiSuggestion(null)
@@ -616,7 +616,7 @@ export default function Home() {
                         const response = await apiClient.createItem(newItem)
                         const parseResponse = await parseIdea(response.item.id, 'project')
                         if (parseResponse.success) {
-                          loadData()
+                          await loadData()
                         }
                         setCaptureText('')
                         setAiSuggestion(null)
@@ -644,7 +644,7 @@ export default function Home() {
                         const response = await apiClient.createItem(newItem)
                         const parseResponse = await parseIdea(response.item.id, 'list')
                         if (parseResponse.success) {
-                          loadData()
+                          await loadData()
                         }
                         setCaptureText('')
                         setAiSuggestion(null)
@@ -695,7 +695,7 @@ export default function Home() {
                                 const response = await apiClient.createItem(newItem)
                                 const parseResponse = await parseIdea(response.item.id, 'note', template.subtype)
                                 if (parseResponse.success) {
-                                  loadData()
+                                  await loadData()
                                 }
                                 setCaptureText('')
                                 setAiSuggestion(null)

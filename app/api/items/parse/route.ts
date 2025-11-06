@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 
 export async function POST(request: NextRequest) {
   try {
-    const { itemId, entityType } = await request.json()
+    const { itemId, entityType, ai_suggestion } = await request.json()
 
     if (!itemId || !entityType) {
       return NextResponse.json(
@@ -20,13 +20,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Update item to mark as parsed with suggested type
+    const aiSuggestionJson = ai_suggestion ? JSON.stringify(ai_suggestion) : null
     db.prepare(`
       UPDATE items
       SET parsed = 1,
           entity_type = ?,
+          ai_suggestion = ?,
           updated_at = ?
       WHERE id = ?
-    `).run(entityType, Date.now(), itemId)
+    `).run(entityType, aiSuggestionJson, Date.now(), itemId)
 
     // Fetch the updated item
     const item = db.prepare(`
