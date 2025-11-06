@@ -93,10 +93,11 @@ export function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS notes (
       id TEXT PRIMARY KEY,
       item_id TEXT NOT NULL,
-      subtype TEXT DEFAULT 'general',
+      subtype TEXT DEFAULT 'general' CHECK (subtype IN ('general', 'research', 'video', 'link', 'file', 'contact', 'meeting')),
       content TEXT,
       url TEXT,
       media_type TEXT,
+      frontmatter TEXT, -- JSON string of YAML frontmatter
       FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
     )
   `)

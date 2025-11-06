@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { generateNoteContent } from '@/lib/note-templates'
 import { v4 as uuidv4 } from 'uuid'
 
 export async function POST(request: NextRequest) {
@@ -84,14 +85,22 @@ export async function POST(request: NextRequest) {
       case 'note':
         const noteSubtype = aiSuggestion?.additional_fields?.category || 'general'
 
+        // Generate template content based on note subtype
+        const { frontmatter, content } = generateNoteContent(
+          noteSubtype as any,
+          item.text,
+          aiSuggestion?.additional_fields
+        )
+
         db.prepare(`
-          INSERT INTO notes (id, item_id, subtype, content)
-          VALUES (?, ?, ?, ?)
+          INSERT INTO notes (id, item_id, subtype, content, frontmatter)
+          VALUES (?, ?, ?, ?, ?)
         `).run(
           uuidv4(),
           itemId,
           noteSubtype,
-          item.text
+          content,
+          frontmatter
         )
         break
 

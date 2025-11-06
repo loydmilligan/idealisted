@@ -81,10 +81,11 @@ export interface Task {
 export interface Note {
   id: string
   item_id: string
-  subtype: 'general' | 'research' | 'link' | 'media' | 'youtube'
+  subtype: 'general' | 'research' | 'video' | 'link' | 'file' | 'contact' | 'meeting'
   content?: string
   url?: string
   media_type?: string
+  frontmatter?: string // YAML frontmatter as JSON string
 }
 
 export interface List {

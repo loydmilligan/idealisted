@@ -281,11 +281,14 @@ export default function Home() {
       if (response.ok) {
         const { item } = await response.json()
         setItems(items.map(i => i.id === itemId ? item : i))
+        return { success: true }
       } else {
         console.error('Failed to parse idea:', await response.text())
+        return { success: false }
       }
     } catch (error) {
       console.error('Failed to parse idea:', error)
+      return { success: false }
     }
   }
 
@@ -538,42 +541,126 @@ export default function Home() {
               <div className="space-y-2">
                 <h3 className="text-xs font-bold uppercase tracking-wide">Quick Actions</h3>
                 <div className="grid grid-cols-2 gap-2">
-                  <RetroButton 
-                    variant="secondary" 
+                  <RetroButton
+                    variant="secondary"
                     size="sm"
-                    onClick={() => setCaptureText('Meeting notes: ')}
+                    onClick={async () => {
+                      if (!captureText.trim()) return
+                      try {
+                        // Create idea
+                        const newItem: CreateItemRequest = {
+                          type: 'idea',
+                          text: captureText.trim()
+                        }
+                        const response = await apiClient.createItem(newItem)
+                        // Immediately parse as note (meetings are notes)
+                        const parseResponse = await parseIdea(response.item.id, 'note')
+                        if (parseResponse.success) {
+                          loadData()
+                        }
+                        setItems([response.item, ...items])
+                        setCaptureText('')
+                        setAiSuggestion(null)
+                      } catch (error) {
+                        console.error('Failed to quick add meeting:', error)
+                      }
+                    }}
                     className="text-xs"
-                    title="Create meeting notes template"
+                    title="Quick add meeting note"
+                    disabled={!captureText.trim()}
                   >
                     <RetroIcon type="note" size="sm" />
                     Meeting
                   </RetroButton>
-                  <RetroButton 
-                    variant="secondary" 
+                  <RetroButton
+                    variant="secondary"
                     size="sm"
-                    onClick={() => setCaptureText('Task: ')}
+                    onClick={async () => {
+                      if (!captureText.trim()) return
+                      try {
+                        // Create idea
+                        const newItem: CreateItemRequest = {
+                          type: 'idea',
+                          text: captureText.trim()
+                        }
+                        const response = await apiClient.createItem(newItem)
+                        // Immediately parse as task
+                        const parseResponse = await parseIdea(response.item.id, 'task')
+                        if (parseResponse.success) {
+                          loadData()
+                        }
+                        setItems([response.item, ...items])
+                        setCaptureText('')
+                        setAiSuggestion(null)
+                      } catch (error) {
+                        console.error('Failed to quick add task:', error)
+                      }
+                    }}
                     className="text-xs"
-                    title="Create task template"
+                    title="Quick add task"
+                    disabled={!captureText.trim()}
                   >
                     <RetroIcon type="task" size="sm" />
                     Task
                   </RetroButton>
-                  <RetroButton 
-                    variant="secondary" 
+                  <RetroButton
+                    variant="secondary"
                     size="sm"
-                    onClick={() => setCaptureText('Project: ')}
+                    onClick={async () => {
+                      if (!captureText.trim()) return
+                      try {
+                        // Create idea
+                        const newItem: CreateItemRequest = {
+                          type: 'idea',
+                          text: captureText.trim()
+                        }
+                        const response = await apiClient.createItem(newItem)
+                        // Immediately parse as project
+                        const parseResponse = await parseIdea(response.item.id, 'project')
+                        if (parseResponse.success) {
+                          loadData()
+                        }
+                        setItems([response.item, ...items])
+                        setCaptureText('')
+                        setAiSuggestion(null)
+                      } catch (error) {
+                        console.error('Failed to quick add project:', error)
+                      }
+                    }}
                     className="text-xs"
-                    title="Create project template"
+                    title="Quick add project"
+                    disabled={!captureText.trim()}
                   >
                     <RetroIcon type="project" size="sm" />
                     Project
                   </RetroButton>
-                  <RetroButton 
-                    variant="secondary" 
+                  <RetroButton
+                    variant="secondary"
                     size="sm"
-                    onClick={() => setCaptureText('Shopping list:\n- ')}
+                    onClick={async () => {
+                      if (!captureText.trim()) return
+                      try {
+                        // Create idea
+                        const newItem: CreateItemRequest = {
+                          type: 'idea',
+                          text: captureText.trim()
+                        }
+                        const response = await apiClient.createItem(newItem)
+                        // Immediately parse as list
+                        const parseResponse = await parseIdea(response.item.id, 'list')
+                        if (parseResponse.success) {
+                          loadData()
+                        }
+                        setItems([response.item, ...items])
+                        setCaptureText('')
+                        setAiSuggestion(null)
+                      } catch (error) {
+                        console.error('Failed to quick add list:', error)
+                      }
+                    }}
                     className="text-xs"
-                    title="Create shopping list template"
+                    title="Quick add list"
+                    disabled={!captureText.trim()}
                   >
                     <RetroIcon type="list" size="sm" />
                     List
