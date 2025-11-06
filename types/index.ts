@@ -120,9 +120,22 @@ export interface Project {
 export interface Plan {
   id: string
   date: string // YYYY-MM-DD
-  todoIds: string[] // JSON array in database
+  status: 'draft' | 'finalized' | 'completed'
+  journal_entry?: string
+  tasks_completed_count: number
+  tasks_total_count: number
+  completion_percentage: number
   created_at: number
   updated_at: number
+  finalized_at?: number
+  completed_at?: number
+}
+
+export interface PlanTask {
+  id: string
+  plan_id: string
+  task_id: string
+  added_at: number
 }
 
 export interface Setting {
@@ -161,7 +174,7 @@ export interface NtfyConfig {
 // Combined types for API responses
 export interface ItemWithRelations extends Item {
   todo?: Todo
-  note?: Note & { 
+  note?: Note & {
     type?: 'general' | 'meeting' | 'research' | 'reference' | 'personal'
     title?: string
     description?: string
@@ -176,6 +189,17 @@ export interface ItemWithRelations extends Item {
 
 export interface PlanWithTodos extends Plan {
   todos: (Todo & { item: Item })[]
+}
+
+export interface PlanWithEntities extends Plan {
+  tasks: (Task & { item: Item })[]
+  lists?: (List & { item: Item })[]
+  notes?: (Note & { item: Item })[]
+  projects?: (Project & { item: Item })[]
+}
+
+export interface TaskWithItem extends Task {
+  item: Item
 }
 
 // API request/response types
