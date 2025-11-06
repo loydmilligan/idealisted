@@ -9,15 +9,14 @@ interface RetroDeviceProps {
   onTabChange?: (tab: string) => void
 }
 
-export const RetroDevice: React.FC<RetroDeviceProps> = ({ 
-  children, 
-  className, 
-  rightAction, 
-  activeTab = 'capture',
-  onTabChange 
+export const RetroDevice: React.FC<RetroDeviceProps> = ({
+  children,
+  className,
+  rightAction,
+  activeTab = 'inbox',
+  onTabChange
 }) => {
   const deviceTabs = [
-    { id: 'capture', label: 'CAPTURE', icon: '📝' },
     { id: 'inbox', label: 'INBOX', icon: '📥' },
     { id: 'tasks', label: 'TASKS', icon: '⚡' },
     { id: 'notes', label: 'NOTES', icon: '📄' },

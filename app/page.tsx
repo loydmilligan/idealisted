@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, CheckCircle, Circle, Calendar, ChevronRight, Trash2, Edit2, Save, X } from 'lucide-react'
+import { Plus, CheckCircle, Circle, Calendar, ChevronRight, Trash2, Edit2, Save, X, ChevronDown } from 'lucide-react'
 import { apiClient } from '@/lib/api-client'
 import { Item, CreateItemRequest, Plan, AISuggestion } from '@/types'
 import { timeAgo } from '@/utils'
@@ -13,19 +13,21 @@ import { RetroTabs } from '@/components/ui/RetroTabs'
 import { RetroIcon } from '@/components/ui/RetroIcon'
 import { AISuggestionPanel } from '@/components/ui/AISuggestionPanel'
 import { getStoredTheme, getThemeById, applyTheme } from '@/lib/themes'
+import { noteTemplates, type NoteSubtype } from '@/lib/note-templates'
 import Link from 'next/link'
 
 export default function Home() {
   const [items, setItems] = useState<Item[]>([])
   const [todos, setTodos] = useState<Item[]>([])
   const [plans, setPlans] = useState<Record<string, Plan>>({})
-  const [activeView, setActiveView] = useState<'capture' | 'inbox' | 'tasks' | 'notes' | 'lists' | 'projects' | 'plans'>('capture')
+  const [activeView, setActiveView] = useState<'inbox' | 'tasks' | 'notes' | 'lists' | 'projects' | 'plans'>('inbox')
   const [captureText, setCaptureText] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const [aiSuggestion, setAiSuggestion] = useState<AISuggestion | null>(null)
   const [isAiLoading, setIsAiLoading] = useState(false)
   const [inboxTab, setInboxTab] = useState<'unparsed' | 'readyToConvert'>('unparsed')
+  const [notesDropdownOpen, setNotesDropdownOpen] = useState(false)
 
   // Load data from API
   useEffect(() => {
@@ -37,6 +39,25 @@ export default function Home() {
       applyTheme(theme)
     }
   }, [])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notesDropdownOpen) {
+        setNotesDropdownOpen(false)
+      }
+    }
+
+    if (notesDropdownOpen) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [notesDropdownOpen])
+
+  // Close dropdown when changing views
+  useEffect(() => {
+    setNotesDropdownOpen(false)
+  }, [activeView])
 
   const loadData = async () => {
     try {
@@ -270,12 +291,23 @@ export default function Home() {
     }
   }
 
-  const parseIdea = async (itemId: string, entityType: 'task' | 'note' | 'list' | 'project') => {
+  const parseIdea = async (itemId: string, entityType: 'task' | 'note' | 'list' | 'project', noteSubtype?: NoteSubtype) => {
     try {
+      const requestBody: any = { itemId, entityType }
+
+      // If it's a note with a subtype, include category in the AI suggestion
+      if (entityType === 'note' && noteSubtype) {
+        requestBody.ai_suggestion = {
+          additional_fields: {
+            category: noteSubtype
+          }
+        }
+      }
+
       const response = await fetch('/api/items/parse', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itemId, entityType })
+        body: JSON.stringify(requestBody)
       })
 
       if (response.ok) {
@@ -489,9 +521,10 @@ export default function Home() {
       >
         {/* Content Area */}
         <div className="p-4">
-          {/* Capture View */}
-          {activeView === 'capture' && (
+          {/* Inbox View - Combined with Capture */}
+          {activeView === 'inbox' && (
             <div className="space-y-4">
+              {/* Capture Section */}
               <RetroCard inset>
                 <div className="space-y-3">
                   <label className="block text-xs font-bold uppercase tracking-wide">
@@ -527,7 +560,7 @@ export default function Home() {
                       <RetroIcon type="ai" size="sm" />
                     </RetroButton>
                   </div>
-                  
+
                   {/* AI Suggestion Panel */}
                   <AISuggestionPanel
                     suggestion={aiSuggestion}
@@ -538,8 +571,9 @@ export default function Home() {
                 </div>
               </RetroCard>
 
+              {/* Quick Add Buttons */}
               <div className="space-y-2">
-                <h3 className="text-xs font-bold uppercase tracking-wide">Quick Actions</h3>
+                <h3 className="text-xs font-bold uppercase tracking-wide">Quick Add</h3>
                 <div className="grid grid-cols-2 gap-2">
                   <RetroButton
                     variant="secondary"
@@ -547,49 +581,15 @@ export default function Home() {
                     onClick={async () => {
                       if (!captureText.trim()) return
                       try {
-                        // Create idea
                         const newItem: CreateItemRequest = {
                           type: 'idea',
                           text: captureText.trim()
                         }
                         const response = await apiClient.createItem(newItem)
-                        // Immediately parse as note (meetings are notes)
-                        const parseResponse = await parseIdea(response.item.id, 'note')
-                        if (parseResponse.success) {
-                          loadData()
-                        }
-                        setItems([response.item, ...items])
-                        setCaptureText('')
-                        setAiSuggestion(null)
-                      } catch (error) {
-                        console.error('Failed to quick add meeting:', error)
-                      }
-                    }}
-                    className="text-xs"
-                    title="Quick add meeting note"
-                    disabled={!captureText.trim()}
-                  >
-                    <RetroIcon type="note" size="sm" />
-                    Meeting
-                  </RetroButton>
-                  <RetroButton
-                    variant="secondary"
-                    size="sm"
-                    onClick={async () => {
-                      if (!captureText.trim()) return
-                      try {
-                        // Create idea
-                        const newItem: CreateItemRequest = {
-                          type: 'idea',
-                          text: captureText.trim()
-                        }
-                        const response = await apiClient.createItem(newItem)
-                        // Immediately parse as task
                         const parseResponse = await parseIdea(response.item.id, 'task')
                         if (parseResponse.success) {
                           loadData()
                         }
-                        setItems([response.item, ...items])
                         setCaptureText('')
                         setAiSuggestion(null)
                       } catch (error) {
@@ -609,18 +609,15 @@ export default function Home() {
                     onClick={async () => {
                       if (!captureText.trim()) return
                       try {
-                        // Create idea
                         const newItem: CreateItemRequest = {
                           type: 'idea',
                           text: captureText.trim()
                         }
                         const response = await apiClient.createItem(newItem)
-                        // Immediately parse as project
                         const parseResponse = await parseIdea(response.item.id, 'project')
                         if (parseResponse.success) {
                           loadData()
                         }
-                        setItems([response.item, ...items])
                         setCaptureText('')
                         setAiSuggestion(null)
                       } catch (error) {
@@ -640,18 +637,15 @@ export default function Home() {
                     onClick={async () => {
                       if (!captureText.trim()) return
                       try {
-                        // Create idea
                         const newItem: CreateItemRequest = {
                           type: 'idea',
                           text: captureText.trim()
                         }
                         const response = await apiClient.createItem(newItem)
-                        // Immediately parse as list
                         const parseResponse = await parseIdea(response.item.id, 'list')
                         if (parseResponse.success) {
                           loadData()
                         }
-                        setItems([response.item, ...items])
                         setCaptureText('')
                         setAiSuggestion(null)
                       } catch (error) {
@@ -665,14 +659,63 @@ export default function Home() {
                     <RetroIcon type="list" size="sm" />
                     List
                   </RetroButton>
+
+                  {/* Notes Dropdown Button */}
+                  <div className="relative" onClick={(e) => e.stopPropagation()}>
+                    <RetroButton
+                      variant="secondary"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setNotesDropdownOpen(!notesDropdownOpen)
+                      }}
+                      className="text-xs w-full"
+                      title="Quick add note"
+                      disabled={!captureText.trim()}
+                    >
+                      <RetroIcon type="note" size="sm" />
+                      Notes
+                      <ChevronDown className="w-3 h-3 ml-1" />
+                    </RetroButton>
+
+                    {notesDropdownOpen && captureText.trim() && (
+                      <div
+                        className="absolute z-10 mt-1 w-48 bg-[var(--retro-background)] border-2 border-[var(--retro-primary)] rounded shadow-lg"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {Object.values(noteTemplates).map((template) => (
+                          <button
+                            key={template.subtype}
+                            onClick={async () => {
+                              try {
+                                const newItem: CreateItemRequest = {
+                                  type: 'idea',
+                                  text: captureText.trim()
+                                }
+                                const response = await apiClient.createItem(newItem)
+                                const parseResponse = await parseIdea(response.item.id, 'note', template.subtype)
+                                if (parseResponse.success) {
+                                  loadData()
+                                }
+                                setCaptureText('')
+                                setAiSuggestion(null)
+                                setNotesDropdownOpen(false)
+                              } catch (error) {
+                                console.error('Failed to quick add note:', error)
+                              }
+                            }}
+                            className="w-full px-3 py-2 text-left text-xs hover:bg-[var(--retro-primary)] hover:bg-opacity-20 flex items-center gap-2 border-b border-[var(--retro-primary)] border-opacity-20 last:border-b-0"
+                          >
+                            <span>{template.emoji}</span>
+                            <span>{template.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* Inbox View */}
-          {activeView === 'inbox' && (
-            <div className="space-y-4">
               {(() => {
                 const allIdeas = items.filter(i => i.type === 'idea')
                 const unparsedIdeas = allIdeas.filter(i => !i.parsed)

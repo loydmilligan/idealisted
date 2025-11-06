@@ -20,13 +20,15 @@ db.pragma('foreign_keys = ON')
 export function initializeDatabase() {
   // Check if we need to migrate by dropping and recreating tables with new schema
   try {
-    // Test if the new schema exists by trying to insert a task with new fields
+    // Test if the new schema exists by trying to insert test records
     db.prepare(`INSERT INTO items (id, type, text, parsed, entity_type, created_at, updated_at) VALUES ('test', 'idea', 'test', 0, NULL, 1, 1)`).run()
+    db.prepare(`INSERT INTO notes (id, item_id, subtype, content, frontmatter) VALUES ('test-note', 'test', 'general', 'test', '{}')`).run()
+    db.prepare(`DELETE FROM notes WHERE id = 'test-note'`).run()
     db.prepare(`DELETE FROM items WHERE id = 'test'`).run()
   } catch (e) {
     // If it fails, we need to migrate - drop and recreate tables
     console.log('Database schema outdated, migrating...')
-    
+
     // Drop existing tables
     db.exec(`DROP TABLE IF EXISTS list_items`)
     db.exec(`DROP TABLE IF EXISTS lists`)
@@ -38,7 +40,7 @@ export function initializeDatabase() {
     db.exec(`DROP TABLE IF EXISTS ai_suggestions`)
     db.exec(`DROP TABLE IF EXISTS settings`)
     db.exec(`DROP TABLE IF EXISTS items`)
-    
+
     console.log('Old tables dropped, recreating with new schema...')
   }
 
