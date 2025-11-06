@@ -1,0 +1,172 @@
+/* =================================== */
+/* RETRO PDA COLOR PALETTES */
+/* =================================== */
+
+/* ============================= */
+/* PALETTE 1: CLASSIC BLACKBERRY */
+/* ============================= */
+.retro-theme-blackberry {
+  /* Primary Colors */
+  --retro-primary-dark: #005387;
+  --retro-primary-silver: #A1A1A4;
+  --retro-primary-gray: #D1D5D8;
+  
+  /* Secondary Colors */
+  --retro-secondary-green: #8CB811;
+  --retro-secondary-teal: #008080;
+  --retro-secondary-offwhite: #F5F5DC;
+  
+  /* Tertiary Colors */
+  --retro-tertiary-taupe: #B9A7A2;
+  --retro-tertiary-blue: #6699CC;
+  --retro-tertiary-purple: #6E4E8D;
+  
+  /* Accent Colors */
+  --retro-accent-yellow: #FFD93D;
+  --retro-accent-orange: #CC5500;
+  --retro-accent-pink: #F3A0C0;
+  
+  /* Font Colors */
+  --retro-text-primary: #FFFFFF;
+  --retro-text-secondary: #A1A1A4;
+  --retro-text-dark: #232426;
+  --retro-text-darker: #1A1A2A;
+  --retro-text-black: #000000;
+  
+  /* Application Colors */
+  --retro-device-bg: linear-gradient(145deg, #c0c0c0, #a0a0a0);
+  --retro-screen-bg: #8a95a5;
+  --retro-app-window: linear-gradient(180deg, #005387 0%, #003d66 50%, #002944 100%);
+  --retro-app-content: linear-gradient(180deg, #D1D5D8 0%, #B8BCC0 100%);
+  --retro-header-text: #FFD93D;
+  --retro-button-primary: #8CB811;
+  --retro-button-secondary: #008080;
+  --retro-border-dark: #002944;
+  --retro-border-light: #A1A1A4;
+}
+
+/* ============================= */
+/* PALETTE 2: PALM OS CLASSIC */
+/* ============================= */
+.retro-theme-palm {
+  /* Primary Colors */
+  --retro-primary-dark: #2D5A87;
+  --retro-primary-silver: #B8C5D6;
+  --retro-primary-gray: #E8E8E8;
+  
+  /* Secondary Colors */
+  --retro-secondary-green: #9CAF88;
+  --retro-secondary-teal: #5D8A66;
+  --retro-secondary-offwhite: #F0F0E8;
+  
+  /* Tertiary Colors */
+  --retro-tertiary-taupe: #D4C4B0;
+  --retro-tertiary-blue: #7BA7BC;
+  --retro-tertiary-purple: #8B7AA8;
+  
+  /* Accent Colors */
+  --retro-accent-yellow: #F4D03F;
+  --retro-accent-orange: #E67E22;
+  --retro-accent-pink: #EC7063;
+  
+  /* Font Colors */
+  --retro-text-primary: #FFFFFF;
+  --retro-text-secondary: #B8C5D6;
+  --retro-text-dark: #2C3E50;
+  --retro-text-darker: #1B2631;
+  --retro-text-black: #000000;
+  
+  /* Application Colors */
+  --retro-device-bg: linear-gradient(145deg, #d8d8d8, #b8b8b8);
+  --retro-screen-bg: #9CAF88;
+  --retro-app-window: linear-gradient(180deg, #2D5A87 0%, #1E3A5F 50%, #0F1C37 100%);
+  --retro-app-content: linear-gradient(180deg, #F0F0E8 0%, #E0E0D8 100%);
+  --retro-header-text: #F4D03F;
+  --retro-button-primary: #5D8A66;
+  --retro-button-secondary: #7BA7BC;
+  --retro-border-dark: #0F1C37;
+  --retro-border-light: #B8C5D6;
+}
+
+/* ============================= */
+/* PALETTE 3: WINDOWS CE PROFESSIONAL */
+/* ============================= */
+.retro-theme-windows-ce {
+  /* Primary Colors */
+  --retro-primary-dark: #003C71;
+  --retro-primary-silver: #969696;
+  --retro-primary-gray: #C0C0C0;
+  
+  /* Secondary Colors */
+  --retro-secondary-green: #008000;
+  --retro-secondary-teal: #008080;
+  --retro-secondary-offwhite: #FFFFFF;
+  
+  /* Tertiary Colors */
+  --retro-tertiary-taupe: #A0A0A0;
+  --retro-tertiary-blue: #4169E1;
+  --retro-tertiary-purple: #800080;
+  
+  /* Accent Colors */
+  --retro-accent-yellow: #FFFF00;
+  --retro-accent-orange: #FF8C00;
+  --retro-accent-pink: #FF69B4;
+  
+  /* Font Colors */
+  --retro-text-primary: #FFFFFF;
+  --retro-text-secondary: #C0C0C0;
+  --retro-text-dark: #000000;
+  --retro-text-darker: #000000;
+  --retro-text-black: #000000;
+  
+  /* Application Colors */
+  --retro-device-bg: linear-gradient(145deg, #e0e0e0, #c0c0c0);
+  --retro-screen-bg: #969696;
+  --retro-app-window: linear-gradient(180deg, #003C71 0%, #002851 50%, #001431 100%);
+  --retro-app-content: linear-gradient(180deg, #FFFFFF 0%, #F5F5F5 100%);
+  --retro-header-text: #FFFF00;
+  --retro-button-primary: #008000;
+  --retro-button-secondary: #4169E1;
+  --retro-border-dark: #001431;
+  --retro-border-light: #C0C0C0;
+}
+
+/* ============================= */
+/* THEME APPLICATION UTILITIES */
+/* ============================= */
+
+/* Apply theme variables to existing classes */
+.retro-theme-blackberry .retro-device {
+  background: var(--retro-device-bg);
+  border-color: var(--retro-border-dark);
+}
+
+.retro-theme-blackberry .retro-screen {
+  background: var(--retro-screen-bg);
+  border-color: var(--retro-border-dark);
+}
+
+.retro-theme-blackberry .palm-app-window {
+  background: var(--retro-app-window);
+  border-color: var(--retro-border-dark);
+}
+
+.retro-theme-blackberry .palm-app-content {
+  background: var(--retro-app-content);
+}
+
+.retro-theme-blackberry .palm-app-title {
+  color: var(--retro-header-text);
+}
+
+.retro-theme-blackberry .retro-button-primary {
+  background: linear-gradient(145deg, var(--retro-button-primary), #7A9E0F);
+  border-color: var(--retro-text-dark);
+  color: var(--retro-text-primary);
+}
+
+.retro-theme-blackberry .retro-button-secondary {
+  background: linear-gradient(145deg, var(--retro-button-secondary), #006666);
+  border-color: var(--retro-text-darker);
+  color: var(--retro-text-primary);
+}

@@ -1,0 +1,7 @@
+/* Tailwind CSS - Base, Components, Utilities */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Import retro design system */
+@import '../styles/retro.css';
