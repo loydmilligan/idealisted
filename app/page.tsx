@@ -14,6 +14,7 @@ import { RetroIcon } from '@/components/ui/RetroIcon'
 import { AISuggestionPanel } from '@/components/ui/AISuggestionPanel'
 import { getStoredTheme, getThemeById, applyTheme } from '@/lib/themes'
 import { noteTemplates, type NoteSubtype } from '@/lib/note-templates'
+import { getQuickAddButtonColor } from '@/lib/entity-colors'
 import Link from 'next/link'
 
 export default function Home() {
@@ -26,7 +27,7 @@ export default function Home() {
   const [editText, setEditText] = useState('')
   const [aiSuggestion, setAiSuggestion] = useState<AISuggestion | null>(null)
   const [isAiLoading, setIsAiLoading] = useState(false)
-  const [inboxTab, setInboxTab] = useState<'unparsed' | 'readyToConvert'>('unparsed')
+  const [inboxTab, setInboxTab] = useState<'unsorted' | 'readyToConvert'>('unsorted')
   const [notesDropdownOpen, setNotesDropdownOpen] = useState(false)
 
   // Load data from API
@@ -599,6 +600,7 @@ export default function Home() {
                     className="text-xs"
                     title="Quick add task"
                     disabled={!captureText.trim()}
+                    style={{ borderColor: getQuickAddButtonColor('task'), color: getQuickAddButtonColor('task') }}
                   >
                     <RetroIcon type="task" size="sm" />
                     Task
@@ -627,6 +629,7 @@ export default function Home() {
                     className="text-xs"
                     title="Quick add project"
                     disabled={!captureText.trim()}
+                    style={{ borderColor: getQuickAddButtonColor('project'), color: getQuickAddButtonColor('project') }}
                   >
                     <RetroIcon type="project" size="sm" />
                     Project
@@ -655,6 +658,7 @@ export default function Home() {
                     className="text-xs"
                     title="Quick add list"
                     disabled={!captureText.trim()}
+                    style={{ borderColor: getQuickAddButtonColor('list'), color: getQuickAddButtonColor('list') }}
                   >
                     <RetroIcon type="list" size="sm" />
                     List
@@ -672,6 +676,7 @@ export default function Home() {
                       className="text-xs w-full"
                       title="Quick add note"
                       disabled={!captureText.trim()}
+                      style={{ borderColor: getQuickAddButtonColor('note'), color: getQuickAddButtonColor('note') }}
                     >
                       <RetroIcon type="note" size="sm" />
                       Notes
@@ -718,7 +723,7 @@ export default function Home() {
 
               {(() => {
                 const allIdeas = items.filter(i => i.type === 'idea')
-                const unparsedIdeas = allIdeas.filter(i => !i.parsed)
+                const unsortedIdeas = allIdeas.filter(i => !i.parsed)
                 const readyToConvertIdeas = allIdeas.filter(i => i.parsed)
 
                 return (
@@ -745,14 +750,14 @@ export default function Home() {
                     {/* Two-tab system */}
                     <div className="flex gap-2 border-b border-primary pb-2">
                       <button
-                        onClick={() => setInboxTab('unparsed')}
+                        onClick={() => setInboxTab('unsorted')}
                         className={`px-3 py-1 text-xs font-bold uppercase tracking-wide rounded ${
-                          inboxTab === 'unparsed'
+                          inboxTab === 'unsorted'
                             ? 'bg-yellow-500 text-black'
                             : 'bg-opacity-20 bg-primary opacity-70 hover:opacity-100'
                         }`}
                       >
-                        Unparsed ({unparsedIdeas.length})
+                        Unsorted ({unsortedIdeas.length})
                       </button>
                       <button
                         onClick={() => setInboxTab('readyToConvert')}
@@ -766,10 +771,10 @@ export default function Home() {
                       </button>
                     </div>
 
-                    {/* Unparsed Tab */}
-                    {inboxTab === 'unparsed' && (
+                    {/* Unsorted Tab */}
+                    {inboxTab === 'unsorted' && (
                       <div className="space-y-2 max-h-80 overflow-y-auto palm-scrollbar">
-                        {unparsedIdeas.map(item => (
+                        {unsortedIdeas.map(item => (
                           <RetroCard key={item.id} className="palm-list-item">
                             <div className="flex items-start justify-between w-full">
                               <div className="flex-1">
@@ -834,9 +839,9 @@ export default function Home() {
                             </div>
                           </RetroCard>
                         ))}
-                        {unparsedIdeas.length === 0 && (
+                        {unsortedIdeas.length === 0 && (
                           <div className="text-center py-8 text-sm opacity-70">
-                            No unparsed ideas. Great job keeping up!
+                            No unsorted ideas. Great job keeping up!
                           </div>
                         )}
                       </div>
