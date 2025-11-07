@@ -218,6 +218,8 @@ export interface CreateItemRequest {
 export interface UpdateItemRequest extends Partial<CreateItemRequest> {
   id: string
   archived?: boolean
+  parsed?: boolean
+  entity_type?: 'task' | 'note' | 'list' | 'project'
   todo?: Omit<Todo, 'id' | 'item_id'>
 }
 

@@ -12,6 +12,10 @@ IdeaListed is a Next.js-based idea capture and task management application with 
 # Development server
 npm run dev           # Start Next.js dev server on http://localhost:3000
 
+# IMPORTANT: Horizontal Workflow Port Range
+# This worktree uses ports 3300-3310 to avoid conflicts with other parallel implementations
+# Use: PORT=3300 npm run dev (or 3301, 3302, etc.)
+
 # Production build
 npm run build         # Build for production
 npm run start         # Start production server

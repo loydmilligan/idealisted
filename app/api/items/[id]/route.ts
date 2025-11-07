@@ -142,8 +142,8 @@ export async function PUT(
 
     // Start transaction
     const updateItem = db.prepare(`
-      UPDATE items 
-      SET text = ?, type = ?, updated_at = ?, metadata = ?, tags = ?, archived = ?
+      UPDATE items
+      SET text = ?, type = ?, updated_at = ?, metadata = ?, tags = ?, archived = ?, parsed = ?, entity_type = ?
       WHERE id = ?
     `)
 
@@ -157,6 +157,8 @@ export async function PUT(
       metadataJson,
       tagsJson,
       body.archived !== undefined ? (body.archived ? 1 : 0) : undefined,
+      body.parsed !== undefined ? (body.parsed ? 1 : 0) : undefined,
+      body.entity_type || null,
       params.id
     )
 

@@ -1,46 +1,45 @@
 /**
- * Entity Color System
+ * Entity Color System - Palm Pilot Modern Design
  *
  * Provides consistent color utilities for entity types with state-based coloring:
- * - Unsorted ideas: Grey-blue
- * - Sorted ideas: Pastel colors
- * - Converted entities: Bright colors
+ * - Unsorted ideas: Grey
+ * - Ready to convert (sorted): Muted entity color (40% opacity)
+ * - Converted entities: Bright entity color
  */
 
 export type EntityType = 'task' | 'project' | 'list' | 'note' | 'idea'
-export type ColorState = 'bright' | 'pastel' | 'grey'
+export type ColorState = 'bright' | 'muted' | 'grey'
 
-interface EntityColors {
-  bright: string
-  pastel: string
-}
-
-const ENTITY_COLORS: Record<Exclude<EntityType, 'idea'>, EntityColors> = {
-  task: {
-    bright: '#845ef7',  // Purple/Violet
-    pastel: '#d0bfff'
-  },
-  project: {
-    bright: '#4dabf7',  // Blue
-    pastel: '#a5d8ff'
-  },
-  list: {
-    bright: '#51cf66',  // Green
-    pastel: '#b2f2bb'
-  },
-  note: {
-    bright: '#ffd43b',  // Yellow/Gold
-    pastel: '#ffec99'
-  }
+// Palm Pilot Modern Color Palette
+const ENTITY_COLORS: Record<Exclude<EntityType, 'idea'>, string> = {
+  task: '#4A90E2',     // Blue
+  note: '#F5A623',     // Yellow/Orange
+  project: '#7ED321',  // Green
+  list: '#BD10E0',     // Purple
 }
 
 const IDEA_GREY = '#868e96'
+export const AI_TINGE_COLOR = '#6EC5FF'
+export const AI_TINGE_OPACITY = 0.3
+export const MUTED_OPACITY = 0.4
+
+// Design System Colors
+export const COLORS = {
+  background: '#FFFFFF',
+  surface: '#F8F9FA',
+  textPrimary: '#212529',
+  textSecondary: '#6C757D',
+  border: '#DEE2E6',
+  delete: '#E74C3C',
+  badge: '#DC3545',
+  aiTinge: AI_TINGE_COLOR,
+}
 
 /**
  * Get the color for an entity type based on its state
  * @param entityType - The type of entity
- * @param state - The color state (bright for converted, pastel for sorted, grey for unsorted)
- * @returns Hex color string
+ * @param state - The color state (bright for converted, muted for ready, grey for unsorted)
+ * @returns Hex or RGBA color string
  */
 export function getEntityColor(
   entityType: EntityType | null | undefined,
@@ -54,8 +53,14 @@ export function getEntityColor(
     return IDEA_GREY
   }
 
-  const colors = ENTITY_COLORS[entityType]
-  return colors ? colors[state] : IDEA_GREY
+  const color = ENTITY_COLORS[entityType]
+  if (!color) return IDEA_GREY
+
+  if (state === 'muted') {
+    return hexToRgba(color, MUTED_OPACITY)
+  }
+
+  return color
 }
 
 /**
@@ -115,12 +120,39 @@ function hexToRgba(hex: string, alpha: number): string {
 
 /**
  * Get color state based on item properties
- * @param sorted - Whether the item has been sorted
+ * @param sorted - Whether the item has been sorted/ready to convert
  * @param converted - Whether the item has been converted to an entity
  * @returns The appropriate color state
  */
 export function getItemColorState(sorted: boolean, converted: boolean): ColorState {
   if (converted) return 'bright'
-  if (sorted) return 'pastel'
+  if (sorted) return 'muted'
   return 'grey'
+}
+
+/**
+ * Get entity color with custom opacity
+ * @param entityType - The type of entity
+ * @param opacity - Opacity value (0-1)
+ * @returns RGBA color string
+ */
+export function getEntityColorWithOpacity(
+  entityType: EntityType,
+  opacity: number
+): string {
+  if (entityType === 'idea') {
+    return hexToRgba(IDEA_GREY, opacity)
+  }
+
+  const color = ENTITY_COLORS[entityType]
+  return color ? hexToRgba(color, opacity) : hexToRgba(IDEA_GREY, opacity)
+}
+
+/**
+ * Get muted entity color (40% opacity)
+ * @param entityType - The type of entity
+ * @returns RGBA color string
+ */
+export function getMutedEntityColor(entityType: EntityType): string {
+  return getEntityColorWithOpacity(entityType, MUTED_OPACITY)
 }
