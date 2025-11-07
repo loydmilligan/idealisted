@@ -40,39 +40,37 @@ export const ReadyInboxScreen: React.FC<ReadyInboxScreenProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`flex flex-col h-full pb-20 ${className}`}>
-      {/* Screen Title with Count */}
-      <div className="px-4 py-6">
-        <h1 className="text-screen-title font-bold text-[var(--text-primary)]">
-          Ready ({items.length})
+    <div className={`flex flex-col h-full ${className}`}>
+      {/* Header Section */}
+      <div className="retro-screen-header">
+        <h1 className="retro-header">
+          READY ({items.length})
         </h1>
       </div>
 
-      {/* List Container */}
-      <div className="flex-1 overflow-y-auto px-4">
+      {/* Content Area */}
+      <div className="retro-screen-content">
         {items.length === 0 ? (
           // Empty State
-          <div className="flex flex-col items-center justify-center h-full py-12">
-            <div className="text-6xl mb-4 opacity-30">✓</div>
-            <h2 className="text-card-header font-semibold text-secondary mb-2">
+          <div className="retro-empty">
+            <div className="retro-empty-icon">✓</div>
+            <h2 className="retro-empty-title">
               No sorted items
             </h2>
-            <p className="text-secondary text-sm">
+            <p className="retro-empty-message">
               Categorize some ideas first!
             </p>
           </div>
         ) : (
           // Items List
-          <div className="space-y-3 pb-4">
+          <div className="space-y-3">
             {items.map((item) => {
-              const entityColor = getEntityColor(item.entityType, 'bright')
-
               return (
                 <SwipeableCard
                   key={item.id}
                   onSwipeLeft={() => onDelete(item.id)}
                   onSwipeRight={() => onConvert(item.id)}
-                  rightActionColor={entityColor}
+                  rightActionEntityType={item.entityType}
                   rightActionIcon="→"
                   leftActionIcon="🗑️"
                 >

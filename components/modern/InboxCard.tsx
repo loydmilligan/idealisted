@@ -2,12 +2,11 @@
  * Inbox Card Component (Unsorted Items)
  *
  * Card design for unsorted/uncategorized ideas:
- * - White background with border
+ * - Retro Palm Pilot card styling
  * - No colored stripe (not yet categorized)
  * - Action buttons: Task, Note▾, Project, List, AI▾
  * - Timestamp below text
- * - 12pt margin bottom
- * - 16pt padding
+ * - Retro flat rectangular design
  */
 
 'use client'
@@ -41,11 +40,11 @@ export const InboxCard: React.FC<InboxCardProps> = ({
   const timestamp = typeof createdAt === 'string' ? new Date(createdAt) : createdAt
   const timeAgo = formatDistanceToNow(timestamp, { addSuffix: true })
 
-  const entityButtons: Array<{ type: Exclude<EntityType, 'idea'>; label: string; color: string }> = [
-    { type: 'task', label: 'Task', color: '#4A90E2' },
-    { type: 'note', label: 'Note ▾', color: '#F5A623' },
-    { type: 'project', label: 'Project', color: '#7ED321' },
-    { type: 'list', label: 'List', color: '#BD10E0' },
+  const entityButtons: Array<{ type: Exclude<EntityType, 'idea'>; label: string }> = [
+    { type: 'task', label: 'Task' },
+    { type: 'note', label: 'Note ▾' },
+    { type: 'project', label: 'Project' },
+    { type: 'list', label: 'List' },
   ]
 
   const handleEntityClick = (type: Exclude<EntityType, 'idea'>) => {
@@ -57,27 +56,20 @@ export const InboxCard: React.FC<InboxCardProps> = ({
   }
 
   return (
-    <div
-      className={`modern-card relative bg-white dark:bg-[#2a2a2a] border border-[var(--border-color)] rounded-xl p-4 mb-3 ${className}`}
-    >
+    <div className={`retro-card relative mb-3 ${className}`}>
       {/* Idea Text */}
-      <p className="text-body mb-2 leading-normal">{text}</p>
+      <p className="retro-item-title mb-2">{text}</p>
 
       {/* Timestamp */}
-      <p className="text-secondary text-sm mb-3">{timeAgo}</p>
+      <p className="retro-timestamp mb-3">{timeAgo}</p>
 
       {/* Action Buttons Row */}
-      <div className="flex flex-wrap gap-2">
+      <div className="retro-action-row">
         {entityButtons.map((btn) => (
           <button
             key={btn.type}
             onClick={() => handleEntityClick(btn.type)}
-            className="modern-button h-11 px-3 text-sm font-semibold rounded-lg transition-all"
-            style={{
-              borderColor: btn.color,
-              color: btn.color,
-              backgroundColor: 'transparent',
-            }}
+            className="retro-btn retro-btn-secondary retro-btn-sm"
           >
             {btn.label}
           </button>
@@ -86,12 +78,7 @@ export const InboxCard: React.FC<InboxCardProps> = ({
         {/* AI Dropdown Button */}
         <button
           onClick={() => setShowAIMenu(!showAIMenu)}
-          className="modern-button h-11 px-3 text-sm font-semibold rounded-lg"
-          style={{
-            borderColor: '#6EC5FF',
-            color: '#6EC5FF',
-            backgroundColor: 'transparent',
-          }}
+          className="retro-btn retro-btn-secondary retro-btn-sm"
         >
           AI ▾
         </button>
@@ -99,7 +86,7 @@ export const InboxCard: React.FC<InboxCardProps> = ({
 
       {/* Note Template Menu (if shown) */}
       {showNoteMenu && (
-        <div className="absolute z-10 mt-2 w-36 bg-white dark:bg-[#2a2a2a] rounded-lg shadow-lg border border-[var(--border-color)]">
+        <div className="retro-card absolute z-10 mt-2 w-36">
           {['Note', 'Research', 'Video', 'Link', 'File', 'Meeting'].map((template) => (
             <button
               key={template}
@@ -107,7 +94,7 @@ export const InboxCard: React.FC<InboxCardProps> = ({
                 onSort('note')
                 setShowNoteMenu(false)
               }}
-              className="w-full h-11 px-4 text-left text-sm hover:bg-[var(--bg-surface)] first:rounded-t-lg last:rounded-b-lg"
+              className="retro-btn retro-btn-secondary w-full text-left"
             >
               {template}
             </button>
@@ -117,13 +104,13 @@ export const InboxCard: React.FC<InboxCardProps> = ({
 
       {/* AI Action Menu (if shown) */}
       {showAIMenu && (
-        <div className="absolute z-10 mt-2 w-40 bg-white dark:bg-[#2a2a2a] rounded-lg shadow-lg border border-[var(--border-color)]">
+        <div className="retro-card absolute z-10 mt-2 w-40">
           <button
             onClick={() => {
               onAIAction('sort')
               setShowAIMenu(false)
             }}
-            className="w-full h-11 px-4 text-left text-sm hover:bg-[var(--bg-surface)] rounded-t-lg"
+            className="retro-btn retro-btn-secondary w-full text-left"
           >
             Sort
           </button>
@@ -132,7 +119,7 @@ export const InboxCard: React.FC<InboxCardProps> = ({
               onAIAction('convert')
               setShowAIMenu(false)
             }}
-            className="w-full h-11 px-4 text-left text-sm hover:bg-[var(--bg-surface)]"
+            className="retro-btn retro-btn-secondary w-full text-left"
           >
             Convert
           </button>
@@ -141,7 +128,7 @@ export const InboxCard: React.FC<InboxCardProps> = ({
               onAIAction('full')
               setShowAIMenu(false)
             }}
-            className="w-full h-11 px-4 text-left text-sm hover:bg-[var(--bg-surface)] rounded-b-lg"
+            className="retro-btn retro-btn-secondary w-full text-left"
           >
             Full
           </button>

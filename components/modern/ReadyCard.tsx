@@ -2,19 +2,18 @@
  * Ready Card Component (Sorted/Ready to Convert Items)
  *
  * Card design for sorted ideas ready to convert:
- * - Entity color at 10% opacity background
- * - 4pt colored stripe on left (entity color at 40% opacity)
- * - Entity type label below text
- * - Convert and AI▾ buttons (right-aligned)
+ * - Retro Palm Pilot card styling
+ * - Entity type badge with retro entity accent colors
+ * - Convert button (primary beveled)
+ * - AI▾ button (secondary flat)
  * - Timestamp
- * - 12pt margin bottom
- * - 16pt padding
+ * - Retro flat rectangular design
  */
 
 'use client'
 
 import React, { useState } from 'react'
-import { EntityType, getEntityColor, getEntityColorWithOpacity } from '@/lib/entity-colors'
+import { EntityType } from '@/lib/entity-colors'
 import { formatDistanceToNow } from 'date-fns'
 
 interface ReadyCardProps {
@@ -41,101 +40,67 @@ export const ReadyCard: React.FC<ReadyCardProps> = ({
   const timestamp = typeof createdAt === 'string' ? new Date(createdAt) : createdAt
   const timeAgo = formatDistanceToNow(timestamp, { addSuffix: true })
 
-  // Get entity colors
-  const entityColor = getEntityColor(entityType, 'bright')
-  const mutedColor = getEntityColorWithOpacity(entityType, 0.4)
-  const backgroundColor = getEntityColorWithOpacity(entityType, 0.1)
-
   // Capitalize entity type for display
   const entityLabel = entityType.charAt(0).toUpperCase() + entityType.slice(1)
 
+  // Get entity-specific badge class
+  const badgeClass = `retro-entity-badge retro-entity-badge-${entityType}`
+
   return (
-    <div
-      className={`modern-card relative rounded-xl p-4 mb-3 ${className}`}
-      style={{
-        backgroundColor: backgroundColor,
-        border: `1px solid ${mutedColor}`,
-      }}
-    >
-      {/* 4pt Colored Stripe */}
-      <div
-        className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl"
-        style={{
-          backgroundColor: mutedColor,
-        }}
-      />
+    <div className={`retro-card relative mb-3 ${className}`}>
+      {/* Idea Text */}
+      <p className="retro-item-title mb-2">{text}</p>
 
-      {/* Content with left padding for stripe */}
-      <div className="pl-2">
-        {/* Idea Text */}
-        <p className="text-body mb-1 leading-normal">{text}</p>
+      {/* Entity Type Badge */}
+      <div className={`${badgeClass} mb-2`}>
+        {entityLabel}
+      </div>
 
-        {/* Entity Type Label */}
-        <p
-          className="text-sm font-semibold mb-1"
-          style={{
-            color: getEntityColorWithOpacity(entityType, 0.7),
-          }}
+      {/* Timestamp */}
+      <p className="retro-timestamp mb-3">{timeAgo}</p>
+
+      {/* Action Buttons (Right-aligned) */}
+      <div className="flex justify-end gap-2">
+        {/* Convert Button - Primary (beveled) */}
+        <button
+          onClick={onConvert}
+          className="retro-btn retro-btn-primary"
         >
-          {entityLabel}
-        </p>
+          Convert
+        </button>
 
-        {/* Timestamp */}
-        <p className="text-secondary text-sm mb-3">{timeAgo}</p>
+        {/* AI Dropdown Button - Secondary (flat) */}
+        <button
+          onClick={() => setShowAIMenu(!showAIMenu)}
+          className="retro-btn retro-btn-secondary"
+        >
+          AI ▾
+        </button>
+      </div>
 
-        {/* Action Buttons (Right-aligned) */}
-        <div className="flex justify-end gap-2">
-          {/* Convert Button */}
+      {/* AI Action Menu (if shown) */}
+      {showAIMenu && (
+        <div className="retro-card absolute z-10 mt-2 right-0 w-40">
           <button
-            onClick={onConvert}
-            className="modern-button h-11 px-6 text-sm font-semibold rounded-lg"
-            style={{
-              borderColor: entityColor,
-              color: entityColor,
-              backgroundColor: 'white',
+            onClick={() => {
+              onAIAction('convert')
+              setShowAIMenu(false)
             }}
+            className="retro-btn retro-btn-secondary w-full text-left"
           >
             Convert
           </button>
-
-          {/* AI Dropdown Button */}
           <button
-            onClick={() => setShowAIMenu(!showAIMenu)}
-            className="modern-button h-11 px-3 text-sm font-semibold rounded-lg"
-            style={{
-              borderColor: '#6EC5FF',
-              color: '#6EC5FF',
-              backgroundColor: 'white',
+            onClick={() => {
+              onAIAction('full')
+              setShowAIMenu(false)
             }}
+            className="retro-btn retro-btn-secondary w-full text-left"
           >
-            AI ▾
+            Full
           </button>
         </div>
-
-        {/* AI Action Menu (if shown) */}
-        {showAIMenu && (
-          <div className="absolute right-4 bottom-16 z-10 w-40 bg-white dark:bg-[#2a2a2a] rounded-lg shadow-lg border border-[var(--border-color)]">
-            <button
-              onClick={() => {
-                onAIAction('convert')
-                setShowAIMenu(false)
-              }}
-              className="w-full h-11 px-4 text-left text-sm hover:bg-[var(--bg-surface)] rounded-t-lg"
-            >
-              Convert
-            </button>
-            <button
-              onClick={() => {
-                onAIAction('full')
-                setShowAIMenu(false)
-              }}
-              className="w-full h-11 px-4 text-left text-sm hover:bg-[var(--bg-surface)] rounded-b-lg"
-            >
-              Full
-            </button>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   )
 }

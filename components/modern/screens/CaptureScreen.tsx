@@ -1,11 +1,11 @@
 /**
- * Capture Screen Component
+ * Capture Screen Component - Retro Palm Pilot Style
  *
  * Main idea capture interface:
- * - Centered "Idealist" title
- * - Multiline auto-expanding textarea (96pt min, 40vh max)
- * - Action buttons row: ✓ Unsorted, Task, Note▾, Project, List, AI▾
- * - Recently Captured section (last 5 items with timestamps)
+ * - Retro header with "IDEALIST V1.0" and subtitle
+ * - Retro-styled textarea (monospace placeholder, inset border)
+ * - Action buttons row: ✓ Unsorted (beveled primary), others (flat secondary)
+ * - Recently Captured section with retro cards and entity color borders
  * - Auto-focus on mount
  * - Clear and refocus after successful capture
  */
@@ -68,46 +68,38 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
   const entityButtons: Array<{
     type: Exclude<EntityType, 'idea'> | null
     label: string
-    color: string
     hasDropdown?: boolean
   }> = [
-    { type: null, label: '✓ Unsorted', color: '#868e96' },
-    { type: 'task', label: 'Task', color: '#4A90E2' },
-    { type: 'note', label: 'Note ▾', color: '#F5A623', hasDropdown: true },
-    { type: 'project', label: 'Project', color: '#7ED321' },
-    { type: 'list', label: 'List', color: '#BD10E0' },
+    { type: null, label: '✓ Unsorted' },
+    { type: 'task', label: 'Task' },
+    { type: 'note', label: 'Note ▾', hasDropdown: true },
+    { type: 'project', label: 'Project' },
+    { type: 'list', label: 'List' },
   ]
-
-  const getEntityColor = (item: RecentItem): string => {
-    if (!item.entityType) return '#868e96'
-    const colors: Record<string, string> = {
-      task: '#4A90E2',
-      note: '#F5A623',
-      project: '#7ED321',
-      list: '#BD10E0',
-    }
-    return colors[item.entityType] || '#868e96'
-  }
 
   return (
     <div className={`flex flex-col h-full pb-20 ${className}`}>
-      {/* Screen Title */}
-      <div className="text-center py-6">
-        <h1 className="text-screen-title font-bold text-[var(--text-primary)]">
-          Idealist
+      {/* Screen Header */}
+      <div className="retro-screen-header text-center">
+        <h1 className="retro-header retro-header-lg">
+          IDEALIST V1.0
         </h1>
+        <p className="retro-header-sm" style={{ marginTop: '4px', opacity: 0.7 }}>
+          IDEAS • INSTANT SORT • ORGANIZE
+        </p>
       </div>
 
       {/* Input Container */}
-      <div className="px-4 mb-4">
+      <div className="px-4 mb-4" style={{ paddingTop: '16px' }}>
         <textarea
           ref={textareaRef}
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           placeholder="Type your idea..."
-          className="w-full min-h-[96px] max-h-[40vh] px-3 py-3 border border-[var(--border-color)] rounded-lg bg-white dark:bg-[#2a2a2a] text-[var(--text-primary)] text-body resize-none focus:outline-none focus:border-[#4A90E2] transition-colors"
+          className="retro-textarea"
           style={{
-            fontFamily: 'var(--font-system)',
+            minHeight: '96px',
+            maxHeight: '40vh',
           }}
         />
       </div>
@@ -115,7 +107,7 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
       {/* Action Buttons Row */}
       <div className="px-4 mb-6">
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          {entityButtons.map((btn) => (
+          {entityButtons.map((btn, index) => (
             <button
               key={btn.label}
               onClick={() => {
@@ -126,12 +118,7 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
                 }
               }}
               disabled={!inputText.trim()}
-              className="modern-button h-11 px-4 text-sm font-semibold rounded-lg whitespace-nowrap flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{
-                borderColor: btn.color,
-                color: btn.color,
-                backgroundColor: 'transparent',
-              }}
+              className={`retro-btn ${index === 0 ? 'retro-btn-primary' : 'retro-btn-secondary'} whitespace-nowrap flex-shrink-0`}
             >
               {btn.label}
             </button>
@@ -141,12 +128,7 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
           <button
             onClick={() => setShowAIMenu(!showAIMenu)}
             disabled={!inputText.trim()}
-            className="modern-button h-11 px-4 text-sm font-semibold rounded-lg whitespace-nowrap flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{
-              borderColor: '#6EC5FF',
-              color: '#6EC5FF',
-              backgroundColor: 'transparent',
-            }}
+            className="retro-btn retro-btn-secondary whitespace-nowrap flex-shrink-0"
           >
             AI ▾
           </button>
@@ -155,15 +137,32 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
         {/* Note Template Dropdown */}
         {showNoteMenu && (
           <div className="relative mt-2">
-            <div className="absolute z-10 w-40 bg-white dark:bg-[#2a2a2a] rounded-lg shadow-lg border border-[var(--border-color)]">
-              {['Note', 'Research', 'Video', 'Link', 'File', 'Meeting'].map((template) => (
+            <div className="absolute z-10 w-40" style={{
+              background: 'var(--palm-screen-light)',
+              border: '1px solid var(--palm-border)',
+              boxShadow: '2px 2px 0 rgba(0,0,0,0.2)'
+            }}>
+              {['Note', 'Research', 'Video', 'Link', 'File', 'Meeting'].map((template, idx) => (
                 <button
                   key={template}
                   onClick={() => {
                     handleCapture('note')
                     setShowNoteMenu(false)
                   }}
-                  className="w-full h-11 px-4 text-left text-sm hover:bg-[var(--bg-surface)] first:rounded-t-lg last:rounded-b-lg"
+                  className="w-full px-4 text-left"
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '12px',
+                    textTransform: 'uppercase',
+                    height: '40px',
+                    background: 'transparent',
+                    border: 'none',
+                    borderTop: idx > 0 ? '1px solid var(--palm-border)' : 'none',
+                    color: 'var(--palm-text-dark)',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--palm-screen-base)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
                   {template}
                 </button>
@@ -175,80 +174,79 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
         {/* AI Action Dropdown */}
         {showAIMenu && (
           <div className="relative mt-2">
-            <div className="absolute z-10 w-40 bg-white dark:bg-[#2a2a2a] rounded-lg shadow-lg border border-[var(--border-color)]">
-              <button
-                onClick={() => {
-                  handleAIAction('sort')
-                  setShowAIMenu(false)
-                }}
-                className="w-full h-11 px-4 text-left text-sm hover:bg-[var(--bg-surface)] rounded-t-lg"
-              >
-                Sort
-              </button>
-              <button
-                onClick={() => {
-                  handleAIAction('convert')
-                  setShowAIMenu(false)
-                }}
-                className="w-full h-11 px-4 text-left text-sm hover:bg-[var(--bg-surface)]"
-              >
-                Convert
-              </button>
-              <button
-                onClick={() => {
-                  handleAIAction('full')
-                  setShowAIMenu(false)
-                }}
-                className="w-full h-11 px-4 text-left text-sm hover:bg-[var(--bg-surface)] rounded-b-lg"
-              >
-                Full
-              </button>
+            <div className="absolute z-10 w-40" style={{
+              background: 'var(--palm-screen-light)',
+              border: '1px solid var(--palm-border)',
+              boxShadow: '2px 2px 0 rgba(0,0,0,0.2)'
+            }}>
+              {['Sort', 'Convert', 'Full'].map((action, idx) => (
+                <button
+                  key={action}
+                  onClick={() => {
+                    handleAIAction(action.toLowerCase() as 'sort' | 'convert' | 'full')
+                    setShowAIMenu(false)
+                  }}
+                  className="w-full px-4 text-left"
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '12px',
+                    textTransform: 'uppercase',
+                    height: '40px',
+                    background: 'transparent',
+                    border: 'none',
+                    borderTop: idx > 0 ? '1px solid var(--palm-border)' : 'none',
+                    color: 'var(--palm-text-dark)',
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--palm-screen-base)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  {action}
+                </button>
+              ))}
             </div>
           </div>
         )}
       </div>
 
       {/* Divider */}
-      <div className="border-t border-[var(--border-color)] mx-4 mb-4" />
+      <hr className="retro-separator" style={{ marginLeft: '16px', marginRight: '16px' }} />
 
       {/* Recently Captured Section */}
       <div className="px-4 flex-1 overflow-y-auto">
-        <h2 className="text-secondary text-sm font-medium mb-3">
+        <h2 className="retro-header retro-header-sm" style={{ marginBottom: '12px' }}>
           Recently Captured
         </h2>
 
         {recentItems.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="text-4xl mb-2 opacity-30">📥</div>
-            <p className="text-secondary text-sm">Nothing here yet</p>
-            <p className="text-secondary text-xs opacity-60">Start capturing ideas!</p>
+          <div className="retro-empty">
+            <div className="retro-empty-icon">📥</div>
+            <p className="retro-empty-title">Nothing here yet</p>
+            <p className="retro-empty-message">Start capturing ideas!</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {recentItems.slice(0, 5).map((item, index) => {
               const timestamp = typeof item.createdAt === 'string' ? new Date(item.createdAt) : item.createdAt
               const timeAgo = formatDistanceToNow(timestamp, { addSuffix: true })
-              const color = getEntityColor(item)
+              const entityClass = item.entityType ? `retro-card-${item.entityType}` : ''
 
               return (
-                <motion.div
+                <div
                   key={item.id}
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2, delay: index * 0.05 }}
-                  className="relative bg-[var(--bg-surface)] rounded-lg p-3 cursor-pointer hover:shadow-sm transition-shadow"
+                  className={`retro-card ${entityClass}`}
+                  style={{ cursor: 'pointer' }}
                 >
-                  {/* Colored stripe */}
-                  <div
-                    className="absolute left-0 top-0 bottom-0 w-1 rounded-l-lg"
-                    style={{ backgroundColor: color }}
-                  />
-
-                  <div className="pl-2">
-                    <p className="text-sm truncate mb-1">{item.text}</p>
-                    <p className="text-xs text-secondary">{timeAgo}</p>
-                  </div>
-                </motion.div>
+                  <p className="retro-item-title" style={{
+                    marginBottom: '4px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {item.text}
+                  </p>
+                  <p className="retro-timestamp">{timeAgo}</p>
+                </div>
               )
             })}
           </div>

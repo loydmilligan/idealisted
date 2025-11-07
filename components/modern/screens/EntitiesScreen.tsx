@@ -86,15 +86,15 @@ export const EntitiesScreen: React.FC<EntitiesScreenProps> = ({
 
   const counts = getCounts()
 
-  // Get swipe action icon and color per entity type
+  // Get swipe action icon per entity type (color handled by retro classes)
   const getSwipeConfig = (entityType: Exclude<EntityType, 'idea'>) => {
-    const configs: Record<string, { icon: string; color: string }> = {
-      task: { icon: '✓', color: '#4CAF50' }, // Complete
-      note: { icon: '📦', color: '#6C757D' }, // Archive
-      project: { icon: '▶', color: '#4A90E2' }, // Mark active
-      list: { icon: '⎘', color: '#BD10E0' }, // Duplicate
+    const configs: Record<string, { icon: string }> = {
+      task: { icon: '✓' }, // Complete
+      note: { icon: '📦' }, // Archive
+      project: { icon: '▶' }, // Mark active
+      list: { icon: '⎘' }, // Duplicate
     }
-    return configs[entityType] || { icon: '✓', color: '#6C757D' }
+    return configs[entityType] || { icon: '✓' }
   }
 
   // Get empty state message
@@ -132,62 +132,45 @@ export const EntitiesScreen: React.FC<EntitiesScreenProps> = ({
   const emptyMessage = getEmptyMessage()
 
   return (
-    <div className={`flex flex-col h-full pb-20 ${className}`}>
-      {/* Screen Title */}
-      <div className="px-4 py-6">
-        <h1 className="text-screen-title font-bold text-[var(--text-primary)]">
-          Entities
-        </h1>
+    <div className={`flex flex-col h-full ${className}`}>
+      {/* Header Section */}
+      <div className="retro-screen-header">
+        <h1 className="retro-header">ENTITIES</h1>
       </div>
 
       {/* Filter Chips */}
-      <div className="px-4 mb-4">
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          {filters.map((filter) => {
-            const isActive = activeFilter === filter.id
-            const count = counts[filter.id as keyof typeof counts]
+      <div className="retro-filter-chips">
+        {filters.map((filter) => {
+          const isActive = activeFilter === filter.id
+          const count = counts[filter.id as keyof typeof counts]
 
-            return (
-              <motion.button
-                key={filter.id}
-                onClick={() => setActiveFilter(filter.id)}
-                className="h-9 px-4 rounded-full text-sm font-medium whitespace-nowrap flex-shrink-0 transition-all"
-                style={
-                  isActive
-                    ? {
-                        backgroundColor: filter.color,
-                        color: 'white',
-                        border: 'none',
-                      }
-                    : {
-                        backgroundColor: 'transparent',
-                        color: 'var(--text-secondary)',
-                        border: '1px solid var(--border-color)',
-                      }
-                }
-                whileTap={{ scale: 0.95 }}
-              >
-                {filter.label} {count > 0 && `(${count})`}
-              </motion.button>
-            )
-          })}
-        </div>
+          return (
+            <motion.button
+              key={filter.id}
+              onClick={() => setActiveFilter(filter.id)}
+              className={`retro-chip ${isActive ? 'active' : ''}`}
+              whileTap={{ scale: 0.95 }}
+            >
+              {filter.label} {count > 0 && `(${count})`}
+            </motion.button>
+          )
+        })}
       </div>
 
-      {/* List Container */}
-      <div className="flex-1 overflow-y-auto px-4">
+      {/* Content Area */}
+      <div className="retro-screen-content">
         {filteredEntities.length === 0 ? (
           // Empty State
-          <div className="flex flex-col items-center justify-center h-full py-12">
-            <div className="text-6xl mb-4 opacity-30">{emptyMessage.icon}</div>
-            <h2 className="text-card-header font-semibold text-secondary mb-2">
+          <div className="retro-empty">
+            <div className="retro-empty-icon">{emptyMessage.icon}</div>
+            <h2 className="retro-empty-title">
               {emptyMessage.title}
             </h2>
-            <p className="text-secondary text-sm">{emptyMessage.subtitle}</p>
+            <p className="retro-empty-message">{emptyMessage.subtitle}</p>
           </div>
         ) : (
           // Entities List
-          <div className="space-y-3 pb-4">
+          <div className="space-y-3">
             {filteredEntities.map((entity) => {
               const swipeConfig = getSwipeConfig(entity.entityType)
 
@@ -196,7 +179,7 @@ export const EntitiesScreen: React.FC<EntitiesScreenProps> = ({
                   key={entity.id}
                   onSwipeLeft={() => onDelete(entity.id)}
                   onSwipeRight={() => onSwipeRightAction(entity.id, entity.entityType)}
-                  rightActionColor={swipeConfig.color}
+                  rightActionEntityType={entity.entityType}
                   rightActionIcon={swipeConfig.icon}
                   leftActionIcon="🗑️"
                 >

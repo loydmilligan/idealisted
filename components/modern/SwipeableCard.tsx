@@ -2,8 +2,8 @@
  * Swipeable Card Component
  *
  * Provides swipe gestures for card interactions:
- * - Swipe Left: Delete (red background with trash icon)
- * - Swipe Right: Configurable action (entity color or AI blue)
+ * - Swipe Left: Delete (retro red-tinted green background)
+ * - Swipe Right: Configurable action (entity-specific retro colors)
  *
  * Features:
  * - Smooth gesture tracking with spring physics
@@ -11,6 +11,7 @@
  * - Completion threshold: 50% of card width
  * - Rubber-banding at limits
  * - 200ms animation on action completion
+ * - Retro Palm Pilot color scheme
  */
 
 'use client'
@@ -19,12 +20,13 @@ import React, { useRef } from 'react'
 import { motion, PanInfo, useMotionValue, useTransform } from 'framer-motion'
 
 export type SwipeAction = 'delete' | 'sort' | 'convert' | 'complete' | 'archive'
+export type EntityType = 'task' | 'note' | 'project' | 'list'
 
 interface SwipeableCardProps {
   children: React.ReactNode
   onSwipeLeft?: () => void
   onSwipeRight?: () => void
-  rightActionColor?: string
+  rightActionEntityType?: EntityType // Entity type for retro color theming
   rightActionIcon?: React.ReactNode
   leftActionIcon?: React.ReactNode
   disabled?: boolean
@@ -35,7 +37,7 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
   children,
   onSwipeLeft,
   onSwipeRight,
-  rightActionColor = '#4A90E2', // Default to task blue
+  rightActionEntityType = 'task', // Default to task
   rightActionIcon = '✓',
   leftActionIcon = '🗑️',
   disabled = false,
@@ -67,30 +69,33 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
     return <div className={className}>{children}</div>
   }
 
+  // Get retro swipe action class for entity type
+  const getRightActionClass = () => {
+    return `retro-swipe-action-bg-${rightActionEntityType}`
+  }
+
   return (
     <div ref={cardRef} className={`relative overflow-hidden ${className}`}>
-      {/* Left Reveal Background (Delete - Red) */}
+      {/* Left Reveal Background (Delete - Retro Red-tinted Green) */}
       <motion.div
-        className="absolute inset-0 flex items-center justify-end pr-6"
+        className="absolute inset-0 flex items-center justify-end pr-6 retro-swipe-delete-bg"
         style={{
-          backgroundColor: '#E74C3C',
           opacity: leftRevealOpacity,
         }}
       >
-        <span className="text-white text-2xl" role="img" aria-label="Delete">
+        <span className="text-2xl" role="img" aria-label="Delete">
           {leftActionIcon}
         </span>
       </motion.div>
 
-      {/* Right Reveal Background (Action - Entity Color or AI Blue) */}
+      {/* Right Reveal Background (Action - Entity-specific Retro Color) */}
       <motion.div
-        className="absolute inset-0 flex items-center justify-start pl-6"
+        className={`absolute inset-0 flex items-center justify-start pl-6 ${getRightActionClass()}`}
         style={{
-          backgroundColor: rightActionColor,
           opacity: rightRevealOpacity,
         }}
       >
-        <span className="text-white text-2xl" role="img" aria-label="Action">
+        <span className="text-2xl" role="img" aria-label="Action">
           {rightActionIcon}
         </span>
       </motion.div>
@@ -117,28 +122,28 @@ export const SwipePresets = {
     onSwipeLeft: (deleteFn: () => void) => deleteFn(),
     onSwipeRight: undefined,
   },
-  deleteAndSort: (deleteFn: () => void, sortFn: () => void) => ({
+  deleteAndSort: (deleteFn: () => void, sortFn: () => void, entityType: EntityType = 'task') => ({
     onSwipeLeft: deleteFn,
     onSwipeRight: sortFn,
-    rightActionColor: '#4A90E2', // Task blue
+    rightActionEntityType: entityType,
     rightActionIcon: '✓',
   }),
-  deleteAndConvert: (deleteFn: () => void, convertFn: () => void) => ({
+  deleteAndConvert: (deleteFn: () => void, convertFn: () => void, entityType: EntityType = 'project') => ({
     onSwipeLeft: deleteFn,
     onSwipeRight: convertFn,
-    rightActionColor: '#7ED321', // Project green
+    rightActionEntityType: entityType,
     rightActionIcon: '→',
   }),
-  deleteAndComplete: (deleteFn: () => void, completeFn: () => void) => ({
+  deleteAndComplete: (deleteFn: () => void, completeFn: () => void, entityType: EntityType = 'task') => ({
     onSwipeLeft: deleteFn,
     onSwipeRight: completeFn,
-    rightActionColor: '#4CAF50', // Success green
+    rightActionEntityType: entityType,
     rightActionIcon: '✓',
   }),
-  deleteAndArchive: (deleteFn: () => void, archiveFn: () => void) => ({
+  deleteAndArchive: (deleteFn: () => void, archiveFn: () => void, entityType: EntityType = 'note') => ({
     onSwipeLeft: deleteFn,
     onSwipeRight: archiveFn,
-    rightActionColor: '#6C757D', // Gray
+    rightActionEntityType: entityType,
     rightActionIcon: '📦',
   }),
 }

@@ -5,7 +5,7 @@
  * - Capture: Quick idea input
  * - Unsorted: Uncategorized ideas
  * - Ready: Sorted ideas ready to convert
- * - Entities: All converted entities with filters
+ * - Files: All converted entities with filters
  */
 
 'use client'
@@ -82,8 +82,8 @@ export default function HomePage() {
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 5)
 
-  // Convert items to entities for Entities screen
-  const entities = items
+  // Convert items to files for Files screen
+  const files = items
     .filter(i => i.type !== 'idea')
     .map(i => ({
       id: i.id,
@@ -373,9 +373,9 @@ export default function HomePage() {
           />
         )}
 
-        {activeTab === 'entities' && (
+        {activeTab === 'files' && (
           <EntitiesScreen
-            entities={entities}
+            entities={files}
             onEntityTap={handleEntityTap}
             onDelete={handleDelete}
             onSwipeRightAction={handleSwipeRightAction}

@@ -41,47 +41,38 @@ export const UnsortedInboxScreen: React.FC<UnsortedInboxScreenProps> = ({
   defaultSwipeAction = 'task',
   className = '',
 }) => {
-  const getSwipeActionColor = (): string => {
-    const colors: Record<string, string> = {
-      task: '#4A90E2',
-      note: '#F5A623',
-      project: '#7ED321',
-      list: '#BD10E0',
-    }
-    return colors[defaultSwipeAction] || '#4A90E2'
-  }
 
   return (
-    <div className={`flex flex-col h-full pb-20 ${className}`}>
-      {/* Screen Title with Count */}
-      <div className="px-4 py-6">
-        <h1 className="text-screen-title font-bold text-[var(--text-primary)]">
-          Unsorted ({items.length})
+    <div className={`flex flex-col h-full ${className}`}>
+      {/* Header Section */}
+      <div className="retro-screen-header">
+        <h1 className="retro-header">
+          UNSORTED ({items.length})
         </h1>
       </div>
 
-      {/* List Container */}
-      <div className="flex-1 overflow-y-auto px-4">
+      {/* Content Area */}
+      <div className="retro-screen-content">
         {items.length === 0 ? (
           // Empty State
-          <div className="flex flex-col items-center justify-center h-full py-12">
-            <div className="text-6xl mb-4 opacity-30">✓</div>
-            <h2 className="text-card-header font-semibold text-secondary mb-2">
+          <div className="retro-empty">
+            <div className="retro-empty-icon">✓</div>
+            <h2 className="retro-empty-title">
               All caught up!
             </h2>
-            <p className="text-secondary text-sm">
+            <p className="retro-empty-message">
               No items to process
             </p>
           </div>
         ) : (
           // Items List
-          <div className="space-y-3 pb-4">
+          <div className="space-y-3">
             {items.map((item) => (
               <SwipeableCard
                 key={item.id}
                 onSwipeLeft={() => onDelete(item.id)}
                 onSwipeRight={() => onSort(item.id, defaultSwipeAction)}
-                rightActionColor={getSwipeActionColor()}
+                rightActionEntityType={defaultSwipeAction}
                 rightActionIcon="✓"
                 leftActionIcon="🗑️"
               >
