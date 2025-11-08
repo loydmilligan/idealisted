@@ -19,6 +19,7 @@ import { UnsortedInboxScreen } from '@/components/modern/screens/UnsortedInboxSc
 import { ReadyInboxScreen } from '@/components/modern/screens/ReadyInboxScreen'
 import { EntitiesScreen } from '@/components/modern/screens/EntitiesScreen'
 import { EntityModal, FormField } from '@/components/modern/EntityModal'
+import { SettingsModal } from '@/components/modern/SettingsModal'
 import { EntityType } from '@/lib/entity-colors'
 
 // Types
@@ -495,6 +496,12 @@ export default function HomePage() {
           )}
         </EntityModal>
       )}
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </div>
   )
 }
