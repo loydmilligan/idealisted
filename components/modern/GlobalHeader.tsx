@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Settings } from 'lucide-react'
+import { GridLogo } from './GridLogo'
 
 interface GlobalHeaderProps {
   activeTab: 'capture' | 'unsorted' | 'ready' | 'files'
@@ -64,12 +65,7 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
           <button className="retro-settings-btn" onClick={onSettingsClick}>
             <Settings size={18} />
           </button>
-          <div className="retro-grid-logo">
-            <div className="grid-square" />
-            <div className="grid-square" />
-            <div className="grid-square" />
-            <div className="grid-square" />
-          </div>
+          <GridLogo />
         </div>
       </div>
 
