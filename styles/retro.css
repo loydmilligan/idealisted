@@ -1045,3 +1045,23 @@ body {
   margin-bottom: 8px;
   cursor: pointer;
 }
+
+.retro-message {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 8px 12px;
+  margin: 12px 0;
+  background: var(--palm-screen-light);
+  border: 1px solid var(--palm-border-light);
+  border-radius: 2px;
+}
+
+.retro-button-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.retro-button-row .retro-btn {
+  flex: 1;
+}

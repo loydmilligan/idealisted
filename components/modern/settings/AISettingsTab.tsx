@@ -1,12 +1,196 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
+import { AIConfig } from '@/types'
 
 export const AISettingsTab: React.FC = () => {
+  const [config, setConfig] = useState<AIConfig>({
+    openrouterApiKey: '',
+    freeModel: 'meta-llama/llama-3.1-8b-instruct:free',
+    paidModel: 'anthropic/claude-3.5-sonnet',
+    usePaidModel: false,
+    systemPrompt: 'You are an intelligent assistant for IdeaListed, a task management app. Help users capture, organize, and process their ideas efficiently.',
+    temperature: 0.7,
+    maxTokens: 2000,
+  })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    loadSettings()
+  }, [])
+
+  const loadSettings = async () => {
+    try {
+      const response = await fetch('/api/settings')
+      const data = await response.json()
+      if (data.settings?.ai_config) {
+        setConfig(data.settings.ai_config)
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    setMessage('')
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ai_config: config }),
+      })
+
+      if (response.ok) {
+        setMessage('✓ Settings saved successfully')
+      } else {
+        setMessage('✗ Failed to save settings')
+      }
+    } catch (error) {
+      setMessage('✗ Error saving settings')
+    } finally {
+      setSaving(false)
+      setTimeout(() => setMessage(''), 3000)
+    }
+  }
+
+  const handleTest = async () => {
+    setTesting(true)
+    setMessage('')
+    try {
+      const response = await fetch('/api/ai/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: 'Test AI connection',
+          targetType: 'task',
+        }),
+      })
+
+      if (response.ok) {
+        setMessage('✓ AI connection working')
+      } else {
+        setMessage('✗ AI connection failed')
+      }
+    } catch (error) {
+      setMessage('✗ AI test error')
+    } finally {
+      setTesting(false)
+      setTimeout(() => setMessage(''), 3000)
+    }
+  }
+
+  if (loading) {
+    return <div className="retro-text-secondary">Loading...</div>
+  }
+
   return (
     <div>
       <h3 className="retro-section-title">AI CONFIGURATION</h3>
-      <p className="retro-text-secondary">AI settings coming next...</p>
+
+      <div className="retro-form-group">
+        <label className="retro-form-label">OpenRouter API Key</label>
+        <input
+          type="password"
+          className="retro-input"
+          value={config.openrouterApiKey}
+          onChange={(e) => setConfig({ ...config, openrouterApiKey: e.target.value })}
+          placeholder="sk-or-v1-..."
+        />
+      </div>
+
+      <div className="retro-form-group">
+        <label className="retro-form-label">Free Model</label>
+        <input
+          type="text"
+          className="retro-input"
+          value={config.freeModel}
+          onChange={(e) => setConfig({ ...config, freeModel: e.target.value })}
+        />
+      </div>
+
+      <div className="retro-form-group">
+        <label className="retro-form-label">Paid Model</label>
+        <input
+          type="text"
+          className="retro-input"
+          value={config.paidModel}
+          onChange={(e) => setConfig({ ...config, paidModel: e.target.value })}
+        />
+      </div>
+
+      <div className="retro-form-group">
+        <label className="retro-checkbox-label">
+          <input
+            type="checkbox"
+            className="retro-checkbox"
+            checked={config.usePaidModel}
+            onChange={(e) => setConfig({ ...config, usePaidModel: e.target.checked })}
+          />
+          Use Paid Model (Default)
+        </label>
+      </div>
+
+      <div className="retro-form-group">
+        <label className="retro-form-label">Temperature: {config.temperature}</label>
+        <input
+          type="range"
+          min="0"
+          max="2"
+          step="0.1"
+          value={config.temperature}
+          onChange={(e) => setConfig({ ...config, temperature: parseFloat(e.target.value) })}
+          style={{ width: '100%' }}
+        />
+      </div>
+
+      <div className="retro-form-group">
+        <label className="retro-form-label">Max Tokens</label>
+        <input
+          type="number"
+          className="retro-input"
+          value={config.maxTokens}
+          onChange={(e) => setConfig({ ...config, maxTokens: parseInt(e.target.value) })}
+        />
+      </div>
+
+      <div className="retro-form-group">
+        <label className="retro-form-label">System Prompt</label>
+        <textarea
+          className="retro-textarea"
+          rows={4}
+          value={config.systemPrompt}
+          onChange={(e) => setConfig({ ...config, systemPrompt: e.target.value })}
+        />
+      </div>
+
+      {message && (
+        <div className="retro-message">
+          {message}
+        </div>
+      )}
+
+      <div className="retro-button-row">
+        <button
+          className="retro-btn retro-btn-secondary"
+          onClick={handleTest}
+          disabled={testing || !config.openrouterApiKey}
+        >
+          {testing ? 'TESTING...' : 'TEST AI'}
+        </button>
+        <button
+          className="retro-btn retro-btn-primary"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? 'SAVING...' : 'SAVE'}
+        </button>
+      </div>
     </div>
   )
 }
