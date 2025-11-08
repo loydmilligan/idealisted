@@ -465,6 +465,109 @@ body {
   border-color: var(--palm-border-dark);
 }
 
+/* Tag Filter Chips */
+.retro-tag-filter-section {
+  border-bottom: 1px solid var(--palm-border);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--palm-screen-base);
+}
+
+.retro-tag-filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-xs);
+}
+
+.retro-tag-filter-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--palm-text-secondary);
+  text-transform: uppercase;
+}
+
+.retro-tag-clear-btn {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--palm-text-secondary);
+  background: transparent;
+  border: 1px solid var(--palm-border);
+  padding: 2px 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.15s;
+}
+
+.retro-tag-clear-btn:hover {
+  background: var(--palm-screen-dark);
+  color: var(--palm-text-light);
+  border-color: var(--palm-border-dark);
+}
+
+.retro-tag-filter-chips {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--palm-border) transparent;
+}
+
+.retro-tag-filter-chips::-webkit-scrollbar {
+  height: 4px;
+}
+
+.retro-tag-filter-chips::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.retro-tag-filter-chips::-webkit-scrollbar-thumb {
+  background: var(--palm-border);
+  border-radius: 2px;
+}
+
+.retro-tag-chip {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: lowercase;
+  border: 1.5px solid var(--palm-border);
+  background: transparent;
+  color: var(--palm-text-dark);
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.retro-tag-chip:hover {
+  background: var(--palm-screen-light);
+}
+
+.retro-tag-chip.active {
+  border-width: 2px;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.retro-filter-results {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--palm-text-secondary);
+  padding: var(--space-xs) var(--space-md);
+  background: var(--palm-screen-light);
+  border-bottom: 1px solid var(--palm-border);
+  text-align: center;
+  letter-spacing: 0.3px;
+}
+
 /* ============================================
    10. ENTITY BADGES
    ============================================ */

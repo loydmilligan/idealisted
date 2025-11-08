@@ -5,6 +5,7 @@
  * - Screen title: "Entities"
  * - Filter chips: [All] [Tasks] [Notes] [Projects] [Lists]
  * - Horizontal scroll chips with active state
+ * - Tag filter chips with colors from tags table
  * - List of EntityCard components with swipe gestures
  * - Swipe left: Delete
  * - Swipe right: Configurable per entity type (complete, archive, etc.)
@@ -14,11 +15,18 @@
 
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { SwipeableCard } from '../SwipeableCard'
 import { EntityCard } from '../EntityCard'
 import { EntityType, getEntityColor } from '@/lib/entity-colors'
 import { motion } from 'framer-motion'
+
+interface TagInfo {
+  name: string
+  count: number
+  color: string
+  category: string
+}
 
 export type EntityFilter = 'all' | 'task' | 'note' | 'project' | 'list'
 
@@ -53,6 +61,27 @@ export const EntitiesScreen: React.FC<EntitiesScreenProps> = ({
   className = '',
 }) => {
   const [activeFilter, setActiveFilter] = useState<EntityFilter>('all')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [availableTags, setAvailableTags] = useState<TagInfo[]>([])
+  const [loadingTags, setLoadingTags] = useState(true)
+
+  // Fetch available tags from API
+  useEffect(() => {
+    const fetchTags = async () => {
+      try {
+        const response = await fetch('/api/tags')
+        const data = await response.json()
+        if (data.success) {
+          setAvailableTags(data.tags || [])
+        }
+      } catch (error) {
+        console.error('Failed to fetch tags:', error)
+      } finally {
+        setLoadingTags(false)
+      }
+    }
+    fetchTags()
+  }, [])
 
   // Filter chips configuration
   const filters: Array<{
@@ -67,10 +96,17 @@ export const EntitiesScreen: React.FC<EntitiesScreenProps> = ({
     { id: 'list', label: 'Lists', color: '#BD10E0' },
   ]
 
-  // Filter entities based on active filter
-  const filteredEntities = activeFilter === 'all'
-    ? entities
-    : entities.filter((e) => e.entityType === activeFilter)
+  // Filter entities based on active filter and selected tags
+  const filteredEntities = entities.filter((entity) => {
+    // First filter by entity type
+    const matchesEntityFilter = activeFilter === 'all' || entity.entityType === activeFilter
+
+    // Then filter by tags (AND logic - entity must have ALL selected tags)
+    const matchesTags = selectedTags.length === 0 ||
+      (entity.tags && selectedTags.every(tag => entity.tags!.includes(tag)))
+
+    return matchesEntityFilter && matchesTags
+  })
 
   // Count entities by type for badge display
   const getCounts = () => {
@@ -131,6 +167,19 @@ export const EntitiesScreen: React.FC<EntitiesScreenProps> = ({
 
   const emptyMessage = getEmptyMessage()
 
+  // Tag filter handlers
+  const toggleTag = (tagName: string) => {
+    setSelectedTags((prev) =>
+      prev.includes(tagName)
+        ? prev.filter((t) => t !== tagName)
+        : [...prev, tagName]
+    )
+  }
+
+  const clearTagFilters = () => {
+    setSelectedTags([])
+  }
+
   return (
     <div className={`flex flex-col h-full ${className}`}>
       {/* Header Section */}
@@ -138,7 +187,7 @@ export const EntitiesScreen: React.FC<EntitiesScreenProps> = ({
         <h1 className="retro-header">ENTITIES</h1>
       </div>
 
-      {/* Filter Chips */}
+      {/* Entity Type Filter Chips */}
       <div className="retro-filter-chips">
         {filters.map((filter) => {
           const isActive = activeFilter === filter.id
@@ -156,6 +205,49 @@ export const EntitiesScreen: React.FC<EntitiesScreenProps> = ({
           )
         })}
       </div>
+
+      {/* Tag Filter Chips */}
+      {availableTags.length > 0 && (
+        <div className="retro-tag-filter-section">
+          <div className="retro-tag-filter-header">
+            <span className="retro-tag-filter-label">FILTER BY TAGS:</span>
+            {selectedTags.length > 0 && (
+              <button
+                className="retro-tag-clear-btn"
+                onClick={clearTagFilters}
+              >
+                CLEAR ALL
+              </button>
+            )}
+          </div>
+          <div className="retro-tag-filter-chips">
+            {availableTags.map((tag) => {
+              const isSelected = selectedTags.includes(tag.name)
+              return (
+                <motion.button
+                  key={tag.name}
+                  onClick={() => toggleTag(tag.name)}
+                  className={`retro-tag-chip ${isSelected ? 'active' : ''}`}
+                  style={{
+                    borderColor: isSelected ? tag.color : undefined,
+                    backgroundColor: isSelected ? `${tag.color}20` : undefined,
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  {tag.name} ({tag.count})
+                </motion.button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Filtered Results Count */}
+      {selectedTags.length > 0 && (
+        <div className="retro-filter-results">
+          Showing {filteredEntities.length} result{filteredEntities.length !== 1 ? 's' : ''} with {selectedTags.length} tag{selectedTags.length !== 1 ? 's' : ''}
+        </div>
+      )}
 
       {/* Content Area */}
       <div className="retro-screen-content">
