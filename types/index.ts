@@ -171,6 +171,13 @@ export interface NtfyConfig {
   priority: 'default' | 'low' | 'high' | 'urgent'
 }
 
+export interface AppearanceConfig {
+  theme: 'classic-green' | 'dark-mode' | 'high-contrast'
+  showTimestamps: boolean
+  showEntityBadges: boolean
+  animationsEnabled: boolean
+}
+
 // Combined types for API responses
 export interface ItemWithRelations extends Item {
   todo?: Todo
