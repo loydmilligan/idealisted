@@ -30,6 +30,8 @@ interface Item {
   parsed: boolean
   entity_type?: string | null
   created_at: string
+  tags?: string[]
+  archived?: boolean
 }
 
 export default function HomePage() {

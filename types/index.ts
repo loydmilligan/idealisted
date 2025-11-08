@@ -174,6 +174,7 @@ export interface NtfyConfig {
 // Combined types for API responses
 export interface ItemWithRelations extends Item {
   todo?: Todo
+  task?: Task
   note?: Note & {
     type?: 'general' | 'meeting' | 'research' | 'reference' | 'personal'
     title?: string

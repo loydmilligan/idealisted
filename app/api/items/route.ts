@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
     )
 
     // Insert type-specific data
-    if (body.type === 'todo' && body.todo) {
+    if ((body.type as any) === 'todo' && body.todo) {
       // Handle legacy todo type - convert to task
       const insertTask = db.prepare(`
         INSERT INTO tasks (id, item_id, status, priority, tags, estimated_time, project_id, due_date)

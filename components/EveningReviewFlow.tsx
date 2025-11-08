@@ -27,14 +27,14 @@ export function EveningReviewFlow({
 }: EveningReviewFlowProps) {
   const [currentStep, setCurrentStep] = useState<ReviewStep>('tasks')
   const [completedTasks, setCompletedTasks] = useState<Set<string>>(
-    new Set(plan.tasks.filter(t => t.status === 'completed').map(t => t.task_id))
+    new Set(plan.tasks.filter(t => t.status === 'completed').map(t => t.id))
   )
   const [projectUpdates, setProjectUpdates] = useState<Record<string, { progress?: number; notes?: string }>>({})
   const [journalEntry, setJournalEntry] = useState('')
   const [rescheduledTasks, setRescheduledTasks] = useState<Record<string, string | null>>({})
   const [isLoading, setIsLoading] = useState(false)
 
-  const incompleteTasks = plan.tasks.filter(t => !completedTasks.has(t.task_id))
+  const incompleteTasks = plan.tasks.filter(t => !completedTasks.has(t.id))
 
   const handleToggleTask = async (taskId: string) => {
     const newCompleted = new Set(completedTasks)
@@ -47,9 +47,9 @@ export function EveningReviewFlow({
 
     // Update task status
     try {
-      const task = plan.tasks.find(t => t.task_id === taskId)
+      const task = plan.tasks.find(t => t.id === taskId)
       if (task) {
-        await apiClient.updateItem(task.task_id, {
+        await apiClient.updateItem(task.id, {
           task: {
             status: newCompleted.has(taskId) ? 'completed' : 'pending',
             priority: task.priority,
@@ -109,7 +109,7 @@ export function EveningReviewFlow({
         if (dueDate === 'DELETE') {
           await apiClient.deleteItem(taskId)
         } else {
-          await apiClient.rescheduleTask(taskId, dueDate || undefined)
+          await apiClient.rescheduleTask(taskId, (dueDate || 'date') as any, dueDate || undefined)
         }
       }
 
@@ -144,16 +144,16 @@ export function EveningReviewFlow({
 
             <div className="space-y-2 max-h-64 overflow-y-auto palm-scrollbar">
               {plan.tasks.map(task => (
-                <RetroCard key={task.task_id} className="palm-list-item">
+                <RetroCard key={task.id} className="palm-list-item">
                   <div className="flex items-center gap-2 w-full">
                     <input
                       type="checkbox"
-                      checked={completedTasks.has(task.task_id)}
-                      onChange={() => handleToggleTask(task.task_id)}
+                      checked={completedTasks.has(task.id)}
+                      onChange={() => handleToggleTask(task.id)}
                       className="palm-checkbox"
                     />
                     <div className="flex-1">
-                      <p className={`text-sm ${completedTasks.has(task.task_id) ? 'line-through opacity-50' : ''}`}>
+                      <p className={`text-sm ${completedTasks.has(task.id) ? 'line-through opacity-50' : ''}`}>
                         {task.item.text}
                       </p>
                     </div>
@@ -192,7 +192,7 @@ export function EveningReviewFlow({
                           type="range"
                           min="0"
                           max="100"
-                          value={projectUpdates[project.id]?.progress || project.project?.progress || 0}
+                          value={projectUpdates[project.id]?.progress || (project.project as any)?.progress || 0}
                           onChange={(e) => setProjectUpdates({
                             ...projectUpdates,
                             [project.id]: {
@@ -282,32 +282,32 @@ export function EveningReviewFlow({
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto palm-scrollbar">
                 {incompleteTasks.map(task => (
-                  <RetroCard key={task.task_id} className="palm-list-item">
+                  <RetroCard key={task.id} className="palm-list-item">
                     <div className="space-y-2">
                       <p className="text-sm font-medium">{task.item.text}</p>
 
-                      {rescheduledTasks[task.task_id] && (
+                      {rescheduledTasks[task.id] && (
                         <div className="text-xs opacity-70 bg-green-500 bg-opacity-10 p-2 rounded">
-                          {rescheduledTasks[task.task_id] === 'DELETE'
+                          {rescheduledTasks[task.id] === 'DELETE'
                             ? 'Will be deleted'
-                            : rescheduledTasks[task.task_id] === null
+                            : rescheduledTasks[task.id] === null
                             ? 'Moved to backlog'
-                            : `Rescheduled to ${rescheduledTasks[task.task_id]}`
+                            : `Rescheduled to ${rescheduledTasks[task.id]}`
                           }
                         </div>
                       )}
 
                       <div className="grid grid-cols-2 gap-1">
                         <RetroButton
-                          onClick={() => handleReschedule(task.task_id, 'tomorrow')}
-                          variant={rescheduledTasks[task.task_id] ? 'secondary' : 'primary'}
+                          onClick={() => handleReschedule(task.id, 'tomorrow')}
+                          variant={rescheduledTasks[task.id] ? 'secondary' : 'primary'}
                           size="sm"
                           className="text-xs"
                         >
                           Tomorrow
                         </RetroButton>
                         <RetroButton
-                          onClick={() => handleReschedule(task.task_id, 'pick')}
+                          onClick={() => handleReschedule(task.id, 'pick')}
                           variant="secondary"
                           size="sm"
                           className="text-xs"
@@ -315,7 +315,7 @@ export function EveningReviewFlow({
                           Pick Date
                         </RetroButton>
                         <RetroButton
-                          onClick={() => handleReschedule(task.task_id, 'backlog')}
+                          onClick={() => handleReschedule(task.id, 'backlog')}
                           variant="secondary"
                           size="sm"
                           className="text-xs"
@@ -323,7 +323,7 @@ export function EveningReviewFlow({
                           Backlog
                         </RetroButton>
                         <RetroButton
-                          onClick={() => handleReschedule(task.task_id, 'delete')}
+                          onClick={() => handleReschedule(task.id, 'delete')}
                           variant="danger"
                           size="sm"
                           className="text-xs"

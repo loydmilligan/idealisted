@@ -1086,3 +1086,190 @@ body {
   border-top: 1px solid var(--palm-border-light);
   margin: 24px 0;
 }
+
+/* ===== TAGS TAB ===== */
+
+.retro-tags-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.retro-tags-header .retro-section-title {
+  margin-bottom: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.retro-btn-small {
+  padding: 6px 10px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.retro-tag-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--palm-screen-light);
+  border: 1px solid var(--palm-border-light);
+  border-radius: 2px;
+}
+
+.retro-tag-form .retro-input {
+  flex: 1;
+}
+
+.retro-tag-form-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.retro-tags-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.retro-tag-item {
+  padding: 12px;
+  background: var(--palm-bg-secondary);
+  border: 2px inset var(--palm-border-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.15s;
+}
+
+.retro-tag-item:hover {
+  background: var(--palm-screen-light);
+}
+
+.retro-tag-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.retro-tag-color-indicator {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid var(--palm-border-dark);
+  flex-shrink: 0;
+}
+
+.retro-tag-name {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--palm-text-primary);
+  flex: 1;
+}
+
+.retro-tag-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--palm-text-secondary);
+  margin-left: 4px;
+}
+
+.retro-tag-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.retro-tag-action-btn {
+  background: none;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  color: var(--palm-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  transition: all 0.15s;
+}
+
+.retro-tag-action-btn:hover {
+  background: var(--palm-screen-dark);
+  color: var(--palm-bg-primary);
+}
+
+.retro-tag-delete-btn:hover {
+  background: var(--entity-delete);
+  color: white;
+}
+
+/* Tag Edit Form */
+
+.retro-tag-edit-form {
+  width: 100%;
+}
+
+.retro-tag-edit-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.retro-tag-input {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.retro-tag-color-picker {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.retro-color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 3px;
+  border: 2px solid var(--palm-border-light);
+  cursor: pointer;
+  transition: all 0.15s;
+  padding: 0;
+}
+
+.retro-color-swatch:hover {
+  transform: scale(1.1);
+  border-color: var(--palm-border-dark);
+}
+
+.retro-color-swatch.active {
+  border-color: var(--palm-text-primary);
+  border-width: 3px;
+  box-shadow: 0 0 0 2px var(--palm-bg-primary);
+}
+
+.retro-tag-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.retro-tag-edit-actions .retro-btn {
+  flex: 1;
+}
+
+.retro-tags-info {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--palm-border-light);
+}
+
+.retro-tags-info .retro-text-secondary {
+  font-size: 12px;
+  line-height: 1.6;
+}
