@@ -79,16 +79,6 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
 
   return (
     <div className={`flex flex-col h-full pb-20 ${className}`}>
-      {/* Screen Header */}
-      <div className="retro-screen-header text-center">
-        <h1 className="retro-header retro-header-lg">
-          IDEALIST V1.0
-        </h1>
-        <p className="retro-header-sm" style={{ marginTop: '4px', opacity: 0.7 }}>
-          IDEAS • INSTANT SORT • ORGANIZE
-        </p>
-      </div>
-
       {/* Input Container */}
       <div className="px-4 mb-4" style={{ paddingTop: '16px' }}>
         <textarea

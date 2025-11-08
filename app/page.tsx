@@ -365,17 +365,20 @@ export default function HomePage() {
   }
 
   return (
-    <div className="h-screen overflow-hidden bg-[var(--bg-primary)] flex flex-col">
-      {/* Global Header */}
-      <GlobalHeader
-        activeTab={activeTab}
-        unsortedCount={unsortedCount}
-        readyCount={readyCount}
-        onSettingsClick={() => setSettingsOpen(true)}
-      />
+    <div className="retro-device-frame">
+      <div className="retro-device-branding">IdeaListed</div>
+      <div className="retro-device-screen">
+        <div className="h-screen overflow-hidden bg-[var(--bg-primary)] flex flex-col">
+          {/* Global Header */}
+          <GlobalHeader
+            activeTab={activeTab}
+            unsortedCount={unsortedCount}
+            readyCount={readyCount}
+            onSettingsClick={() => setSettingsOpen(true)}
+          />
 
-      {/* Active Screen */}
-      <div className="flex-1 overflow-y-auto">
+          {/* Active Screen */}
+          <div className="flex-1 overflow-y-auto">
         {activeTab === 'capture' && (
           <CaptureScreen
             onCapture={handleCapture}
@@ -502,6 +505,9 @@ export default function HomePage() {
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
       />
+        </div>
+      </div>
+      <div className="retro-device-button"></div>
     </div>
   )
 }
