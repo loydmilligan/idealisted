@@ -12,6 +12,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { GlobalHeader } from '@/components/modern/GlobalHeader'
 import { BottomTabNav, TabId } from '@/components/modern/BottomTabNav'
 import { CaptureScreen } from '@/components/modern/screens/CaptureScreen'
 import { UnsortedInboxScreen } from '@/components/modern/screens/UnsortedInboxScreen'
@@ -45,6 +46,9 @@ export default function HomePage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [modalEntity, setModalEntity] = useState<{ id?: string; type: Exclude<EntityType, 'idea'> } | null>(null)
   const [modalData, setModalData] = useState<Record<string, string>>({})
+
+  // Settings modal state
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   // Load items on mount
   useEffect(() => {
@@ -111,8 +115,7 @@ export default function HomePage() {
         }),
       })
 
-      const data = await response.json()
-      if (data.success) {
+      if (response.ok) {
         await fetchItems()
         // Flash appropriate tab
         if (!entityType) {
@@ -260,36 +263,69 @@ export default function HomePage() {
   // ===== Modal Handlers =====
   const handleModalSave = async (data: Record<string, any>) => {
     try {
-      if (data.id) {
-        // Get current item
-        const item = items.find(i => i.id === data.id)
-        if (!item) return
+      const itemId = modalEntity?.id || modalData.id
+      if (!itemId) return
 
-        // Update existing entity
-        const response = await fetch(`/api/items/${data.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...item,
-            text: data.title || data.text,
-            type: modalEntity?.type || item.type,
-          }),
-        })
+      // Get current item
+      const item = items.find(i => i.id === itemId)
+      if (!item) return
 
-        if (response.ok) {
-          await fetchItems()
-          setModalOpen(false)
+      // Build entity-specific data
+      const entityData: any = {}
+
+      if (modalEntity?.type === 'task') {
+        entityData.task = {
+          status: 'pending',
+          priority: 1,
+          tags: [],
+          estimated_time: data.estimatedTime ? parseInt(data.estimatedTime) : null,
+          due_date: data.dueDate || null,
+          project_id: null,
         }
-      } else {
-        // Convert to new entity
-        const response = await fetch(`/api/items/${data.id}/convert`, {
-          method: 'POST',
-        })
-
-        if (response.ok) {
-          await fetchItems()
-          setModalOpen(false)
+      } else if (modalEntity?.type === 'note') {
+        entityData.note = {
+          subtype: 'general',
+          content: data.description || '',
+          url: null,
+          media_type: null,
         }
+      } else if (modalEntity?.type === 'project') {
+        entityData.project = {
+          status: 'planning',
+          tags: [],
+          deadline: data.deadline || null,
+          description: data.description || '',
+          progress: 0,
+          start_date: null,
+          end_date: null,
+        }
+      } else if (modalEntity?.type === 'list') {
+        entityData.list = {
+          name: data.title || '',
+          tags: [],
+          description: data.description || '',
+          items: [],
+        }
+      }
+
+      // Update item
+      const response = await fetch(`/api/items/${itemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: modalEntity?.type || item.type,
+          text: data.title || item.text,
+          tags: item.tags || [],
+          archived: item.archived || false,
+          parsed: true,
+          entity_type: modalEntity?.type,
+          ...entityData,
+        }),
+      })
+
+      if (response.ok) {
+        await fetchItems()
+        setModalOpen(false)
       }
     } catch (error) {
       console.error('Failed to save entity:', error)
@@ -328,9 +364,17 @@ export default function HomePage() {
   }
 
   return (
-    <div className="h-screen overflow-hidden bg-[var(--bg-primary)]">
+    <div className="h-screen overflow-hidden bg-[var(--bg-primary)] flex flex-col">
+      {/* Global Header */}
+      <GlobalHeader
+        activeTab={activeTab}
+        unsortedCount={unsortedCount}
+        readyCount={readyCount}
+        onSettingsClick={() => setSettingsOpen(true)}
+      />
+
       {/* Active Screen */}
-      <div className="h-full overflow-y-auto">
+      <div className="flex-1 overflow-y-auto">
         {activeTab === 'capture' && (
           <CaptureScreen
             onCapture={handleCapture}
