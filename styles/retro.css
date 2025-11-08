@@ -1288,3 +1288,137 @@ body {
   font-size: 12px;
   line-height: 1.6;
 }
+
+/* ===== TAG INPUT COMPONENT ===== */
+
+.retro-tag-input-container {
+  margin-bottom: 16px;
+}
+
+.retro-tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 8px;
+  background: var(--palm-screen-dark);
+  border: 1px solid;
+  border-top-color: var(--palm-border-dark);
+  border-left-color: var(--palm-border-dark);
+  border-bottom-color: var(--palm-border-light);
+  border-right-color: var(--palm-border-light);
+  min-height: 42px;
+}
+
+.retro-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.retro-tag-chip-text {
+  line-height: 1;
+}
+
+.retro-tag-chip-remove {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.8);
+  transition: color 0.15s;
+}
+
+.retro-tag-chip-remove:hover {
+  color: white;
+}
+
+.retro-tag-input {
+  flex: 1;
+  min-width: 120px;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--palm-text-dark);
+  padding: 4px;
+}
+
+.retro-tag-input::placeholder {
+  font-family: var(--font-mono);
+  color: var(--palm-border);
+  opacity: 0.7;
+}
+
+.retro-tag-dropdown {
+  position: relative;
+  margin-top: 4px;
+  background: var(--palm-screen-light);
+  border: 2px solid var(--palm-border-dark);
+  box-shadow: 2px 2px 0 var(--palm-border-dark);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.retro-tag-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--palm-text-dark);
+  transition: background 0.15s;
+  border-bottom: 1px solid var(--palm-border-light);
+}
+
+.retro-tag-dropdown-item:last-child {
+  border-bottom: none;
+}
+
+.retro-tag-dropdown-item:hover,
+.retro-tag-dropdown-item.focused {
+  background: var(--palm-screen-base);
+}
+
+.retro-tag-dropdown-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+.retro-tag-dropdown-name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.retro-tag-dropdown-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--palm-border);
+}
+
+.retro-tag-hint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--palm-border);
+  margin: 4px 0 0 0;
+  letter-spacing: 0.3px;
+}

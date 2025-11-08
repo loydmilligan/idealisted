@@ -20,6 +20,7 @@ import { ReadyInboxScreen } from '@/components/modern/screens/ReadyInboxScreen'
 import { EntitiesScreen } from '@/components/modern/screens/EntitiesScreen'
 import { EntityModal, FormField } from '@/components/modern/EntityModal'
 import { SettingsModal } from '@/components/modern/SettingsModal'
+import { TagInput } from '@/components/modern/TagInput'
 import { EntityType } from '@/lib/entity-colors'
 
 // Types
@@ -48,7 +49,7 @@ export default function HomePage() {
   // Modal state
   const [modalOpen, setModalOpen] = useState(false)
   const [modalEntity, setModalEntity] = useState<{ id?: string; type: Exclude<EntityType, 'idea'> } | null>(null)
-  const [modalData, setModalData] = useState<Record<string, string>>({})
+  const [modalData, setModalData] = useState<Record<string, any>>({})
 
   // Settings modal state
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -204,7 +205,7 @@ export default function HomePage() {
     if (!item) return
 
     setModalEntity({ type: entityType })
-    setModalData({ title: item.text, id: itemId })
+    setModalData({ title: item.text, id: itemId, tags: item.tags || [] })
     setModalOpen(true)
   }
 
@@ -243,7 +244,7 @@ export default function HomePage() {
     if (!item || !item.entity_type) return
 
     setModalEntity({ type: item.entity_type as Exclude<EntityType, 'idea'> })
-    setModalData({ title: item.text, id: itemId })
+    setModalData({ title: item.text, id: itemId, tags: item.tags || [] })
     setModalOpen(true)
   }
 
@@ -253,7 +254,7 @@ export default function HomePage() {
     if (!entity) return
 
     setModalEntity({ id: entityId, type: entity.type as Exclude<EntityType, 'idea'> })
-    setModalData({ title: entity.text, id: entityId })
+    setModalData({ title: entity.text, id: entityId, tags: entity.tags || [] })
     setModalOpen(true)
   }
 
@@ -318,7 +319,7 @@ export default function HomePage() {
         body: JSON.stringify({
           type: modalEntity?.type || item.type,
           text: data.title || item.text,
-          tags: item.tags || [],
+          tags: modalData.tags || [],
           archived: item.archived || false,
           parsed: true,
           entity_type: modalEntity?.type,
@@ -466,6 +467,12 @@ export default function HomePage() {
             onChange={(value) => setModalData(prev => ({ ...prev, description: value }))}
             type="textarea"
             placeholder="Add details..."
+            entityType={modalEntity.type}
+          />
+
+          <TagInput
+            value={modalData.tags || []}
+            onChange={(tags) => setModalData(prev => ({ ...prev, tags }))}
             entityType={modalEntity.type}
           />
 
