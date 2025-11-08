@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { EntityType } from '@/lib/entity-colors'
+import { EntityType, getEntityColor } from '@/lib/entity-colors'
 
 interface GridLogoProps {
   className?: string
@@ -28,16 +28,10 @@ export const GridLogo: React.FC<GridLogoProps> = ({ className = '' }) => {
         list: 'bottom-right',
       }
 
-      const entityColors = {
-        task: '#6B8B9E',
-        note: '#9E8B6B',
-        project: '#7B9E6B',
-        list: '#8B6B9E',
-        idea: '#8B9E8B',
-      }
+      const color = getEntityColor(entityType, 'bright')
 
       setFlashingCorner(cornerMap[entityType])
-      setFlashColor(entityColors[entityType] || '#8B9E8B')
+      setFlashColor(color)
       setIsAiFlash(isAi)
 
       setTimeout(() => {
