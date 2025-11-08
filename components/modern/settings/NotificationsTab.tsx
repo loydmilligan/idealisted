@@ -62,9 +62,48 @@ export const NotificationsTab: React.FC = () => {
     }
   }
 
+  const validateUrl = (url: string): boolean => {
+    try {
+      new URL(url)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  const validateTopic = (topic: string): boolean => {
+    // Topic should only contain alphanumeric characters, hyphens, and underscores
+    return /^[a-zA-Z0-9_-]+$/.test(topic)
+  }
+
   const handleSave = async () => {
     setSaving(true)
     setMessage('')
+
+    // Validate if enabled
+    if (config.enabled) {
+      if (!config.topic) {
+        setMessage('✗ Topic is required when notifications are enabled')
+        setSaving(false)
+        setTimeout(() => setMessage(''), 3000)
+        return
+      }
+
+      if (!validateTopic(config.topic)) {
+        setMessage('✗ Topic can only contain letters, numbers, hyphens, and underscores')
+        setSaving(false)
+        setTimeout(() => setMessage(''), 3000)
+        return
+      }
+
+      if (!validateUrl(config.server)) {
+        setMessage('✗ Server URL is invalid')
+        setSaving(false)
+        setTimeout(() => setMessage(''), 3000)
+        return
+      }
+    }
+
     try {
       const response = await fetch('/api/settings', {
         method: 'PUT',
@@ -92,7 +131,27 @@ export const NotificationsTab: React.FC = () => {
   const handleTest = async () => {
     setTesting(true)
     setMessage('')
+
+    // Save config first to ensure we test the current form state
     try {
+      const saveResponse = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ntfy_config: config,
+          notification_events: events,
+          daily_review: dailyReview,
+        }),
+      })
+
+      if (!saveResponse.ok) {
+        setMessage('✗ Failed to save settings before testing')
+        setTesting(false)
+        setTimeout(() => setMessage(''), 3000)
+        return
+      }
+
+      // Now test with saved config
       const response = await fetch('/api/notify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -104,12 +163,13 @@ export const NotificationsTab: React.FC = () => {
       })
 
       if (response.ok) {
-        setMessage('✓ Test notification sent')
+        setMessage('✓ Test notification sent successfully')
       } else {
-        setMessage('✗ Test notification failed')
+        const data = await response.json()
+        setMessage(`✗ Test notification failed: ${data.error || 'Unknown error'}`)
       }
     } catch (error) {
-      setMessage('✗ Test error')
+      setMessage('✗ Test error: ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setTesting(false)
       setTimeout(() => setMessage(''), 3000)
@@ -124,6 +184,16 @@ export const NotificationsTab: React.FC = () => {
     <div>
       <h3 className="retro-section-title">NOTIFICATION SETTINGS</h3>
 
+      <label className="retro-checkbox-label">
+        <input
+          type="checkbox"
+          className="retro-checkbox"
+          checked={config.enabled}
+          onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
+        />
+        Enable notifications
+      </label>
+
       <div className="retro-form-group">
         <label className="retro-form-label">Server URL</label>
         <input
@@ -131,6 +201,7 @@ export const NotificationsTab: React.FC = () => {
           className="retro-input"
           value={config.server}
           onChange={(e) => setConfig({ ...config, server: e.target.value })}
+          disabled={!config.enabled}
         />
       </div>
 
@@ -142,6 +213,7 @@ export const NotificationsTab: React.FC = () => {
           value={config.topic}
           onChange={(e) => setConfig({ ...config, topic: e.target.value })}
           placeholder="idealisted-abc123"
+          disabled={!config.enabled}
         />
       </div>
 
@@ -152,6 +224,7 @@ export const NotificationsTab: React.FC = () => {
           className="retro-input"
           value={config.username}
           onChange={(e) => setConfig({ ...config, username: e.target.value })}
+          disabled={!config.enabled}
         />
       </div>
 
@@ -162,13 +235,14 @@ export const NotificationsTab: React.FC = () => {
           className="retro-input"
           value={config.password}
           onChange={(e) => setConfig({ ...config, password: e.target.value })}
+          disabled={!config.enabled}
         />
       </div>
 
       <div className="retro-form-group">
         <label className="retro-form-label">Priority</label>
         <div className="retro-radio-group">
-          {(['low', 'default', 'high', 'urgent'] as const).map((p) => (
+          {(['low', 'default', 'high'] as const).map((p) => (
             <label key={p} className="retro-radio-label">
               <input
                 type="radio"
@@ -176,6 +250,7 @@ export const NotificationsTab: React.FC = () => {
                 value={p}
                 checked={config.priority === p}
                 onChange={(e) => setConfig({ ...config, priority: e.target.value as any })}
+                disabled={!config.enabled}
               />
               {p.charAt(0).toUpperCase() + p.slice(1)}
             </label>
@@ -187,7 +262,7 @@ export const NotificationsTab: React.FC = () => {
         <button
           className="retro-btn retro-btn-secondary"
           onClick={handleTest}
-          disabled={testing || !config.topic}
+          disabled={testing || !config.enabled || !config.topic}
         >
           {testing ? 'TESTING...' : 'TEST NOTIFICATION'}
         </button>
