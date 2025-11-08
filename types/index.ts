@@ -225,7 +225,7 @@ export interface UpdateItemRequest extends Partial<CreateItemRequest> {
 }
 
 export interface AIRequest {
-  type: 'suggest'
+  type: 'suggest' | 'parse' | 'convert' | 'tag' | 'rewrite' | 'research'
   itemId?: string
   text?: string
   context?: Record<string, any>

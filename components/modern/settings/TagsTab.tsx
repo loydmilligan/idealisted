@@ -2,32 +2,23 @@
 
 import React, { useState, useEffect } from 'react'
 import { Edit2, Trash2, Plus, Check, X } from 'lucide-react'
-import { getEntityColor } from '@/lib/entity-colors'
+import { DEFAULT_TAG_COLORS } from '@/lib/entity-colors'
 
 interface TagInfo {
   name: string
   count: number
-  color?: string
+  color: string
+  category: string
 }
 
 interface EditingTag {
   originalName: string
   newName: string
   color: string
+  category: string
 }
 
-const DEFAULT_TAG_COLORS = [
-  '#4A90E2', // Blue (task)
-  '#F5A623', // Yellow/Orange (note)
-  '#7ED321', // Green (project)
-  '#BD10E0', // Purple (list)
-  '#868e96', // Grey (idea)
-  '#E74C3C', // Red
-  '#3498DB', // Light Blue
-  '#2ECC71', // Emerald
-  '#F39C12', // Orange
-  '#9B59B6', // Violet
-]
+const TAG_CATEGORIES = ['Work', 'Personal', 'Health', 'Finance', 'Other']
 
 export const TagsTab: React.FC = () => {
   const [tags, setTags] = useState<TagInfo[]>([])
@@ -35,6 +26,8 @@ export const TagsTab: React.FC = () => {
   const [message, setMessage] = useState('')
   const [editingTag, setEditingTag] = useState<EditingTag | null>(null)
   const [newTagName, setNewTagName] = useState('')
+  const [newTagColor, setNewTagColor] = useState(DEFAULT_TAG_COLORS[0])
+  const [newTagCategory, setNewTagCategory] = useState('Other')
   const [showAddForm, setShowAddForm] = useState(false)
 
   useEffect(() => {
@@ -67,6 +60,7 @@ export const TagsTab: React.FC = () => {
       originalName: tag.name,
       newName: tag.name,
       color: tag.color || DEFAULT_TAG_COLORS[0],
+      category: tag.category || 'Other',
     })
   }
 
@@ -83,40 +77,38 @@ export const TagsTab: React.FC = () => {
       return
     }
 
-    // Check if name changed
+    // Check if name changed and new name already exists
     if (editingTag.newName !== editingTag.originalName) {
-      // Check if new name already exists
       if (tags.some((t) => t.name === editingTag.newName)) {
         showMessage('✗ Tag name already exists')
         return
       }
+    }
 
-      try {
-        const response = await fetch('/api/tags', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            oldName: editingTag.originalName,
-            newName: editingTag.newName,
-          }),
-        })
+    try {
+      const response = await fetch('/api/tags', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          oldName: editingTag.originalName,
+          newName: editingTag.newName,
+          color: editingTag.color,
+          category: editingTag.category,
+        }),
+      })
 
-        const data = await response.json()
+      const data = await response.json()
 
-        if (data.success) {
-          showMessage(`✓ Renamed tag in ${data.updatedCount} items`)
-          await loadTags()
-          setEditingTag(null)
-        } else {
-          showMessage('✗ Failed to rename tag')
-        }
-      } catch (error) {
-        console.error('Failed to rename tag:', error)
-        showMessage('✗ Error renaming tag')
+      if (data.success) {
+        showMessage(`✓ Updated tag in ${data.updatedCount} items`)
+        await loadTags()
+        setEditingTag(null)
+      } else {
+        showMessage('✗ Failed to update tag')
       }
-    } else {
-      // Just close the edit form if no changes
-      setEditingTag(null)
+    } catch (error) {
+      console.error('Failed to update tag:', error)
+      showMessage('✗ Error updating tag')
     }
   }
 
@@ -147,6 +139,8 @@ export const TagsTab: React.FC = () => {
   const handleAddTag = () => {
     setShowAddForm(true)
     setNewTagName('')
+    setNewTagColor(DEFAULT_TAG_COLORS[0])
+    setNewTagCategory('Other')
   }
 
   const handleSaveNewTag = async () => {
@@ -162,24 +156,36 @@ export const TagsTab: React.FC = () => {
       return
     }
 
-    // Note: We don't actually create a tag in the database
-    // Tags are created when they're added to items
-    // This just shows a message that the tag can be used
-    showMessage(`✓ Tag "${trimmedName}" can now be used on items`)
-    setShowAddForm(false)
-    setNewTagName('')
+    try {
+      const response = await fetch('/api/tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: trimmedName,
+          color: newTagColor,
+          category: newTagCategory,
+        }),
+      })
 
-    // Optionally refresh the list
-    await loadTags()
+      const data = await response.json()
+
+      if (data.success) {
+        showMessage(`✓ Created tag "${trimmedName}"`)
+        setShowAddForm(false)
+        setNewTagName('')
+        await loadTags()
+      } else {
+        showMessage(`✗ ${data.error || 'Failed to create tag'}`)
+      }
+    } catch (error) {
+      console.error('Failed to create tag:', error)
+      showMessage('✗ Error creating tag')
+    }
   }
 
   const handleCancelAdd = () => {
     setShowAddForm(false)
     setNewTagName('')
-  }
-
-  const getTagColor = (tag: TagInfo) => {
-    return tag.color || DEFAULT_TAG_COLORS[tags.indexOf(tag) % DEFAULT_TAG_COLORS.length]
   }
 
   if (loading) {
@@ -212,6 +218,30 @@ export const TagsTab: React.FC = () => {
             }}
             autoFocus
           />
+          <select
+            className="retro-select"
+            value={newTagCategory}
+            onChange={(e) => setNewTagCategory(e.target.value)}
+          >
+            {TAG_CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat}
+              </option>
+            ))}
+          </select>
+          <div className="retro-tag-color-picker">
+            {DEFAULT_TAG_COLORS.map((color) => (
+              <button
+                key={color}
+                className={`retro-color-swatch ${
+                  newTagColor === color ? 'active' : ''
+                }`}
+                style={{ backgroundColor: color }}
+                onClick={() => setNewTagColor(color)}
+                title={color}
+              />
+            ))}
+          </div>
           <div className="retro-tag-form-actions">
             <button
               className="retro-btn retro-btn-small retro-btn-primary"
@@ -231,7 +261,7 @@ export const TagsTab: React.FC = () => {
 
       {tags.length === 0 ? (
         <p className="retro-text-secondary">
-          No tags found. Tags are created when you add them to items.
+          No tags found. Create tags to organize your items.
         </p>
       ) : (
         <div className="retro-tags-list">
@@ -254,6 +284,19 @@ export const TagsTab: React.FC = () => {
                       }}
                       autoFocus
                     />
+                    <select
+                      className="retro-select"
+                      value={editingTag.category}
+                      onChange={(e) =>
+                        setEditingTag({ ...editingTag, category: e.target.value })
+                      }
+                    >
+                      {TAG_CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
                     <div className="retro-tag-color-picker">
                       {DEFAULT_TAG_COLORS.map((color) => (
                         <button
@@ -291,9 +334,10 @@ export const TagsTab: React.FC = () => {
                   <div className="retro-tag-info">
                     <div
                       className="retro-tag-color-indicator"
-                      style={{ backgroundColor: getTagColor(tag) }}
+                      style={{ backgroundColor: tag.color }}
                     />
                     <span className="retro-tag-name">{tag.name}</span>
+                    <span className="retro-tag-category">[{tag.category}]</span>
                     <span className="retro-tag-count">({tag.count})</span>
                   </div>
                   <div className="retro-tag-actions">
@@ -321,12 +365,12 @@ export const TagsTab: React.FC = () => {
 
       <div className="retro-tags-info">
         <p className="retro-text-secondary">
-          • Tags show usage count (number of items)
+          • Tags show category and usage count
           <br />
-          • Renaming updates all items with that tag
+          • Categories: Work, Personal, Health, Finance, Other
           <br />
-          • Deleting removes tag from all items
-          <br />• New tags are created when added to items
+          • Updating updates all items with that tag
+          <br />• Deleting removes tag from all items
         </p>
       </div>
     </div>

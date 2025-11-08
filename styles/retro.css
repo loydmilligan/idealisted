@@ -1173,6 +1173,14 @@ body {
   flex: 1;
 }
 
+.retro-tag-category {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--palm-text-secondary);
+  margin-left: 4px;
+  font-style: italic;
+}
+
 .retro-tag-count {
   font-family: var(--font-mono);
   font-size: 11px;

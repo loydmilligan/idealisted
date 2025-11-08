@@ -101,8 +101,8 @@ export function getQuickAddButtonColor(entityType: EntityType): string {
   if (entityType === 'idea') {
     return IDEA_GREY
   }
-  const colors = ENTITY_COLORS[entityType]
-  return colors ? colors.bright : IDEA_GREY
+  const color = ENTITY_COLORS[entityType]
+  return color || IDEA_GREY
 }
 
 /**
@@ -156,3 +156,20 @@ export function getEntityColorWithOpacity(
 export function getMutedEntityColor(entityType: EntityType): string {
   return getEntityColorWithOpacity(entityType, MUTED_OPACITY)
 }
+
+/**
+ * Default tag colors palette
+ * Used for tag management UI
+ */
+export const DEFAULT_TAG_COLORS = [
+  '#4A90E2', // Blue (task)
+  '#F5A623', // Yellow/Orange (note)
+  '#7ED321', // Green (project)
+  '#BD10E0', // Purple (list)
+  '#868e96', // Grey (idea)
+  '#E74C3C', // Red
+  '#3498DB', // Light Blue
+  '#2ECC71', // Emerald
+  '#F39C12', // Orange
+  '#9B59B6', // Violet
+]

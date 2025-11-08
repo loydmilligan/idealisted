@@ -199,6 +199,17 @@ export function initializeDatabase() {
     )
   `)
 
+  // Tags table - stores tag metadata (color, category)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tags (
+      id TEXT PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      color TEXT NOT NULL,
+      category TEXT DEFAULT 'Other' CHECK (category IN ('Work', 'Personal', 'Health', 'Finance', 'Other')),
+      created_at INTEGER NOT NULL
+    )
+  `)
+
   // Create indexes for performance
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_items_type ON items(type);
@@ -213,6 +224,7 @@ export function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_plans_status ON plans(status);
     CREATE INDEX IF NOT EXISTS idx_plan_tasks_plan_id ON plan_tasks(plan_id);
     CREATE INDEX IF NOT EXISTS idx_plan_tasks_task_id ON plan_tasks(task_id);
+    CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
   `)
 
   console.log('Database initialized successfully')

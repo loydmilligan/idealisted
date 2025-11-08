@@ -203,7 +203,7 @@ export function EveningReviewFlow({
                           className="flex-1"
                         />
                         <span className="text-xs w-10 text-right">
-                          {projectUpdates[project.id]?.progress || project.project?.progress || 0}%
+                          {projectUpdates[project.id]?.progress ?? (project.project as any)?.progress ?? 0}%
                         </span>
                       </div>
                     </div>

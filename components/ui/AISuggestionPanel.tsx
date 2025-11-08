@@ -8,7 +8,7 @@ import { AISuggestion } from '@/types'
 interface AISuggestionPanelProps {
   suggestion: AISuggestion | null
   isLoading: boolean
-  onApplySuggestion: (type: 'todo' | 'note' | 'task' | 'project') => void
+  onApplySuggestion: (type: 'todo' | 'note' | 'task' | 'project' | 'list') => void
   onDismiss: () => void
 }
 
