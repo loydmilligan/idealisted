@@ -230,6 +230,20 @@ class AIService {
     })
   }
 
+  /**
+   * Generic chat method for arbitrary prompts with custom system messages
+   */
+  async chat(prompt: string, systemMessage?: string): Promise<AIResponse> {
+    return this.processRequest({
+      type: 'research',
+      text: prompt,
+      context: {
+        operation: 'chat',
+        systemMessage: systemMessage || 'You are a helpful assistant.'
+      }
+    })
+  }
+
   isConfigured(): boolean {
     return this.client !== null && this.config !== null
   }

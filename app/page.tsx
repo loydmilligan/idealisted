@@ -22,7 +22,7 @@ import { EntityModal, FormField } from '@/components/modern/EntityModal'
 import { SettingsModal } from '@/components/modern/SettingsModal'
 import { TagInput } from '@/components/modern/TagInput'
 import { EntityType } from '@/lib/entity-colors'
-import { ntfyService } from '@/lib/notify'
+// DISABLED (causes build error - server-side only): import { ntfyService } from '@/lib/notify'
 
 // Types
 interface Item {
@@ -197,7 +197,7 @@ export default function HomePage() {
       if (response.ok) {
         await fetchItems()
         // Send notification after successful capture
-        ntfyService.notifyIdeaCaptured(text)
+        // ntfyService.notifyIdeaCaptured(text) // Disabled - server-side only
         // Flash appropriate tab
         if (!entityType) {
           // Flash Unsorted tab
@@ -271,7 +271,7 @@ export default function HomePage() {
       if (response.ok) {
         await fetchItems()
         // Send notification after successful sort
-        ntfyService.notifyIdeaSorted(item.text, entityType)
+        // ntfyService.notifyIdeaSorted(item.text, entityType) // Disabled - server-side only
       }
     } catch (error) {
       console.error('Failed to sort item:', error)
@@ -365,7 +365,7 @@ export default function HomePage() {
         if (response.ok) {
           await fetchItems()
           // Send notification after task completion
-          ntfyService.notifyTaskCompleted(entity.text)
+          // ntfyService.notifyTaskCompleted(entity.text) // Disabled - server-side only
         }
       }
       // TODO: Implement other entity type actions (archive note, activate project, etc.)
@@ -442,7 +442,7 @@ export default function HomePage() {
         await fetchItems()
         // Send notification after successful entity creation
         if (modalEntity?.type) {
-          ntfyService.notifyEntityCreated(data.title || item.text, modalEntity.type)
+          // ntfyService.notifyEntityCreated(data.title || item.text, modalEntity.type) // Disabled - server-side only
         }
         setModalOpen(false)
       }

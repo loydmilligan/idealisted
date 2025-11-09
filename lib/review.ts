@@ -161,7 +161,7 @@ Provide a brief, encouraging summary (2-3 sentences) of today's project work. Fo
 
     try {
       const response = await aiService.chat(prompt, 'You are a helpful productivity assistant.')
-      return response.content || 'Made progress on multiple projects today.'
+      return response.suggestion || 'Made progress on multiple projects today.'
     } catch (error) {
       console.error('AI summary generation failed:', error)
       return 'Made progress on multiple projects today.'

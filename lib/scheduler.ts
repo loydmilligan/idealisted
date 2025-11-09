@@ -4,7 +4,7 @@ import { ntfyService } from './notify'
 import { format } from 'date-fns'
 
 class SchedulerService {
-  private task: cron.ScheduledTask | null = null
+  private task: any = null
   private isRunning: boolean = false
 
   /**

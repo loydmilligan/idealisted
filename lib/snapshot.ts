@@ -339,7 +339,7 @@ class SnapshotService {
     }
 
     // Load each week's summary
-    for (const weekId of weeksInMonth) {
+    for (const weekId of Array.from(weeksInMonth)) {
       const filePath = path.join(WEEKLY_DIR, `${weekId}.json`)
       if (fs.existsSync(filePath)) {
         const data = fs.readFileSync(filePath, 'utf-8')
