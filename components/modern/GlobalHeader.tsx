@@ -18,11 +18,22 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
   onSettingsClick,
 }) => {
   const [time, setTime] = useState(new Date())
+  const [isFlashing, setIsFlashing] = useState(false)
+  const [prevReadyCount, setPrevReadyCount] = useState(readyCount)
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 60000) // Update every minute
     return () => clearInterval(timer)
   }, [])
+
+  // Flash animation when Ready count increases
+  useEffect(() => {
+    if (readyCount > prevReadyCount && prevReadyCount > 0) {
+      setIsFlashing(true)
+      setTimeout(() => setIsFlashing(false), 1200)
+    }
+    setPrevReadyCount(readyCount)
+  }, [readyCount])
 
   const formatTime = (date: Date) => {
     const hours = date.getHours()
@@ -75,7 +86,7 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
       </div>
 
       {/* Dynamic subheader */}
-      <div className="retro-header-subheader">
+      <div className={`retro-header-subheader ${isFlashing && activeTab === 'ready' ? 'flash-ready' : ''}`}>
         {getSubheaderText()}
       </div>
     </div>

@@ -1640,3 +1640,27 @@ body {
   --palm-border-light: #333333;
   --palm-border-dark: #000000;
 }
+
+/* ============================================
+   BADGE FLASH ANIMATION
+   ============================================ */
+
+@keyframes flashReady {
+  0%, 100% {
+    background: var(--palm-screen-dark);
+    color: white;
+  }
+  25%, 75% {
+    background: #7ED321;
+    color: var(--palm-text-dark);
+    box-shadow: 0 0 12px rgba(126, 211, 33, 0.6);
+  }
+  50% {
+    background: var(--palm-screen-dark);
+    color: white;
+  }
+}
+
+.retro-header-subheader.flash-ready {
+  animation: flashReady 1.2s ease-in-out;
+}
