@@ -43,6 +43,8 @@ export const AppearanceTab: React.FC = () => {
       })
 
       if (response.ok) {
+        // Apply theme immediately
+        document.documentElement.setAttribute('data-theme', config.theme)
         setMessage('✓ Settings saved successfully')
       } else {
         setMessage('✗ Failed to save settings')

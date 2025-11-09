@@ -1598,3 +1598,45 @@ body {
   margin: 4px 0 0 0;
   letter-spacing: 0.3px;
 }
+
+/* ============================================
+   THEME VARIANTS
+   ============================================ */
+
+/* Dark Mode Theme */
+[data-theme="dark-mode"] {
+  --palm-screen-light: #3A3A3A;
+  --palm-screen-base: #2A2A2A;
+  --palm-screen-dark: #1A1A1A;
+  
+  --palm-text-dark: #E8E8E8;
+  --palm-text-light: #CCCCCC;
+  --palm-text-primary: #E8E8E8;
+  --palm-text-secondary: #AAAAAA;
+  
+  --palm-bg-primary: #2A2A2A;
+  --palm-bg-secondary: #333333;
+  
+  --palm-border: #555555;
+  --palm-border-light: #666666;
+  --palm-border-dark: #444444;
+}
+
+/* High Contrast Theme */
+[data-theme="high-contrast"] {
+  --palm-screen-light: #FFFFFF;
+  --palm-screen-base: #F0F0F0;
+  --palm-screen-dark: #E0E0E0;
+  
+  --palm-text-dark: #000000;
+  --palm-text-light: #FFFFFF;
+  --palm-text-primary: #000000;
+  --palm-text-secondary: #333333;
+  
+  --palm-bg-primary: #FFFFFF;
+  --palm-bg-secondary: #F5F5F5;
+  
+  --palm-border: #000000;
+  --palm-border-light: #333333;
+  --palm-border-dark: #000000;
+}

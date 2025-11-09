@@ -57,7 +57,21 @@ export default function HomePage() {
   // Load items on mount
   useEffect(() => {
     fetchItems()
+    loadAndApplyTheme()
   }, [])
+
+  // Load and apply theme from settings
+  const loadAndApplyTheme = async () => {
+    try {
+      const response = await fetch('/api/settings')
+      const data = await response.json()
+      const theme = data.settings?.appearance_config?.theme || 'classic-green'
+      document.documentElement.setAttribute('data-theme', theme)
+    } catch (error) {
+      console.error('Failed to load theme:', error)
+      document.documentElement.setAttribute('data-theme', 'classic-green')
+    }
+  }
 
   // Update URL when tab changes and refresh data
   const handleTabChange = (tab: TabId) => {
