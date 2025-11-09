@@ -16,6 +16,12 @@
   /* Text colors */
   --palm-text-dark: #2D3A2D;
   --palm-text-light: #E8EFE8;
+  --palm-text-primary: #2D3A2D;
+  --palm-text-secondary: #5B6B5B;
+
+  /* Background colors */
+  --palm-bg-primary: #C5D5C5;    /* Light background for modals/content */
+  --palm-bg-secondary: #B5C5B5;  /* Slightly darker for input fields */
 
   /* Borders & accents */
   --palm-border: #6B7B6B;
@@ -1474,14 +1480,10 @@ body {
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
-  padding: 8px;
-  background: var(--palm-screen-dark);
-  border: 1px solid;
-  border-top-color: var(--palm-border-dark);
-  border-left-color: var(--palm-border-dark);
-  border-bottom-color: var(--palm-border-light);
-  border-right-color: var(--palm-border-light);
-  min-height: 42px;
+  padding: 6px 8px;
+  background: var(--palm-bg-secondary);
+  border: 2px inset var(--palm-border-light);
+  min-height: 36px;
 }
 
 .retro-tag-chip {
