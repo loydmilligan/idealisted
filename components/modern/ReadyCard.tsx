@@ -61,10 +61,10 @@ export const ReadyCard: React.FC<ReadyCardProps> = ({
 
       {/* Action Buttons (Right-aligned) */}
       <div className="flex justify-end gap-2">
-        {/* Convert Button - Primary (beveled) */}
+        {/* Convert Button - Primary (beveled) with entity color accent */}
         <button
           onClick={onConvert}
-          className="retro-btn retro-btn-primary"
+          className={`retro-btn retro-btn-primary retro-btn-accent-${entityType}`}
         >
           Convert
         </button>

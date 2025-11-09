@@ -572,13 +572,17 @@ body {
    10. ENTITY BADGES
    ============================================ */
 
+/* Entity badges with colored borders and text */
 .retro-entity-badge {
   display: inline-block;
   font-family: var(--font-mono);
   font-size: 11px;
-  padding: 2px 6px;
+  padding: 3px 8px;
   border: 1px solid;
   background: transparent;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
 .retro-entity-badge-task {
@@ -599,6 +603,73 @@ body {
 .retro-entity-badge-list {
   color: var(--entity-list);
   border-color: var(--entity-list);
+}
+
+/* Entity-specific button tints for conversion actions */
+.retro-btn-accent-task {
+  border-color: var(--entity-task);
+  color: var(--entity-task);
+}
+
+.retro-btn-accent-task:hover {
+  background: var(--entity-task);
+  color: var(--palm-text-light);
+}
+
+.retro-btn-accent-note {
+  border-color: var(--entity-note);
+  color: var(--entity-note);
+}
+
+.retro-btn-accent-note:hover {
+  background: var(--entity-note);
+  color: var(--palm-text-light);
+}
+
+.retro-btn-accent-project {
+  border-color: var(--entity-project);
+  color: var(--entity-project);
+}
+
+.retro-btn-accent-project:hover {
+  background: var(--entity-project);
+  color: var(--palm-text-light);
+}
+
+.retro-btn-accent-list {
+  border-color: var(--entity-list);
+  color: var(--entity-list);
+}
+
+.retro-btn-accent-list:hover {
+  background: var(--entity-list);
+  color: var(--palm-text-light);
+}
+
+/* Entity color dot indicator for recent items */
+.retro-entity-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.retro-entity-dot-task {
+  background: var(--entity-task);
+}
+
+.retro-entity-dot-note {
+  background: var(--entity-note);
+}
+
+.retro-entity-dot-project {
+  background: var(--entity-project);
+}
+
+.retro-entity-dot-list {
+  background: var(--entity-list);
 }
 
 /* ============================================

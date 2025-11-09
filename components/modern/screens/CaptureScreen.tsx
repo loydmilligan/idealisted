@@ -97,22 +97,26 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
       {/* Action Buttons Row */}
       <div className="px-4 mb-6">
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          {entityButtons.map((btn, index) => (
-            <button
-              key={btn.label}
-              onClick={() => {
-                if (btn.hasDropdown) {
-                  setShowNoteMenu(!showNoteMenu)
-                } else {
-                  handleCapture(btn.type)
-                }
-              }}
-              disabled={!inputText.trim()}
-              className={`retro-btn ${index === 0 ? 'retro-btn-primary' : 'retro-btn-secondary'} whitespace-nowrap flex-shrink-0`}
-            >
-              {btn.label}
-            </button>
-          ))}
+          {entityButtons.map((btn, index) => {
+            // Add entity color accent for entity type buttons
+            const accentClass = btn.type && index > 0 ? `retro-btn-accent-${btn.type}` : ''
+            return (
+              <button
+                key={btn.label}
+                onClick={() => {
+                  if (btn.hasDropdown) {
+                    setShowNoteMenu(!showNoteMenu)
+                  } else {
+                    handleCapture(btn.type)
+                  }
+                }}
+                disabled={!inputText.trim()}
+                className={`retro-btn ${index === 0 ? 'retro-btn-primary' : 'retro-btn-secondary'} ${accentClass} whitespace-nowrap flex-shrink-0`}
+              >
+                {btn.label}
+              </button>
+            )
+          })}
 
           {/* AI Button */}
           <button
@@ -220,6 +224,7 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
               const timestamp = typeof item.createdAt === 'string' ? new Date(item.createdAt) : item.createdAt
               const timeAgo = formatDistanceToNow(timestamp, { addSuffix: true })
               const entityClass = item.entityType ? `retro-card-${item.entityType}` : ''
+              const entityDotClass = item.entityType ? `retro-entity-dot retro-entity-dot-${item.entityType}` : ''
 
               return (
                 <div
@@ -227,14 +232,19 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
                   className={`retro-card ${entityClass}`}
                   style={{ cursor: 'pointer' }}
                 >
-                  <p className="retro-item-title" style={{
-                    marginBottom: '4px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    {item.text}
-                  </p>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '4px' }}>
+                    {/* Entity color dot indicator */}
+                    {item.entityType && <span className={entityDotClass} style={{ marginTop: '6px' }} />}
+                    <p className="retro-item-title" style={{
+                      margin: 0,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      flex: 1
+                    }}>
+                      {item.text}
+                    </p>
+                  </div>
                   <p className="retro-timestamp">{timeAgo}</p>
                 </div>
               )

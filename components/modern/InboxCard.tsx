@@ -65,15 +65,19 @@ export const InboxCard: React.FC<InboxCardProps> = ({
 
       {/* Action Buttons Row */}
       <div className="retro-action-row">
-        {entityButtons.map((btn) => (
-          <button
-            key={btn.type}
-            onClick={() => handleEntityClick(btn.type)}
-            className="retro-btn retro-btn-secondary retro-btn-sm"
-          >
-            {btn.label}
-          </button>
-        ))}
+        {entityButtons.map((btn) => {
+          // Add entity color accent class for conversion buttons
+          const accentClass = btn.type ? `retro-btn-accent-${btn.type}` : ''
+          return (
+            <button
+              key={btn.type}
+              onClick={() => handleEntityClick(btn.type)}
+              className={`retro-btn retro-btn-secondary retro-btn-sm ${accentClass}`}
+            >
+              {btn.label}
+            </button>
+          )
+        })}
 
         {/* AI Dropdown Button */}
         <button
