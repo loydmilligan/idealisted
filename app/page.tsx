@@ -22,6 +22,7 @@ import { EntityModal, FormField } from '@/components/modern/EntityModal'
 import { SettingsModal } from '@/components/modern/SettingsModal'
 import { TagInput } from '@/components/modern/TagInput'
 import { EntityType } from '@/lib/entity-colors'
+import { ntfyService } from '@/lib/notify'
 
 // Types
 interface Item {
@@ -137,6 +138,8 @@ export default function HomePage() {
 
       if (response.ok) {
         await fetchItems()
+        // Send notification after successful capture
+        ntfyService.notifyIdeaCaptured(text)
         // Flash appropriate tab
         if (!entityType) {
           // Flash Unsorted tab
@@ -209,6 +212,8 @@ export default function HomePage() {
 
       if (response.ok) {
         await fetchItems()
+        // Send notification after successful sort
+        ntfyService.notifyIdeaSorted(item.text, entityType)
       }
     } catch (error) {
       console.error('Failed to sort item:', error)
@@ -275,9 +280,40 @@ export default function HomePage() {
   }
 
   const handleSwipeRightAction = async (entityId: string, entityType: Exclude<EntityType, 'idea'>) => {
-    // Configurable per entity type (complete, archive, etc.)
-    console.log('Swipe right action:', entityId, entityType)
-    // TODO: Implement based on entity type
+    try {
+      const entity = items.find(i => i.id === entityId)
+      if (!entity) return
+
+      // Handle task completion
+      if (entityType === 'task') {
+        const response = await fetch(`/api/items/${entityId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: entity.type,
+            text: entity.text,
+            tags: entity.tags || [],
+            archived: entity.archived || false,
+            parsed: entity.parsed || false,
+            entity_type: entity.entity_type,
+            task: {
+              status: 'completed',
+              priority: 1,
+              tags: [],
+            },
+          }),
+        })
+
+        if (response.ok) {
+          await fetchItems()
+          // Send notification after task completion
+          ntfyService.notifyTaskCompleted(entity.text)
+        }
+      }
+      // TODO: Implement other entity type actions (archive note, activate project, etc.)
+    } catch (error) {
+      console.error('Failed to perform swipe right action:', error)
+    }
   }
 
   // ===== Modal Handlers =====
@@ -344,7 +380,12 @@ export default function HomePage() {
       })
 
       if (response.ok) {
+        const responseData = await response.json()
         await fetchItems()
+        // Send notification after successful entity creation
+        if (modalEntity?.type) {
+          ntfyService.notifyEntityCreated(data.title || item.text, modalEntity.type)
+        }
         setModalOpen(false)
       }
     } catch (error) {
