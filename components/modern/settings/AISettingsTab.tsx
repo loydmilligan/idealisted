@@ -67,21 +67,41 @@ export const AISettingsTab: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: 'Test AI connection',
+          text: 'Hello, this is a test to verify AI is working correctly',
           targetType: 'task',
         }),
       })
 
-      if (response.ok) {
-        setMessage('✓ AI connection working')
+      const data = await response.json()
+
+      if (response.ok && data.success && data.suggestion) {
+        // Show success with a snippet of the AI response
+        const snippet = data.suggestion.title?.substring(0, 60) || 'Response received'
+        setMessage(`✓ AI is working! Response: "${snippet}${data.suggestion.title?.length > 60 ? '...' : ''}"`)
+      } else if (!response.ok) {
+        // HTTP error - show status and message
+        const errorMsg = data.error || data.message || `HTTP ${response.status}`
+        if (response.status === 401 || response.status === 403) {
+          setMessage(`✗ API Key Invalid: ${errorMsg}`)
+        } else if (response.status === 429) {
+          setMessage(`✗ Rate Limited: ${errorMsg}`)
+        } else if (response.status === 500) {
+          setMessage(`✗ Server Error: ${errorMsg}`)
+        } else {
+          setMessage(`✗ AI Error: ${errorMsg}`)
+        }
       } else {
-        setMessage('✗ AI connection failed')
+        // Response OK but no valid suggestion
+        setMessage('✗ AI returned invalid response. Check model configuration.')
       }
     } catch (error) {
-      setMessage('✗ AI test error')
+      // Network or parse error
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error'
+      setMessage(`✗ Connection failed: ${errorMsg}`)
     } finally {
       setTesting(false)
-      setTimeout(() => setMessage(''), 3000)
+      // Keep error messages visible longer
+      setTimeout(() => setMessage(''), 8000)
     }
   }
 
