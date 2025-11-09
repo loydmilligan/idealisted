@@ -68,8 +68,10 @@ class SnapshotService {
 
   /**
    * Generate a daily snapshot for the given date
+   * @param date - Date to generate snapshot for
+   * @param persist - Whether to save snapshot to disk (false for tests)
    */
-  async generateDailySnapshot(date: Date = new Date()): Promise<DailySnapshot> {
+  async generateDailySnapshot(date: Date = new Date(), persist: boolean = true): Promise<DailySnapshot> {
     const { db } = await import('./db')
     const dateStr = format(date, 'yyyy-MM-dd')
     const startOfDay = new Date(date)
@@ -195,15 +197,18 @@ class SnapshotService {
       projects: projectSnapshots,
     }
 
-    // Save snapshot
-    await this.saveDailySnapshot(snapshot)
+    // Only save snapshot and update aggregations if persist is true
+    if (persist) {
+      // Save snapshot
+      await this.saveDailySnapshot(snapshot)
 
-    // Cleanup old snapshots (keep 31 days)
-    await this.cleanupOldSnapshots()
+      // Cleanup old snapshots (keep 31 days)
+      await this.cleanupOldSnapshots()
 
-    // Update weekly and monthly summaries
-    await this.updateWeeklySummary(date)
-    await this.updateMonthlySummary(date)
+      // Update weekly and monthly summaries
+      await this.updateWeeklySummary(date)
+      await this.updateMonthlySummary(date)
+    }
 
     return snapshot
   }

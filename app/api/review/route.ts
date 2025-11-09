@@ -35,17 +35,19 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/review/trigger
  * Manually trigger a daily review notification
+ * Set test: true to prevent saving snapshot to disk
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const dateParam = body.date
     const includeAI = body.includeAI !== false
+    const isTest = body.test === true  // Test mode doesn't persist snapshots
 
     const date = dateParam ? new Date(dateParam) : new Date()
 
-    // Generate review data
-    const reviewData = await reviewService.generateReview(date, includeAI)
+    // Generate review data (don't persist if test mode)
+    const reviewData = await reviewService.generateReview(date, includeAI, !isTest)
 
     // Get notification message
     const { title, message } = reviewService.getNotificationMessage(reviewData)

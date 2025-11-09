@@ -19,13 +19,16 @@ export interface ReviewData {
 class ReviewService {
   /**
    * Generate a complete review for a given date
+   * @param date - Date to generate review for
+   * @param includeAI - Whether to include AI-generated project summary
+   * @param persist - Whether to save snapshot to disk (false for tests)
    */
-  async generateReview(date: Date = new Date(), includeAI: boolean = true): Promise<ReviewData> {
+  async generateReview(date: Date = new Date(), includeAI: boolean = true, persist: boolean = true): Promise<ReviewData> {
     // Get or create daily snapshot
     let snapshot = await snapshotService.getDailySnapshot(date)
 
     if (!snapshot) {
-      snapshot = await snapshotService.generateDailySnapshot(date)
+      snapshot = await snapshotService.generateDailySnapshot(date, persist)
     }
 
     // Identify projects with significant activity

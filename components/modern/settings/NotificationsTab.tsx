@@ -35,6 +35,7 @@ export const NotificationsTab: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
+  const [testingReview, setTestingReview] = useState(false)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
@@ -172,6 +173,34 @@ export const NotificationsTab: React.FC = () => {
       setMessage('✗ Test error: ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setTesting(false)
+      setTimeout(() => setMessage(''), 3000)
+    }
+  }
+
+  const handleTestReview = async () => {
+    setTestingReview(true)
+    setMessage('')
+
+    try {
+      const response = await fetch('/api/review/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          includeAI: dailyReview.includeAiSummary,
+          test: true  // Don't persist snapshot to disk
+        }),
+      })
+
+      if (response.ok) {
+        setMessage('✓ Daily review notification sent successfully')
+      } else {
+        const data = await response.json()
+        setMessage(`✗ Daily review test failed: ${data.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      setMessage('✗ Test error: ' + (error instanceof Error ? error.message : 'Unknown error'))
+    } finally {
+      setTestingReview(false)
       setTimeout(() => setMessage(''), 3000)
     }
   }
@@ -355,6 +384,16 @@ export const NotificationsTab: React.FC = () => {
         />
         Include AI summary
       </label>
+
+      <div className="retro-button-row">
+        <button
+          className="retro-btn retro-btn-secondary"
+          onClick={handleTestReview}
+          disabled={testingReview || !config.enabled || !config.topic}
+        >
+          {testingReview ? 'TESTING...' : 'TEST DAILY REVIEW'}
+        </button>
+      </div>
 
       {message && (
         <div className="retro-message">
