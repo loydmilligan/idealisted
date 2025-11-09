@@ -3,6 +3,24 @@
 import React, { useState, useEffect } from 'react'
 import { AIConfig } from '@/types'
 
+// Popular OpenRouter models
+const FREE_MODELS = [
+  { value: 'meta-llama/llama-3.1-8b-instruct:free', label: 'Llama 3.1 8B (Free)' },
+  { value: 'google/gemini-flash-1.5:free', label: 'Gemini Flash 1.5 (Free)' },
+  { value: 'qwen/qwen-2-7b-instruct:free', label: 'Qwen 2 7B (Free)' },
+  { value: 'mistralai/mistral-7b-instruct:free', label: 'Mistral 7B (Free)' },
+]
+
+const PAID_MODELS = [
+  { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet' },
+  { value: 'anthropic/claude-3-opus', label: 'Claude 3 Opus' },
+  { value: 'openai/gpt-4-turbo', label: 'GPT-4 Turbo' },
+  { value: 'openai/gpt-4o', label: 'GPT-4o' },
+  { value: 'google/gemini-pro-1.5', label: 'Gemini Pro 1.5' },
+  { value: 'meta-llama/llama-3.1-70b-instruct', label: 'Llama 3.1 70B' },
+  { value: 'meta-llama/llama-3.1-405b-instruct', label: 'Llama 3.1 405B' },
+]
+
 export const AISettingsTab: React.FC = () => {
   const [config, setConfig] = useState<AIConfig>({
     openrouterApiKey: '',
@@ -126,22 +144,32 @@ export const AISettingsTab: React.FC = () => {
 
       <div className="retro-form-group">
         <label className="retro-form-label">Free Model</label>
-        <input
-          type="text"
-          className="retro-input"
+        <select
+          className="retro-select"
           value={config.freeModel}
           onChange={(e) => setConfig({ ...config, freeModel: e.target.value })}
-        />
+        >
+          {FREE_MODELS.map(model => (
+            <option key={model.value} value={model.value}>
+              {model.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="retro-form-group">
         <label className="retro-form-label">Paid Model</label>
-        <input
-          type="text"
-          className="retro-input"
+        <select
+          className="retro-select"
           value={config.paidModel}
           onChange={(e) => setConfig({ ...config, paidModel: e.target.value })}
-        />
+        >
+          {PAID_MODELS.map(model => (
+            <option key={model.value} value={model.value}>
+              {model.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="retro-form-group">
