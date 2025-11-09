@@ -61,6 +61,64 @@ export default function HomePage() {
     loadAndApplyTheme()
   }, [])
 
+  // Client-side fallback check for daily reviews
+  useEffect(() => {
+    const checkDailyReview = async () => {
+      try {
+        // Load daily review settings
+        const response = await fetch('/api/settings')
+        const data = await response.json()
+        const reviewConfig = data.settings?.review_config
+
+        // Check if daily review is enabled
+        if (!reviewConfig?.enabled) {
+          return
+        }
+
+        // Get configured review time (e.g., "19:00")
+        const reviewTime = reviewConfig.time
+        if (!reviewTime) {
+          return
+        }
+
+        // Parse review time
+        const [hours, minutes] = reviewTime.split(':').map(Number)
+        const now = new Date()
+        const reviewDateTime = new Date()
+        reviewDateTime.setHours(hours, minutes, 0, 0)
+
+        // Check if current time is past review time today
+        if (now < reviewDateTime) {
+          return
+        }
+
+        // Check if review was already sent today
+        const lastSent = reviewConfig.lastSent
+        if (lastSent) {
+          const lastSentDate = new Date(lastSent)
+          const todayStart = new Date()
+          todayStart.setHours(0, 0, 0, 0)
+
+          // If lastSent is today, skip
+          if (lastSentDate >= todayStart) {
+            return
+          }
+        }
+
+        // Review time has passed AND not sent today, trigger review
+        console.log('Triggering missed daily review from client-side fallback')
+        await fetch('/api/review/trigger', {
+          method: 'POST',
+        })
+      } catch (error) {
+        console.log('Client-side daily review check failed:', error)
+      }
+    }
+
+    // Run check once on mount
+    checkDailyReview()
+  }, [])
+
   // Load and apply theme from settings
   const loadAndApplyTheme = async () => {
     try {
