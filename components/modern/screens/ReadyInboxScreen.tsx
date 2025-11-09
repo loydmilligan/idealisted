@@ -41,13 +41,6 @@ export const ReadyInboxScreen: React.FC<ReadyInboxScreenProps> = ({
 }) => {
   return (
     <div className={`flex flex-col h-full ${className}`}>
-      {/* Header Section */}
-      <div className="retro-screen-header">
-        <h1 className="retro-header">
-          READY ({items.length})
-        </h1>
-      </div>
-
       {/* Content Area */}
       <div className="retro-screen-content">
         {items.length === 0 ? (

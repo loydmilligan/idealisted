@@ -182,11 +182,6 @@ export const EntitiesScreen: React.FC<EntitiesScreenProps> = ({
 
   return (
     <div className={`flex flex-col h-full ${className}`}>
-      {/* Header Section */}
-      <div className="retro-screen-header">
-        <h1 className="retro-header">ENTITIES</h1>
-      </div>
-
       {/* Entity Type Filter Chips */}
       <div className="retro-filter-chips">
         {filters.map((filter) => {
