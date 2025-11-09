@@ -123,6 +123,20 @@ class SnapshotService {
       stats.entityBreakdown[row.entity_type] = row.count
     })
 
+    // Also track actual entities created today (not just converted ideas)
+    const entitiesCreated = db.prepare(`
+      SELECT type, COUNT(*) as count
+      FROM items
+      WHERE type IN ('task', 'note', 'project', 'list', 'todo')
+      AND created_at >= ? AND created_at <= ?
+      GROUP BY type
+    `).all(startOfDay.getTime(), endOfDay.getTime()) as any[]
+
+    entitiesCreated.forEach(row => {
+      // Add to entity breakdown (combine with converted ideas)
+      stats.entityBreakdown[row.type] = (stats.entityBreakdown[row.type] || 0) + row.count
+    })
+
     // Tasks completed today
     const tasksCompleted = db.prepare(`
       SELECT COUNT(*) as count
@@ -344,7 +358,6 @@ class SnapshotService {
       }
     }
 
-    const monthEnd = new Date(year, month, 0)
     const monthlySummary: MonthlySummary = {
       month,
       year,
