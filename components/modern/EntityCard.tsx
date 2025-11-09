@@ -47,12 +47,25 @@ export const EntityCard: React.FC<EntityCardProps> = ({
   const timestamp = typeof createdAt === 'string' ? new Date(createdAt) : createdAt
   const timeAgo = formatDistanceToNow(timestamp, { addSuffix: true })
 
+  // Get status badge configuration
+  const getStatusBadge = () => {
+    if (entityType !== 'task' || !metadata.status) return null
+
+    const statusConfig = {
+      pending: { icon: '○', label: 'Pending', class: 'status-pending' },
+      in_progress: { icon: '◐', label: 'In Progress', class: 'status-in-progress' },
+      completed: { icon: '●', label: 'Completed', class: 'status-completed' },
+    }
+
+    return statusConfig[metadata.status as keyof typeof statusConfig]
+  }
+
   // Format metadata display based on entity type
   const getMetadataDisplay = (): string => {
     const parts: string[] = []
 
     if (entityType === 'task') {
-      if (metadata.status) parts.push(metadata.status)
+      // Status shown separately as badge, not in text
       if (metadata.dueDate) {
         const dueDate = new Date(metadata.dueDate)
         parts.push(`Due: ${dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`)
@@ -67,6 +80,7 @@ export const EntityCard: React.FC<EntityCardProps> = ({
     return parts.join(' • ')
   }
 
+  const statusBadge = getStatusBadge()
   const metadataDisplay = getMetadataDisplay()
 
   // Capitalize entity type for display
@@ -77,8 +91,16 @@ export const EntityCard: React.FC<EntityCardProps> = ({
       onClick={onTap}
       className={`retro-card retro-card-${entityType} ${className}`}
     >
-      {/* Entity Title */}
-      <h3 className="retro-item-title mb-1">{title}</h3>
+      {/* Entity Title with Status Badge for Tasks */}
+      <div className="flex items-center gap-2 mb-1">
+        <h3 className="retro-item-title flex-1">{title}</h3>
+        {statusBadge && (
+          <span className={`retro-status-badge ${statusBadge.class}`}>
+            <span className="retro-status-icon">{statusBadge.icon}</span>
+            <span className="retro-status-label">{statusBadge.label}</span>
+          </span>
+        )}
+      </div>
 
       {/* Metadata Row */}
       {metadataDisplay && (

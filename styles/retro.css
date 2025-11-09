@@ -1664,3 +1664,49 @@ body {
 .retro-header-subheader.flash-ready {
   animation: flashReady 1.2s ease-in-out;
 }
+
+/* ============================================
+   TASK STATUS BADGES
+   ============================================ */
+
+.retro-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  border: 1px solid;
+  flex-shrink: 0;
+}
+
+.retro-status-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.retro-status-label {
+  line-height: 1;
+}
+
+.retro-status-badge.status-pending {
+  background: var(--palm-bg-secondary);
+  border-color: var(--palm-border);
+  color: var(--palm-text-secondary);
+}
+
+.retro-status-badge.status-in-progress {
+  background: #4A90E220;
+  border-color: #4A90E2;
+  color: #4A90E2;
+}
+
+.retro-status-badge.status-completed {
+  background: #7ED32120;
+  border-color: #7ED321;
+  color: #5BA519;
+}
