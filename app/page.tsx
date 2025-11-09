@@ -59,12 +59,14 @@ export default function HomePage() {
     fetchItems()
   }, [])
 
-  // Update URL when tab changes
+  // Update URL when tab changes and refresh data
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab)
     const params = new URLSearchParams(searchParams?.toString() || '')
     params.set('tab', tab)
     router.push(`?${params.toString()}`)
+    // Refresh items when switching tabs to ensure fresh data
+    fetchItems()
   }
 
   // Fetch all items from API
