@@ -182,7 +182,7 @@ export const NotificationsTab: React.FC = () => {
     setMessage('')
 
     try {
-      const response = await fetch('/api/review/trigger', {
+      const response = await fetch('/api/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -5,6 +5,7 @@ import { AIConfig } from '@/types'
 
 // Popular OpenRouter models
 const FREE_MODELS = [
+  { value: 'z-ai/glm-4.5-air:free', label: 'GLM-4.5 Air (Free) - Verified' },
   { value: 'meta-llama/llama-3.1-8b-instruct:free', label: 'Llama 3.1 8B (Free)' },
   { value: 'google/gemini-flash-1.5:free', label: 'Gemini Flash 1.5 (Free)' },
   { value: 'qwen/qwen-2-7b-instruct:free', label: 'Qwen 2 7B (Free)' },
@@ -12,6 +13,7 @@ const FREE_MODELS = [
 ]
 
 const PAID_MODELS = [
+  { value: 'x-ai/grok-code-fast-1', label: 'Grok Code Fast 1 - Verified' },
   { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet' },
   { value: 'anthropic/claude-3-opus', label: 'Claude 3 Opus' },
   { value: 'openai/gpt-4-turbo', label: 'GPT-4 Turbo' },
@@ -24,8 +26,8 @@ const PAID_MODELS = [
 export const AISettingsTab: React.FC = () => {
   const [config, setConfig] = useState<AIConfig>({
     openrouterApiKey: '',
-    freeModel: 'meta-llama/llama-3.1-8b-instruct:free',
-    paidModel: 'anthropic/claude-3.5-sonnet',
+    freeModel: 'z-ai/glm-4.5-air:free',
+    paidModel: 'x-ai/grok-code-fast-1',
     usePaidModel: false,
     systemPrompt: 'You are an intelligent assistant for IdeaListed, a task management app. Help users capture, organize, and process their ideas efficiently.',
     temperature: 0.7,

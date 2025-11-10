@@ -107,7 +107,7 @@ export default function HomePage() {
 
         // Review time has passed AND not sent today, trigger review
         console.log('Triggering missed daily review from client-side fallback')
-        await fetch('/api/review/trigger', {
+        await fetch('/api/review', {
           method: 'POST',
         })
       } catch (error) {

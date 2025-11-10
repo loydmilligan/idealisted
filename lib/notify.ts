@@ -81,23 +81,16 @@ class NtfyService {
         return { success: false, error: 'Ntfy notifications disabled' }
       }
 
-      const payload: any = {
-        topic: config.topic,
-        title,
-        message,
-        priority: config.priority || priority,
-        tags: ['brain', 'lightbulb']
-      }
-
-      if (actions && actions.length > 0) {
-        payload.actions = actions
-      }
-
-      // Prepare headers with authentication if provided
+      // Prepare headers (ntfy.sh uses headers for metadata, body for message text)
       const headers: any = {
-        'Content-Type': 'application/json',
+        'Title': title,
         'Priority': config.priority || priority,
         'Tags': 'brain,lightbulb'
+      }
+
+      // Add actions as JSON header if provided
+      if (actions && actions.length > 0) {
+        headers['Actions'] = JSON.stringify(actions)
       }
 
       // Add basic auth if username and password are provided
@@ -106,9 +99,10 @@ class NtfyService {
         headers['Authorization'] = `Basic ${auth}`
       }
 
+      // Send message as plain text in body, metadata in headers
       const response = await axios.post(
         `${config.server}/${config.topic}`,
-        payload,
+        message,  // Plain text message in body
         { headers }
       )
 
