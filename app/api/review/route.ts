@@ -69,14 +69,22 @@ export async function POST(request: NextRequest) {
     // Mark review as sent if notification succeeded
     if (notificationResult.success) {
       await reviewService.markReviewAsSent()
-    }
 
-    return NextResponse.json({
-      success: true,
-      review: reviewData,
-      notification: notificationResult,
-      message: 'Review triggered successfully'
-    })
+      return NextResponse.json({
+        success: true,
+        review: reviewData,
+        notification: notificationResult,
+        message: 'Review notification sent successfully'
+      })
+    } else {
+      // Notification failed - return error
+      return NextResponse.json({
+        success: false,
+        review: reviewData,
+        notification: notificationResult,
+        error: notificationResult.error || 'Failed to send notification'
+      }, { status: 500 })
+    }
   } catch (error) {
     console.error('Failed to trigger review:', error)
     return NextResponse.json(

@@ -1,10 +1,13 @@
 import { schedulerService } from './scheduler'
 
-// Flag to ensure we only initialize once
-let initialized = false
+// Use global flag to survive hot-reloads in development
+declare global {
+  var __scheduler_initialized: boolean | undefined
+}
 
 export function initializeServices() {
-  if (initialized) {
+  // Check global flag to prevent multiple initializations across hot-reloads
+  if (global.__scheduler_initialized) {
     return
   }
 
@@ -18,7 +21,7 @@ export function initializeServices() {
     schedulerService.start()
 
     console.log('[Init] Services initialized successfully')
-    initialized = true
+    global.__scheduler_initialized = true
   } catch (error) {
     console.error('[Init] Failed to initialize services:', error)
   }

@@ -94,10 +94,10 @@ export const AISettingsTab: React.FC = () => {
 
       const data = await response.json()
 
-      if (response.ok && data.success && data.suggestion) {
-        // Show success with a snippet of the AI response
-        const snippet = data.suggestion.title?.substring(0, 60) || 'Response received'
-        setMessage(`✓ AI is working! Response: "${snippet}${data.suggestion.title?.length > 60 ? '...' : ''}"`)
+      if (response.ok && data.processed_text) {
+        // Show success with a snippet of the AI response (AISuggestion object)
+        const snippet = data.processed_text.substring(0, 60) || 'Response received'
+        setMessage(`✓ AI is working! Type: ${data.suggested_type}, Text: "${snippet}${data.processed_text.length > 60 ? '...' : ''}"`)
       } else if (!response.ok) {
         // HTTP error - show status and message
         const errorMsg = data.error || data.message || `HTTP ${response.status}`

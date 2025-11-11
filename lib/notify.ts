@@ -82,8 +82,13 @@ class NtfyService {
       }
 
       // Prepare headers (ntfy.sh uses headers for metadata, body for message text)
+      // Sanitize header values: remove newlines and limit length
+      const sanitizeHeader = (str: string, maxLength: number = 256) => {
+        return str.replace(/[\r\n]/g, ' ').substring(0, maxLength).trim()
+      }
+
       const headers: any = {
-        'Title': title,
+        'Title': sanitizeHeader(title, 100),
         'Priority': config.priority || priority,
         'Tags': 'brain,lightbulb'
       }
@@ -100,9 +105,12 @@ class NtfyService {
       }
 
       // Send message as plain text in body, metadata in headers
+      // Sanitize message body - remove excessive newlines but keep formatting
+      const sanitizedMessage = message.replace(/\n{3,}/g, '\n\n').trim()
+
       const response = await axios.post(
         `${config.server}/${config.topic}`,
-        message,  // Plain text message in body
+        sanitizedMessage,  // Plain text message in body
         { headers }
       )
 
