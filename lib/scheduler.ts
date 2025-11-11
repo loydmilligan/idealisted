@@ -3,22 +3,27 @@ import { reviewService } from './review'
 import { ntfyService } from './notify'
 import { format } from 'date-fns'
 
-class SchedulerService {
-  private task: any = null
-  private isRunning: boolean = false
+// Use global variable to persist cron task across hot-reloads
+declare global {
+  var __daily_review_cron_task: any | undefined
+  var __daily_review_is_running: boolean | undefined
+}
 
+class SchedulerService {
   /**
    * Start the daily review scheduler
    * Checks every minute if it's time to send the review
    */
   start() {
-    if (this.task) {
-      console.log('[Scheduler] Already running')
-      return
+    // Stop any existing task from previous module loads
+    if (global.__daily_review_cron_task) {
+      console.log('[Scheduler] Stopping existing task before creating new one')
+      global.__daily_review_cron_task.stop()
+      global.__daily_review_cron_task = undefined
     }
 
     // Run every minute
-    this.task = cron.schedule('* * * * *', async () => {
+    global.__daily_review_cron_task = cron.schedule('* * * * *', async () => {
       await this.checkAndSendDailyReview()
     })
 
@@ -29,9 +34,9 @@ class SchedulerService {
    * Stop the scheduler
    */
   stop() {
-    if (this.task) {
-      this.task.stop()
-      this.task = null
+    if (global.__daily_review_cron_task) {
+      global.__daily_review_cron_task.stop()
+      global.__daily_review_cron_task = undefined
       console.log('[Scheduler] Stopped')
     }
   }
@@ -41,10 +46,10 @@ class SchedulerService {
    */
   private async checkAndSendDailyReview() {
     // Prevent concurrent executions
-    if (this.isRunning) return
+    if (global.__daily_review_is_running) return
 
     try {
-      this.isRunning = true
+      global.__daily_review_is_running = true
 
       // Load daily review settings
       const { db } = await import('./db')
@@ -126,7 +131,7 @@ class SchedulerService {
     } catch (error) {
       console.error('[Scheduler] Error in daily review check:', error)
     } finally {
-      this.isRunning = false
+      global.__daily_review_is_running = false
     }
   }
 }

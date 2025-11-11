@@ -22,10 +22,11 @@ import { EntityModal, FormField } from '@/components/modern/EntityModal'
 import { SettingsModal } from '@/components/modern/SettingsModal'
 import { TagInput } from '@/components/modern/TagInput'
 import { EntityType } from '@/lib/entity-colors'
+import { ItemWithRelations } from '@/types'
 // DISABLED (causes build error - server-side only): import { ntfyService } from '@/lib/notify'
 
 // Types
-interface Item {
+interface Item extends Omit<ItemWithRelations, 'created_at' | 'type' | 'entity_type'> {
   id: string
   text: string
   type: EntityType
@@ -284,7 +285,12 @@ export default function HomePage() {
     if (!item) return
 
     setModalEntity({ type: entityType })
-    setModalData({ title: item.text, id: itemId, tags: item.tags || [] })
+    setModalData({
+      title: item.text,
+      id: itemId,
+      tags: item.tags || [],
+      description: item.note?.content || item.project?.description || item.list?.description || ''
+    })
     setModalOpen(true)
   }
 
@@ -323,7 +329,12 @@ export default function HomePage() {
     if (!item || !item.entity_type) return
 
     setModalEntity({ type: item.entity_type as Exclude<EntityType, 'idea'> })
-    setModalData({ title: item.text, id: itemId, tags: item.tags || [] })
+    setModalData({
+      title: item.text,
+      id: itemId,
+      tags: item.tags || [],
+      description: item.note?.content || item.project?.description || item.list?.description || ''
+    })
     setModalOpen(true)
   }
 
@@ -333,7 +344,12 @@ export default function HomePage() {
     if (!entity) return
 
     setModalEntity({ id: entityId, type: entity.type as Exclude<EntityType, 'idea'> })
-    setModalData({ title: entity.text, id: entityId, tags: entity.tags || [] })
+    setModalData({
+      title: entity.text,
+      id: entityId,
+      tags: entity.tags || [],
+      description: entity.note?.content || entity.project?.description || entity.list?.description || ''
+    })
     setModalOpen(true)
   }
 
