@@ -1,20 +1,40 @@
 import axios from 'axios'
 import { NtfyConfig } from '../types/index'
 
+interface NotificationEvents {
+  taskCompleted: boolean
+  taskDueSoon: boolean
+  ideaCaptured: boolean
+  ideaSorted: boolean
+  entityCreated: boolean
+}
+
 class NtfyService {
   private config: NtfyConfig | null = null
+  private events: NotificationEvents | null = null
 
   private async loadConfig() {
     try {
       const { db } = await import('./db')
       const setting = db.prepare('SELECT value FROM settings WHERE key = ?').get('ntfy_config') as any
-      
+      const eventsSetting = db.prepare('SELECT value FROM settings WHERE key = ?').get('notification_events') as any
+
       if (setting) {
         this.config = JSON.parse(setting.value)
+      }
+      if (eventsSetting) {
+        this.events = JSON.parse(eventsSetting.value)
       }
     } catch (error) {
       console.error('Failed to load ntfy config:', error)
     }
+  }
+
+  private async isEventEnabled(eventName: keyof NotificationEvents): Promise<boolean> {
+    await this.loadConfig()
+    if (!this.config?.enabled) return false
+    if (!this.events) return false
+    return this.events[eventName] === true
   }
 
   async updateConfig(config: NtfyConfig) {
@@ -61,23 +81,21 @@ class NtfyService {
         return { success: false, error: 'Ntfy notifications disabled' }
       }
 
-      const payload: any = {
-        topic: config.topic,
-        title,
-        message,
-        priority: config.priority || priority,
-        tags: ['brain', 'lightbulb']
+      // Prepare headers (ntfy.sh uses headers for metadata, body for message text)
+      // Sanitize header values: remove newlines and limit length
+      const sanitizeHeader = (str: string, maxLength: number = 256) => {
+        return str.replace(/[\r\n]/g, ' ').substring(0, maxLength).trim()
       }
 
-      if (actions && actions.length > 0) {
-        payload.actions = actions
-      }
-
-      // Prepare headers with authentication if provided
       const headers: any = {
-        'Content-Type': 'application/json',
+        'Title': sanitizeHeader(title, 100),
         'Priority': config.priority || priority,
         'Tags': 'brain,lightbulb'
+      }
+
+      // Add actions as JSON header if provided
+      if (actions && actions.length > 0) {
+        headers['Actions'] = JSON.stringify(actions)
       }
 
       // Add basic auth if username and password are provided
@@ -86,9 +104,13 @@ class NtfyService {
         headers['Authorization'] = `Basic ${auth}`
       }
 
+      // Send message as plain text in body, metadata in headers
+      // Sanitize message body - remove excessive newlines but keep formatting
+      const sanitizedMessage = message.replace(/\n{3,}/g, '\n\n').trim()
+
       const response = await axios.post(
         `${config.server}/${config.topic}`,
-        payload,
+        sanitizedMessage,  // Plain text message in body
         { headers }
       )
 
@@ -182,6 +204,55 @@ class NtfyService {
         }
       ],
       'low'
+    )
+  }
+
+  // Event-aware notification methods
+  async notifyIdeaCaptured(text: string) {
+    if (!(await this.isEventEnabled('ideaCaptured'))) {
+      return { success: false, skipped: true }
+    }
+    return this.notifyCaptureSuccess(text)
+  }
+
+  async notifyIdeaSorted(text: string, entityType: string) {
+    if (!(await this.isEventEnabled('ideaSorted'))) {
+      return { success: false, skipped: true }
+    }
+
+    const entityLabel = entityType.charAt(0).toUpperCase() + entityType.slice(1)
+    return this.sendNotification(
+      '📋 Idea Sorted',
+      `"${text.substring(0, 50)}${text.length > 50 ? '...' : ''}" → ${entityLabel}`,
+      [],
+      'low'
+    )
+  }
+
+  async notifyEntityCreated(title: string, entityType: string) {
+    if (!(await this.isEventEnabled('entityCreated'))) {
+      return { success: false, skipped: true }
+    }
+
+    const entityLabel = entityType.charAt(0).toUpperCase() + entityType.slice(1)
+    return this.sendNotification(
+      '✨ Entity Created',
+      `${entityLabel}: "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}"`,
+      [],
+      'default'
+    )
+  }
+
+  async notifyTaskCompleted(taskText: string) {
+    if (!(await this.isEventEnabled('taskCompleted'))) {
+      return { success: false, skipped: true }
+    }
+
+    return this.sendNotification(
+      '✅ Task Completed',
+      `"${taskText.substring(0, 50)}${taskText.length > 50 ? '...' : ''}"`,
+      [],
+      'default'
     )
   }
 

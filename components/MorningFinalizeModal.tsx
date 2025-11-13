@@ -38,11 +38,6 @@ export function MorningFinalizeModal({ plan, tasks, onClose, onFinalize }: Morni
   const handleFinalize = async () => {
     setIsLoading(true)
     try {
-      // Update plan with reordered tasks
-      await apiClient.updatePlan(plan.id, {
-        task_ids: planTasks.map(t => t.id)
-      })
-
       // Finalize the plan
       await apiClient.finalizePlan(plan.id)
 

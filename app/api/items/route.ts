@@ -162,17 +162,27 @@ export async function POST(request: NextRequest) {
 
     // Start transaction
     const insertItem = db.prepare(`
-      INSERT INTO items (id, type, text, created_at, updated_at, metadata, tags, archived)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+      INSERT INTO items (id, type, text, created_at, updated_at, metadata, tags, archived, parsed, entity_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
     `)
 
     const metadataJson = body.metadata ? JSON.stringify(body.metadata) : null
     const tagsJson = body.tags ? JSON.stringify(body.tags) : null
 
-    insertItem.run(id, body.type, body.text, now, now, metadataJson, tagsJson)
+    insertItem.run(
+      id,
+      body.type,
+      body.text,
+      now,
+      now,
+      metadataJson,
+      tagsJson,
+      (body as any).parsed ? 1 : 0,
+      (body as any).entity_type || null
+    )
 
     // Insert type-specific data
-    if (body.type === 'todo' && body.todo) {
+    if ((body.type as any) === 'todo' && body.todo) {
       // Handle legacy todo type - convert to task
       const insertTask = db.prepare(`
         INSERT INTO tasks (id, item_id, status, priority, tags, estimated_time, project_id, due_date)

@@ -209,7 +209,7 @@ function generateSmartFallback(text: string): AISuggestion {
     suggested_type: suggestedType,
     confidence: 0.7,
     processed_text: text.trim(),
-    tags: [...new Set(tags)], // Remove duplicates
+    tags: Array.from(new Set(tags)), // Remove duplicates
     additional_fields: {
       priority,
       due_date: dueDate,

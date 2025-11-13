@@ -1,8 +1,7 @@
 import './globals.css'
+import '../styles/retro.css'
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-
-const inter = Inter({ subsets: ['latin'] })
+import '@/lib/init'  // Initialize server-side services (scheduler, etc.)
 
 export const metadata: Metadata = {
   title: 'IdeaListed',
@@ -16,7 +15,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body>{children}</body>
     </html>
   )
 }

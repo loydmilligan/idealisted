@@ -158,10 +158,18 @@ export interface NtfyConfig {
   priority: 'default' | 'low' | 'high' | 'urgent'
 }
 
+export interface AppearanceConfig {
+  theme: 'classic-green' | 'dark-mode' | 'high-contrast'
+  showTimestamps: boolean
+  showEntityBadges: boolean
+  animationsEnabled: boolean
+}
+
 // Combined types for API responses
 export interface ItemWithRelations extends Item {
   todo?: Todo
-  note?: Note & { 
+  task?: Task
+  note?: Note & {
     type?: 'general' | 'meeting' | 'research' | 'reference' | 'personal'
     title?: string
     description?: string
@@ -194,11 +202,13 @@ export interface CreateItemRequest {
 export interface UpdateItemRequest extends Partial<CreateItemRequest> {
   id: string
   archived?: boolean
+  parsed?: boolean
+  entity_type?: 'task' | 'note' | 'list' | 'project'
   todo?: Omit<Todo, 'id' | 'item_id'>
 }
 
 export interface AIRequest {
-  type: 'suggest'
+  type: 'suggest' | 'parse' | 'convert' | 'tag' | 'rewrite' | 'research'
   itemId?: string
   text?: string
   context?: Record<string, any>
