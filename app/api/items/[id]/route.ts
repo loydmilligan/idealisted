@@ -140,9 +140,15 @@ export async function PUT(
     const body: UpdateItemRequest = await request.json()
     const now = Date.now()
 
+    // Fetch existing item first to merge with updates
+    const existingItem = db.prepare('SELECT * FROM items WHERE id = ?').get(params.id) as any
+    if (!existingItem) {
+      return NextResponse.json({ error: 'Item not found' }, { status: 404 })
+    }
+
     // Start transaction
     const updateItem = db.prepare(`
-      UPDATE items 
+      UPDATE items
       SET text = ?, type = ?, updated_at = ?, metadata = ?, tags = ?, archived = ?
       WHERE id = ?
     `)
@@ -151,12 +157,12 @@ export async function PUT(
     const tagsJson = body.tags ? JSON.stringify(body.tags) : null
 
     const result = updateItem.run(
-      body.text,
-      body.type,
+      body.text ?? existingItem.text,
+      body.type ?? existingItem.type,
       now,
-      metadataJson,
-      tagsJson,
-      body.archived !== undefined ? (body.archived ? 1 : 0) : undefined,
+      metadataJson ?? existingItem.metadata,
+      tagsJson ?? existingItem.tags,
+      body.archived !== undefined ? (body.archived ? 1 : 0) : existingItem.archived,
       params.id
     )
 

@@ -147,38 +147,10 @@ class ApiClient {
     })
   }
 
-  async updatePlan(date: string, updates: Partial<Plan>) {
-    return this.request<{ plan: Plan }>(`/plans/${date}`, {
+  async updatePlan(id: string, updates: Partial<Plan>) {
+    return this.request<{ plan: Plan }>(`/plans/${id}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
-    })
-  }
-
-  async finalizePlan(planId: string) {
-    return this.request<{ plan: Plan }>(`/plans/finalize`, {
-      method: 'POST',
-      body: JSON.stringify({ planId }),
-    })
-  }
-
-  async completePlan(planId: string) {
-    return this.request<{ completedPlan: Plan; nextPlan: Plan }>(`/plans/complete`, {
-      method: 'POST',
-      body: JSON.stringify({ planId }),
-    })
-  }
-
-  async autoPopulatePlan(date: string) {
-    return this.request<{ plan: Plan; tasks: Item[] }>(`/plans/auto-populate`, {
-      method: 'POST',
-      body: JSON.stringify({ date }),
-    })
-  }
-
-  async rescheduleTask(taskId: string, action: 'tomorrow' | 'date' | 'backlog' | 'delete', targetDate?: string) {
-    return this.request<{ task?: Item; deleted?: boolean }>(`/tasks/reschedule`, {
-      method: 'POST',
-      body: JSON.stringify({ taskId, action, targetDate }),
     })
   }
 }

@@ -30,7 +30,6 @@ export function initializeDatabase() {
     console.log('Database schema outdated, migrating...')
 
     // Drop existing tables
-    db.exec(`DROP TABLE IF EXISTS plan_tasks`)
     db.exec(`DROP TABLE IF EXISTS list_items`)
     db.exec(`DROP TABLE IF EXISTS lists`)
     db.exec(`DROP TABLE IF EXISTS projects`)
@@ -151,28 +150,9 @@ export function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS plans (
       id TEXT PRIMARY KEY,
       date TEXT UNIQUE NOT NULL,
-      status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'finalized', 'completed')),
-      journal_entry TEXT,
-      tasks_completed_count INTEGER DEFAULT 0,
-      tasks_total_count INTEGER DEFAULT 0,
-      completion_percentage REAL DEFAULT 0.0,
+      todoIds TEXT, -- JSON array of todo IDs
       created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      finalized_at INTEGER,
-      completed_at INTEGER
-    )
-  `)
-
-  // Plan-Task junction table for many-to-many relationship
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS plan_tasks (
-      id TEXT PRIMARY KEY,
-      plan_id TEXT NOT NULL,
-      task_id TEXT NOT NULL,
-      added_at INTEGER NOT NULL,
-      FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE,
-      FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
-      UNIQUE(plan_id, task_id)
+      updated_at INTEGER NOT NULL
     )
   `)
 
@@ -206,13 +186,7 @@ export function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_items_archived ON items(archived);
     CREATE INDEX IF NOT EXISTS idx_todos_item_id ON todos(item_id);
     CREATE INDEX IF NOT EXISTS idx_todos_due_date ON todos(due_date);
-    CREATE INDEX IF NOT EXISTS idx_tasks_item_id ON tasks(item_id);
-    CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
-    CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
     CREATE INDEX IF NOT EXISTS idx_plans_date ON plans(date);
-    CREATE INDEX IF NOT EXISTS idx_plans_status ON plans(status);
-    CREATE INDEX IF NOT EXISTS idx_plan_tasks_plan_id ON plan_tasks(plan_id);
-    CREATE INDEX IF NOT EXISTS idx_plan_tasks_task_id ON plan_tasks(task_id);
   `)
 
   console.log('Database initialized successfully')
