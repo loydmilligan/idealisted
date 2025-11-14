@@ -140,6 +140,7 @@ export interface RecurringRule {
 }
 
 export interface AIConfig {
+  enabled: boolean
   openrouterApiKey: string
   freeModel: string
   paidModel: string

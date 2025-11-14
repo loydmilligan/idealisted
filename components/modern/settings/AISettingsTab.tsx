@@ -25,6 +25,7 @@ const PAID_MODELS = [
 
 export const AISettingsTab: React.FC = () => {
   const [config, setConfig] = useState<AIConfig>({
+    enabled: true,
     openrouterApiKey: '',
     freeModel: 'z-ai/glm-4.5-air:free',
     paidModel: 'x-ai/grok-code-fast-1',
@@ -133,6 +134,27 @@ export const AISettingsTab: React.FC = () => {
     <div>
       <h3 className="retro-section-title">AI CONFIGURATION</h3>
 
+      {/* Master Toggle */}
+      <div className="retro-form-group">
+        <label className="retro-checkbox-label" style={{ fontSize: '14px', fontWeight: 'bold' }}>
+          <input
+            type="checkbox"
+            className="retro-checkbox"
+            checked={config.enabled}
+            onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
+          />
+          Enable AI Features
+        </label>
+        <p style={{
+          fontSize: '11px',
+          color: 'var(--retro-text-secondary)',
+          marginTop: '4px',
+          marginLeft: '24px'
+        }}>
+          Toggle to enable/disable all AI functionality app-wide
+        </p>
+      </div>
+
       <div className="retro-form-group">
         <label className="retro-form-label">OpenRouter API Key</label>
         <input
@@ -141,6 +163,8 @@ export const AISettingsTab: React.FC = () => {
           value={config.openrouterApiKey}
           onChange={(e) => setConfig({ ...config, openrouterApiKey: e.target.value })}
           placeholder="sk-or-v1-..."
+          disabled={!config.enabled}
+          style={!config.enabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
         />
       </div>
 
@@ -150,6 +174,8 @@ export const AISettingsTab: React.FC = () => {
           className="retro-select"
           value={config.freeModel}
           onChange={(e) => setConfig({ ...config, freeModel: e.target.value })}
+          disabled={!config.enabled}
+          style={!config.enabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
         >
           {FREE_MODELS.map(model => (
             <option key={model.value} value={model.value}>
@@ -165,6 +191,8 @@ export const AISettingsTab: React.FC = () => {
           className="retro-select"
           value={config.paidModel}
           onChange={(e) => setConfig({ ...config, paidModel: e.target.value })}
+          disabled={!config.enabled}
+          style={!config.enabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
         >
           {PAID_MODELS.map(model => (
             <option key={model.value} value={model.value}>
@@ -175,12 +203,13 @@ export const AISettingsTab: React.FC = () => {
       </div>
 
       <div className="retro-form-group">
-        <label className="retro-checkbox-label">
+        <label className="retro-checkbox-label" style={!config.enabled ? { opacity: 0.5 } : {}}>
           <input
             type="checkbox"
             className="retro-checkbox"
             checked={config.usePaidModel}
             onChange={(e) => setConfig({ ...config, usePaidModel: e.target.checked })}
+            disabled={!config.enabled}
           />
           Use Paid Model (Default)
         </label>
@@ -195,7 +224,8 @@ export const AISettingsTab: React.FC = () => {
           step="0.1"
           value={config.temperature}
           onChange={(e) => setConfig({ ...config, temperature: parseFloat(e.target.value) })}
-          style={{ width: '100%' }}
+          style={{ width: '100%', opacity: !config.enabled ? 0.5 : 1 }}
+          disabled={!config.enabled}
         />
       </div>
 
@@ -206,6 +236,8 @@ export const AISettingsTab: React.FC = () => {
           className="retro-input"
           value={config.maxTokens}
           onChange={(e) => setConfig({ ...config, maxTokens: parseInt(e.target.value) })}
+          disabled={!config.enabled}
+          style={!config.enabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
         />
       </div>
 
@@ -216,6 +248,8 @@ export const AISettingsTab: React.FC = () => {
           rows={4}
           value={config.systemPrompt}
           onChange={(e) => setConfig({ ...config, systemPrompt: e.target.value })}
+          disabled={!config.enabled}
+          style={!config.enabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
         />
       </div>
 
@@ -229,7 +263,7 @@ export const AISettingsTab: React.FC = () => {
         <button
           className="retro-btn retro-btn-secondary"
           onClick={handleTest}
-          disabled={testing || !config.openrouterApiKey}
+          disabled={testing || !config.enabled || !config.openrouterApiKey}
         >
           {testing ? 'TESTING...' : 'TEST AI'}
         </button>

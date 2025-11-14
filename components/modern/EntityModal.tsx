@@ -13,7 +13,7 @@
 
 'use client'
 
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { EntityType } from '@/lib/entity-colors'
 
@@ -41,6 +41,7 @@ export const EntityModal: React.FC<EntityModalProps> = ({
   className = '',
 }) => {
   const modalRef = useRef<HTMLDivElement>(null)
+  const [aiEnabled, setAiEnabled] = useState(false)
 
   const entityLabel = entityType.charAt(0).toUpperCase() + entityType.slice(1)
 
@@ -59,6 +60,14 @@ export const EntityModal: React.FC<EntityModalProps> = ({
         return ''
     }
   }
+
+  // Fetch AI config on mount to check if AI is enabled
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => setAiEnabled(data.settings?.ai_config?.enabled ?? false))
+      .catch(() => setAiEnabled(false))
+  }, [])
 
   // Close on escape key
   useEffect(() => {
@@ -130,8 +139,8 @@ export const EntityModal: React.FC<EntityModalProps> = ({
             borderTop: '1px solid var(--retro-border)',
           }}
         >
-          {/* AI Autofill Button (if provided) */}
-          {onAIFill && (
+          {/* AI Autofill Button (if provided and AI is enabled) */}
+          {onAIFill && aiEnabled && (
             <button
               onClick={onAIFill}
               className="retro-btn retro-btn-secondary"

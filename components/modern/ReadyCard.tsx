@@ -12,7 +12,7 @@
 
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { EntityType } from '@/lib/entity-colors'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -36,6 +36,15 @@ export const ReadyCard: React.FC<ReadyCardProps> = ({
   className = '',
 }) => {
   const [showAIMenu, setShowAIMenu] = useState(false)
+  const [aiEnabled, setAiEnabled] = useState(false)
+
+  // Fetch AI config on mount to check if AI is enabled
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => setAiEnabled(data.settings?.ai_config?.enabled ?? false))
+      .catch(() => setAiEnabled(false))
+  }, [])
 
   const timestamp = typeof createdAt === 'string' ? new Date(createdAt) : createdAt
   const timeAgo = formatDistanceToNow(timestamp, { addSuffix: true })
@@ -69,13 +78,15 @@ export const ReadyCard: React.FC<ReadyCardProps> = ({
           Convert
         </button>
 
-        {/* AI Dropdown Button - Secondary (flat) */}
-        <button
-          onClick={() => setShowAIMenu(!showAIMenu)}
-          className="retro-btn retro-btn-secondary"
-        >
-          AI ▾
-        </button>
+        {/* AI Dropdown Button - Secondary (flat) - only show if AI is enabled */}
+        {aiEnabled && (
+          <button
+            onClick={() => setShowAIMenu(!showAIMenu)}
+            className="retro-btn retro-btn-secondary"
+          >
+            AI ▾
+          </button>
+        )}
       </div>
 
       {/* AI Action Menu (if shown) */}

@@ -56,6 +56,9 @@ class AIService {
     if (!this.config) {
       throw new Error('AI not configured. Please set up your OpenRouter API key.')
     }
+    if (!this.config.enabled) {
+      throw new Error('AI features are disabled. Enable AI in settings to use this feature.')
+    }
     return this.config
   }
 
@@ -245,13 +248,14 @@ class AIService {
   }
 
   isConfigured(): boolean {
-    return this.client !== null && this.config !== null
+    return this.client !== null && this.config !== null && this.config.enabled === true
   }
 
   getConfigSummary(): Partial<AIConfig> | null {
     if (!this.config) return null
-    
+
     return {
+      enabled: this.config.enabled,
       freeModel: this.config.freeModel,
       paidModel: this.config.paidModel,
       usePaidModel: this.config.usePaidModel,

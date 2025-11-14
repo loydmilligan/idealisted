@@ -40,11 +40,20 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
   const [inputText, setInputText] = useState('')
   const [showNoteMenu, setShowNoteMenu] = useState(false)
   const [showAIMenu, setShowAIMenu] = useState(false)
+  const [aiEnabled, setAiEnabled] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Auto-focus on mount
   useEffect(() => {
     textareaRef.current?.focus()
+  }, [])
+
+  // Fetch AI config on mount to check if AI is enabled
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => setAiEnabled(data.settings?.ai_config?.enabled ?? false))
+      .catch(() => setAiEnabled(false))
   }, [])
 
   const handleCapture = (entityType?: Exclude<EntityType, 'idea'> | null, subtype?: string) => {
@@ -118,14 +127,16 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
             )
           })}
 
-          {/* AI Button */}
-          <button
-            onClick={() => setShowAIMenu(!showAIMenu)}
-            disabled={!inputText.trim()}
-            className="retro-btn retro-btn-secondary whitespace-nowrap flex-shrink-0"
-          >
-            AI ▾
-          </button>
+          {/* AI Button - only show if AI is enabled */}
+          {aiEnabled && (
+            <button
+              onClick={() => setShowAIMenu(!showAIMenu)}
+              disabled={!inputText.trim()}
+              className="retro-btn retro-btn-secondary whitespace-nowrap flex-shrink-0"
+            >
+              AI ▾
+            </button>
+          )}
         </div>
 
         {/* Note Template Dropdown */}

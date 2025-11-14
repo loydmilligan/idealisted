@@ -11,7 +11,7 @@
 
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { EntityType } from '@/lib/entity-colors'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -36,6 +36,15 @@ export const InboxCard: React.FC<InboxCardProps> = ({
 }) => {
   const [showNoteMenu, setShowNoteMenu] = useState(false)
   const [showAIMenu, setShowAIMenu] = useState(false)
+  const [aiEnabled, setAiEnabled] = useState(false)
+
+  // Fetch AI config on mount to check if AI is enabled
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => setAiEnabled(data.settings?.ai_config?.enabled ?? false))
+      .catch(() => setAiEnabled(false))
+  }, [])
 
   const timestamp = typeof createdAt === 'string' ? new Date(createdAt) : createdAt
   const timeAgo = formatDistanceToNow(timestamp, { addSuffix: true })
@@ -79,13 +88,15 @@ export const InboxCard: React.FC<InboxCardProps> = ({
           )
         })}
 
-        {/* AI Dropdown Button */}
-        <button
-          onClick={() => setShowAIMenu(!showAIMenu)}
-          className="retro-btn retro-btn-secondary retro-btn-sm"
-        >
-          AI ▾
-        </button>
+        {/* AI Dropdown Button - only show if AI is enabled */}
+        {aiEnabled && (
+          <button
+            onClick={() => setShowAIMenu(!showAIMenu)}
+            className="retro-btn retro-btn-secondary retro-btn-sm"
+          >
+            AI ▾
+          </button>
+        )}
       </div>
 
       {/* Note Template Menu (if shown) */}

@@ -6,9 +6,9 @@ import { AIConfig, NtfyConfig } from '@/types'
 export async function GET() {
   try {
     const settings = db.prepare('SELECT key, value FROM settings').all() as any[]
-    
+
     const result: Record<string, any> = {}
-    
+
     settings.forEach(setting => {
       try {
         result[setting.key] = JSON.parse(setting.value)
@@ -16,6 +16,40 @@ export async function GET() {
         result[setting.key] = setting.value
       }
     })
+
+    // Initialize AI config with default values if not present
+    if (!result.ai_config) {
+      const defaultAIConfig: AIConfig = {
+        enabled: false, // DEFAULT TO OFF - user's top priority
+        openrouterApiKey: '',
+        freeModel: 'meta-llama/llama-3.1-8b-instruct:free',
+        paidModel: 'anthropic/claude-3.5-sonnet',
+        usePaidModel: false,
+        systemPrompt: '',
+        temperature: 0.7,
+        maxTokens: 2000
+      }
+
+      // Save default config to database
+      db.prepare(`
+        INSERT OR REPLACE INTO settings (key, value, updated_at)
+        VALUES (?, ?, ?)
+      `).run('ai_config', JSON.stringify(defaultAIConfig), Date.now())
+
+      result.ai_config = defaultAIConfig
+    } else {
+      // Migration: Add 'enabled: false' to existing configs if missing
+      const aiConfig = result.ai_config as AIConfig
+      if (aiConfig.enabled === undefined) {
+        aiConfig.enabled = false // Default to OFF for backward compatibility
+
+        // Save updated config back to database
+        db.prepare(`
+          INSERT OR REPLACE INTO settings (key, value, updated_at)
+          VALUES (?, ?, ?)
+        `).run('ai_config', JSON.stringify(aiConfig), Date.now())
+      }
+    }
 
     return NextResponse.json({ settings: result })
   } catch (error) {

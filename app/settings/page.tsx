@@ -15,6 +15,7 @@ import Link from 'next/link'
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'ai' | 'ntfy' | 'general'>('ai')
   const [aiConfig, setAiConfig] = useState<AIConfig>({
+    enabled: false, // DEFAULT TO OFF
     openrouterApiKey: '',
     freeModel: 'z-ai/glm-4.5-air:free',
     paidModel: 'x-ai/grok-code-fast-1',
