@@ -10,10 +10,10 @@
 
 'use client'
 
-import React, { useState, useEffect, Suspense } from 'react'
+import React, { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { GlobalHeader } from '@/components/modern/GlobalHeader'
-import { BottomTabNav, TabId } from '@/components/modern/BottomTabNav'
+import { BottomTabNav, TabId, TabNavHandle } from '@/components/modern/BottomTabNav'
 import { CaptureScreen } from '@/components/modern/screens/CaptureScreen'
 import { UnsortedInboxScreen } from '@/components/modern/screens/UnsortedInboxScreen'
 import { ReadyInboxScreen } from '@/components/modern/screens/ReadyInboxScreen'
@@ -44,6 +44,9 @@ function HomePageContent() {
 
   // Tab state from URL
   const [activeTab, setActiveTab] = useState<TabId>((searchParams?.get('tab') as TabId) || 'capture')
+
+  // Ref for triggering tab flashes
+  const tabNavRef = useRef<TabNavHandle>(null)
 
   // Data state
   const [items, setItems] = useState<Item[]>([])
@@ -206,11 +209,14 @@ function HomePageContent() {
         await fetchItems()
         // Send notification after successful capture
         // ntfyService.notifyIdeaCaptured(text) // Disabled - server-side only
+
         // Flash appropriate tab
         if (!entityType) {
-          // Flash Unsorted tab
+          // Captured to Unsorted (Inbox) - no color flash
+          tabNavRef.current?.triggerFlash('unsorted', null)
         } else {
-          // Flash Ready or Entities tab
+          // Captured directly to Ready with entity type
+          tabNavRef.current?.triggerFlash('ready', entityType)
         }
       }
     } catch (error) {
@@ -283,6 +289,9 @@ function HomePageContent() {
         await fetchItems()
         // Send notification after successful sort
         // ntfyService.notifyIdeaSorted(item.text, entityType) // Disabled - server-side only
+
+        // Flash Ready tab with entity color
+        tabNavRef.current?.triggerFlash('ready', entityType)
       }
     } catch (error) {
       console.error('Failed to sort item:', error)
@@ -470,6 +479,12 @@ function HomePageContent() {
         if (modalEntity?.type) {
           // ntfyService.notifyEntityCreated(data.title || item.text, modalEntity.type) // Disabled - server-side only
         }
+
+        // Flash Files tab with entity color
+        if (modalEntity?.type) {
+          tabNavRef.current?.triggerFlash('files', modalEntity.type)
+        }
+
         setModalOpen(false)
       }
     } catch (error) {
@@ -586,6 +601,7 @@ function HomePageContent() {
 
       {/* Bottom Navigation */}
       <BottomTabNav
+        ref={tabNavRef}
         activeTab={activeTab}
         onTabChange={handleTabChange}
         unsortedCount={unsortedCount}

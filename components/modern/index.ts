@@ -4,7 +4,7 @@
  */
 
 // Navigation
-export { BottomTabNav, useTabFlash, type TabId } from './BottomTabNav'
+export { BottomTabNav, type TabId, type TabNavHandle } from './BottomTabNav'
 export { TabIcons } from './TabIcons'
 export { TabBadge } from './TabBadge'
 

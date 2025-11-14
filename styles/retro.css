@@ -1665,6 +1665,88 @@ body {
   animation: flashReady 1.2s ease-in-out;
 }
 
+/* Tab Badge Flash Animations (600ms) */
+@keyframes flashTask {
+  0%, 100% {
+    background: transparent;
+    transform: scale(1);
+  }
+  25%, 75% {
+    background: rgba(74, 144, 226, 0.3);
+    box-shadow: 0 0 16px rgba(74, 144, 226, 0.6);
+    transform: scale(1.05);
+  }
+  50% {
+    background: rgba(74, 144, 226, 0.15);
+    transform: scale(1);
+  }
+}
+
+@keyframes flashNote {
+  0%, 100% {
+    background: transparent;
+    transform: scale(1);
+  }
+  25%, 75% {
+    background: rgba(245, 166, 35, 0.3);
+    box-shadow: 0 0 16px rgba(245, 166, 35, 0.6);
+    transform: scale(1.05);
+  }
+  50% {
+    background: rgba(245, 166, 35, 0.15);
+    transform: scale(1);
+  }
+}
+
+@keyframes flashProject {
+  0%, 100% {
+    background: transparent;
+    transform: scale(1);
+  }
+  25%, 75% {
+    background: rgba(126, 211, 33, 0.3);
+    box-shadow: 0 0 16px rgba(126, 211, 33, 0.6);
+    transform: scale(1.05);
+  }
+  50% {
+    background: rgba(126, 211, 33, 0.15);
+    transform: scale(1);
+  }
+}
+
+@keyframes flashList {
+  0%, 100% {
+    background: transparent;
+    transform: scale(1);
+  }
+  25%, 75% {
+    background: rgba(189, 16, 224, 0.3);
+    box-shadow: 0 0 16px rgba(189, 16, 224, 0.6);
+    transform: scale(1.05);
+  }
+  50% {
+    background: rgba(189, 16, 224, 0.15);
+    transform: scale(1);
+  }
+}
+
+/* Apply flash animations to tabs */
+.retro-tab.flash-task {
+  animation: flashTask 600ms ease-in-out;
+}
+
+.retro-tab.flash-note {
+  animation: flashNote 600ms ease-in-out;
+}
+
+.retro-tab.flash-project {
+  animation: flashProject 600ms ease-in-out;
+}
+
+.retro-tab.flash-list {
+  animation: flashList 600ms ease-in-out;
+}
+
 /* ============================================
    TASK STATUS BADGES
    ============================================ */
