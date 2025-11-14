@@ -70,11 +70,6 @@ export const EntitiesIcon: React.FC<IconProps> = ({ active = false, className = 
   const noteColor = '#F5A623' // Orange
   const projectColor = '#7ED321' // Green
   const listColor = '#BD10E0' // Purple
-  const inactiveColor = '#6C757D' // Gray when inactive
-
-  const colors = active
-    ? { task: taskColor, note: noteColor, project: projectColor, list: listColor }
-    : { task: inactiveColor, note: inactiveColor, project: inactiveColor, list: inactiveColor }
 
   return (
     <svg
@@ -84,18 +79,57 @@ export const EntitiesIcon: React.FC<IconProps> = ({ active = false, className = 
       fill="none"
       className={className}
     >
-      {/* 2x2 grid of colored squares, 10x10pt each with 2pt gap */}
+      {/* 2x2 grid of colored squares, 8x8pt each with 4pt gap */}
+      {/* When active: filled squares */}
+      {/* When inactive: colored outline squares */}
+
       {/* Top-left: Task (Blue) */}
-      <rect x="4" y="4" width="8" height="8" rx="1" fill={colors.task} />
+      <rect
+        x="4"
+        y="4"
+        width="8"
+        height="8"
+        rx="1"
+        fill={active ? taskColor : 'transparent'}
+        stroke={taskColor}
+        strokeWidth={active ? '0' : '1.5'}
+      />
 
       {/* Top-right: Note (Orange) */}
-      <rect x="14" y="4" width="8" height="8" rx="1" fill={colors.note} />
+      <rect
+        x="14"
+        y="4"
+        width="8"
+        height="8"
+        rx="1"
+        fill={active ? noteColor : 'transparent'}
+        stroke={noteColor}
+        strokeWidth={active ? '0' : '1.5'}
+      />
 
       {/* Bottom-left: Project (Green) */}
-      <rect x="4" y="14" width="8" height="8" rx="1" fill={colors.project} />
+      <rect
+        x="4"
+        y="14"
+        width="8"
+        height="8"
+        rx="1"
+        fill={active ? projectColor : 'transparent'}
+        stroke={projectColor}
+        strokeWidth={active ? '0' : '1.5'}
+      />
 
       {/* Bottom-right: List (Purple) */}
-      <rect x="14" y="14" width="8" height="8" rx="1" fill={colors.list} />
+      <rect
+        x="14"
+        y="14"
+        width="8"
+        height="8"
+        rx="1"
+        fill={active ? listColor : 'transparent'}
+        stroke={listColor}
+        strokeWidth={active ? '0' : '1.5'}
+      />
     </svg>
   )
 }

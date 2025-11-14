@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Task (Blue) - Top Left -->
+  <rect x="2" y="2" width="13" height="13" fill="#4A90E2" rx="1"/>
+
+  <!-- Note (Orange) - Top Right -->
+  <rect x="17" y="2" width="13" height="13" fill="#F5A623" rx="1"/>
+
+  <!-- Project (Green) - Bottom Left -->
+  <rect x="2" y="17" width="13" height="13" fill="#7ED321" rx="1"/>
+
+  <!-- List (Purple) - Bottom Right -->
+  <rect x="17" y="17" width="13" height="13" fill="#BD10E0" rx="1"/>
+</svg>

@@ -23,6 +23,7 @@ import { SettingsModal } from '@/components/modern/SettingsModal'
 import { TagInput } from '@/components/modern/TagInput'
 import { EntityType } from '@/lib/entity-colors'
 import { ItemWithRelations } from '@/types'
+import { FrondNutLogo } from '@/components/ui/FrondNutLogo'
 // DISABLED (causes build error - server-side only): import { ntfyService } from '@/lib/notify'
 
 // Types
@@ -500,7 +501,10 @@ export default function HomePage() {
 
   return (
     <div className="retro-device-frame">
-      <div className="retro-device-branding">IdeaListed</div>
+      <div className="retro-device-branding flex items-center justify-center gap-2">
+        <FrondNutLogo size={20} />
+        <span>FrondNut</span>
+      </div>
       <div className="retro-device-screen">
         <div className="h-screen overflow-hidden bg-[var(--bg-primary)] flex flex-col">
           {/* Global Header */}

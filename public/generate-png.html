@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generate apple-touch-icon.png</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    canvas {
+      border: 1px solid #ccc;
+      margin: 20px 0;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background: #4A90E2;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+    button:hover {
+      background: #357ABD;
+    }
+    .success {
+      color: green;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Generate apple-touch-icon.png</h1>
+  <p>This tool generates the 180x180 PNG favicon for iOS/Safari.</p>
+
+  <canvas id="canvas" width="180" height="180"></canvas>
+
+  <div>
+    <button id="downloadBtn">Download apple-touch-icon.png</button>
+    <div id="status"></div>
+  </div>
+
+  <script>
+    // Draw the 2x2 colored grid
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Entity colors
+    const taskColor = '#4A90E2';    // Blue
+    const noteColor = '#F5A623';    // Orange
+    const projectColor = '#7ED321'; // Green
+    const listColor = '#BD10E0';    // Purple
+
+    // Function to draw rounded rectangle
+    function drawRoundedRect(x, y, width, height, radius, color) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Draw the 2x2 grid
+    const squareSize = 75;
+    const gap = 10;
+    const padding = 10;
+
+    // Top-left: Task (Blue)
+    drawRoundedRect(padding, padding, squareSize, squareSize, 5, taskColor);
+
+    // Top-right: Note (Orange)
+    drawRoundedRect(padding + squareSize + gap, padding, squareSize, squareSize, 5, noteColor);
+
+    // Bottom-left: Project (Green)
+    drawRoundedRect(padding, padding + squareSize + gap, squareSize, squareSize, 5, projectColor);
+
+    // Bottom-right: List (Purple)
+    drawRoundedRect(padding + squareSize + gap, padding + squareSize + gap, squareSize, squareSize, 5, listColor);
+
+    // Download functionality
+    document.getElementById('downloadBtn').addEventListener('click', function() {
+      canvas.toBlob(function(blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'apple-touch-icon.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        document.getElementById('status').innerHTML = '<div class="success">✓ Downloaded! Move the file to /public folder</div>';
+      }, 'image/png');
+    });
+  </script>
+</body>
+</html>

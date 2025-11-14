@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 IdeaListed is a Next.js-based idea capture and task management application with AI-powered suggestions and a retro-themed UI. It allows users to capture ideas and convert them into various entity types (todos, tasks, notes, projects, lists) with intelligent AI assistance.
 
+**Current Status**: Beta MVP in development. See BETA_MVP_IMPLEMENTATION_PLAN.md for feature roadmap and phased implementation plan.
+
 ## Development Commands
 
 ```bash
@@ -38,6 +40,8 @@ The application uses a unified entity model centered around `items` with special
   - Reference the base `items` table via `item_id` foreign key
   - Contain type-specific fields (e.g., `done` for todos, `status` for tasks)
   - Use ON DELETE CASCADE to maintain referential integrity
+
+**Important**: The `todos` table is legacy/deprecated. Tasks have been unified with todos. The todos infrastructure is maintained for backward compatibility only. New development should use the `tasks` entity type.
 
 ### Database
 
@@ -110,6 +114,60 @@ AI features require OpenRouter API key configuration via the settings page. Conf
 
 Optional ntfy.sh integration for push notifications. Configuration stored in settings table with key='ntfy_config'.
 
+### Voice Input
+
+Voice input uses the Web Speech API (browser-native, no dependencies):
+- Triggered via microphone button in capture input
+- Real-time speech-to-text conversion
+- No API keys or external services required
+- Graceful fallback if browser doesn't support speech recognition
+
+### Entity Modal Fields
+
+Each entity type has specific required fields in their modals:
+
+**Task Modal**:
+- Title (text input)
+- Status (dropdown: not_started, in_progress, done, archived)
+- Priority (dropdown: low, medium, high)
+- Due Date (date picker)
+- Project (dropdown, optional)
+- Tags (tag input)
+- Notes (textarea)
+
+**Note Modal**:
+- Title (text input)
+- Subtype (dropdown: general, meeting, research, reference - must persist selection)
+- Project (dropdown, optional)
+- Tags (tag input)
+- Content (textarea)
+
+**Project Modal**:
+- Name (text input)
+- Status (dropdown: active, planning, on_hold, completed, archived)
+- Description (textarea)
+- Tags (tag input)
+
+**List Modal**:
+- Name (text input)
+- Tags (tag input)
+- Items (textarea or item list UI)
+
+### Badge System
+
+Entity count badges update immediately on data changes with flash animations:
+- Badge animations defined in globals.css (`.badge-flash`)
+- Badges flash on increment/decrement
+- Animation classes must be explicitly applied on update
+- Entity type filters should apply entity colors to badges
+
+### Modal UX Pattern
+
+Entity modals follow a dual-save button pattern:
+- "Save" button: Saves and closes modal
+- "Save & Go to Files" button: Saves, navigates to Files tab, and applies entity type filter
+- Modal animations require explicit class application (not automatic)
+
 ## Code Patterns
 
 ### API Routes
@@ -141,6 +199,47 @@ export async function GET(request: NextRequest) {
 - Apply theme-aware styling using CSS variables: `var(--retro-primary)`, etc.
 - Use Tailwind utility classes alongside retro components
 
+## Testing Approach
+
+For comprehensive feature testing, use parallel testing agents:
+
+1. **Parallel Agent Pattern**: Dispatch 16+ agents in batches of 4-5 to analyze different features
+2. **Testing Report Format**: Use ✅ (working), ❌ (broken/missing), ❓ (unclear) sections
+3. **File Citations**: Include specific file paths and line numbers in reports
+4. **Comprehensive Analysis**: Test UI, API, database, and integration points for each feature
+5. **Before Implementation**: Always test first to identify gaps before coding
+
+Example testing agents:
+- Layout & Branding
+- Capture Input & Voice
+- Ready Tab & Sorting
+- Entity Modals (Task/Note/Project/List)
+- Files Tab & Filtering
+- Settings & Configuration
+- AI Integration & Master Toggle
+- Badge System & Animations
+- Navigation & Tab State
+
+## Beta MVP Features
+
+See BETA_MVP_IMPLEMENTATION_PLAN.md for complete feature inventory and phased implementation plan.
+
+**Critical Missing Features**:
+1. Speech-to-Text (Web Speech API integration)
+2. AI Master Toggle (user's top priority)
+3. Entity modal field completion (Task/Note/Project missing required fields)
+4. Note subtype persistence
+5. Modal animations not applied
+6. "Save & Go to Files" navigation
+7. Entity type filter color application
+
+**Deferred for Post-Beta**:
+- CRON system (dependencies not installed, disabled intentionally)
+- List entity enhancements
+- Advanced filtering features
+
 ## Project Context
 
 This is a personal productivity tool focusing on rapid idea capture with AI-assisted organization. The retro aesthetic is a deliberate design choice creating a nostalgic, focused environment.
+
+**Branding**: FrondNut with Palm/Blackberry-inspired logo and retro device UI.

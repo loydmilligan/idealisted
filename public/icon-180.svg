@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <!-- Optimized 180x180 SVG for conversion to PNG -->
+
+  <!-- Task (Blue) - Top Left -->
+  <rect x="10" y="10" width="75" height="75" fill="#4A90E2" rx="5"/>
+
+  <!-- Note (Orange) - Top Right -->
+  <rect x="95" y="10" width="75" height="75" fill="#F5A623" rx="5"/>
+
+  <!-- Project (Green) - Bottom Left -->
+  <rect x="10" y="95" width="75" height="75" fill="#7ED321" rx="5"/>
+
+  <!-- List (Purple) - Bottom Right -->
+  <rect x="95" y="95" width="75" height="75" fill="#BD10E0" rx="5"/>
+</svg>

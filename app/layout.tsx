@@ -4,8 +4,16 @@ import type { Metadata } from 'next'
 import '@/lib/init'  // Initialize server-side services (scheduler, etc.)
 
 export const metadata: Metadata = {
-  title: 'IdeaListed',
-  description: 'Capture ideas and convert them into todos, notes, and projects',
+  title: 'IdeaListed - Idea Capture & Task Management',
+  description: 'Capture, sort, and track your ideas with retro Palm Pilot style',
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+  },
 }
 
 export default function RootLayout({
