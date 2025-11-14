@@ -16,6 +16,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { EntityType } from '@/lib/entity-colors'
 import { formatDistanceToNow } from 'date-fns'
 import { motion } from 'framer-motion'
+import { useSpeechRecognition } from '@/lib/useSpeechRecognition'
 
 interface RecentItem {
   id: string
@@ -43,6 +44,9 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
   const [aiEnabled, setAiEnabled] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  // Voice input using Web Speech API
+  const { isListening, transcript, startListening, resetTranscript, isSupported } = useSpeechRecognition()
+
   // Auto-focus on mount
   useEffect(() => {
     textareaRef.current?.focus()
@@ -55,6 +59,14 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
       .then(data => setAiEnabled(data.settings?.ai_config?.enabled ?? false))
       .catch(() => setAiEnabled(false))
   }, [])
+
+  // Update input text when speech transcript is available
+  useEffect(() => {
+    if (transcript) {
+      setInputText(prev => prev ? `${prev} ${transcript}` : transcript)
+      resetTranscript()
+    }
+  }, [transcript, resetTranscript])
 
   const handleCapture = (entityType?: Exclude<EntityType, 'idea'> | null, subtype?: string) => {
     if (!inputText.trim()) return
@@ -74,6 +86,10 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
     }
   }
 
+  const handleVoiceInput = () => {
+    startListening()
+  }
+
   const entityButtons: Array<{
     type: Exclude<EntityType, 'idea'> | null
     label: string
@@ -90,17 +106,45 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
     <div className={`flex flex-col h-full pb-20 ${className}`}>
       {/* Input Container */}
       <div className="px-4 mb-4" style={{ paddingTop: '16px' }}>
-        <textarea
-          ref={textareaRef}
-          value={inputText}
-          onChange={(e) => setInputText(e.target.value)}
-          placeholder="Type your idea..."
-          className="retro-textarea"
-          style={{
-            minHeight: '96px',
-            maxHeight: '40vh',
-          }}
-        />
+        <div style={{ position: 'relative' }}>
+          <textarea
+            ref={textareaRef}
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            placeholder="Type your idea..."
+            className="retro-textarea"
+            style={{
+              minHeight: '96px',
+              maxHeight: '40vh',
+              paddingRight: isSupported ? '48px' : undefined,
+            }}
+          />
+          {/* Voice Input Button - only show in supported browsers */}
+          {isSupported && (
+            <button
+              onClick={handleVoiceInput}
+              disabled={isListening}
+              className="retro-btn retro-btn-secondary"
+              aria-label="Voice input"
+              title={isListening ? "Listening..." : "Voice input"}
+              style={{
+                position: 'absolute',
+                right: '8px',
+                top: '8px',
+                width: '32px',
+                height: '32px',
+                padding: '4px',
+                fontSize: '16px',
+                minWidth: 'unset',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {isListening ? '🔴' : '🎤'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Action Buttons Row */}
