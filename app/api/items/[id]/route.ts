@@ -140,6 +140,32 @@ export async function PUT(
     const body: UpdateItemRequest = await request.json()
     const now = Date.now()
 
+    // Validation for entity-specific fields
+    if (body.task) {
+      if (body.task.priority && (body.task.priority < 1 || body.task.priority > 5)) {
+        return NextResponse.json({ error: 'Priority must be 1-5' }, { status: 400 })
+      }
+      if (body.task.status && !['pending', 'in-progress', 'completed'].includes(body.task.status)) {
+        return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+      }
+    }
+
+    if (body.note?.subtype) {
+      const validSubtypes = ['general', 'research', 'video', 'link', 'file', 'contact', 'meeting']
+      if (!validSubtypes.includes(body.note.subtype)) {
+        return NextResponse.json({ error: 'Invalid note subtype' }, { status: 400 })
+      }
+    }
+
+    if (body.project) {
+      if (body.project.progress !== undefined && (body.project.progress < 0 || body.project.progress > 100)) {
+        return NextResponse.json({ error: 'Progress must be 0-100' }, { status: 400 })
+      }
+      if (body.project.status && !['planning', 'active', 'completed'].includes(body.project.status)) {
+        return NextResponse.json({ error: 'Invalid project status' }, { status: 400 })
+      }
+    }
+
     // Fetch existing item first to merge with updates
     const existingItem = db.prepare('SELECT * FROM items WHERE id = ?').get(params.id) as any
     if (!existingItem) {

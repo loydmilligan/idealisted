@@ -10,7 +10,7 @@
 
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { GlobalHeader } from '@/components/modern/GlobalHeader'
 import { BottomTabNav, TabId } from '@/components/modern/BottomTabNav'
@@ -38,7 +38,7 @@ interface Item extends Omit<ItemWithRelations, 'created_at' | 'type' | 'entity_t
   archived?: boolean
 }
 
-export default function HomePage() {
+function HomePageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -48,6 +48,7 @@ export default function HomePage() {
   // Data state
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
+  const [projects, setProjects] = useState<Item[]>([])
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false)
@@ -152,6 +153,8 @@ export default function HomePage() {
       // API returns { items: [...] }
       if (data.items) {
         setItems(data.items)
+        // Extract projects for dropdown
+        setProjects(data.items.filter((i: Item) => i.type === 'project'))
       }
     } catch (error) {
       console.error('Failed to fetch items:', error)
@@ -183,8 +186,10 @@ export default function HomePage() {
   const readyCount = readyItems.length
 
   // ===== Capture Handlers =====
-  const handleCapture = async (text: string, entityType?: Exclude<EntityType, 'idea'> | null) => {
+  const handleCapture = async (text: string, entityType?: Exclude<EntityType, 'idea'> | null, subtype?: string) => {
     try {
+      const metadata = entityType && subtype ? { subtype } : undefined
+
       const response = await fetch('/api/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -193,6 +198,7 @@ export default function HomePage() {
           type: entityType || 'idea',
           parsed: !!entityType,
           entity_type: entityType,
+          metadata,
         }),
       })
 
@@ -250,11 +256,13 @@ export default function HomePage() {
   }
 
   // ===== Unsorted Handlers =====
-  const handleSort = async (itemId: string, entityType: Exclude<EntityType, 'idea'>) => {
+  const handleSort = async (itemId: string, entityType: Exclude<EntityType, 'idea'>, subtype?: string) => {
     try {
       // Get current item
       const item = items.find(i => i.id === itemId)
       if (!item) return
+
+      const metadata = entityType === 'note' && subtype ? { subtype } : item.metadata
 
       // Update with exact required fields
       const response = await fetch(`/api/items/${itemId}`, {
@@ -267,6 +275,7 @@ export default function HomePage() {
           archived: item.archived || false,
           parsed: true,
           entity_type: entityType,
+          metadata,
         }),
       })
 
@@ -406,34 +415,34 @@ export default function HomePage() {
 
       if (modalEntity?.type === 'task') {
         entityData.task = {
-          status: 'pending',
-          priority: 1,
-          tags: [],
+          status: data.status || 'pending',
+          priority: data.priority ? parseInt(data.priority) : 1,
+          tags: modalData.tags || [],
           estimated_time: data.estimatedTime ? parseInt(data.estimatedTime) : null,
-          due_date: data.dueDate || null,
-          project_id: null,
+          due_date: data.dueDate ? new Date(data.dueDate).getTime() : null,
+          project_id: data.project_id || null,
         }
       } else if (modalEntity?.type === 'note') {
         entityData.note = {
-          subtype: 'general',
+          subtype: data.subtype || 'general',
           content: data.description || '',
           url: null,
           media_type: null,
         }
       } else if (modalEntity?.type === 'project') {
         entityData.project = {
-          status: 'planning',
-          tags: [],
-          deadline: data.deadline || null,
+          status: data.projectStatus || 'planning',
+          tags: modalData.tags || [],
+          deadline: data.deadline ? new Date(data.deadline).getTime() : null,
           description: data.description || '',
-          progress: 0,
-          start_date: null,
-          end_date: null,
+          progress: data.progress ? parseInt(data.progress) : 0,
+          start_date: data.start_date ? new Date(data.start_date).getTime() : null,
+          end_date: data.end_date ? new Date(data.end_date).getTime() : null,
         }
       } else if (modalEntity?.type === 'list') {
         entityData.list = {
           name: data.title || '',
-          tags: [],
+          tags: modalData.tags || [],
           description: data.description || '',
           items: [],
         }
@@ -466,6 +475,12 @@ export default function HomePage() {
     } catch (error) {
       console.error('Failed to save entity:', error)
     }
+  }
+
+  const handleModalSaveAndNavigate = async (data: Record<string, any>) => {
+    await handleModalSave(data)
+    setActiveTab('files')
+    // TODO: Apply entity type filter in Files tab
   }
 
   const handleAIFill = async () => {
@@ -585,6 +600,7 @@ export default function HomePage() {
           entityType={modalEntity.type}
           initialData={modalData}
           onSave={handleModalSave}
+          onSaveAndNavigate={handleModalSaveAndNavigate}
           onAIFill={handleAIFill}
         >
           <FormField
@@ -605,6 +621,25 @@ export default function HomePage() {
             entityType={modalEntity.type}
           />
 
+          {modalEntity.type === 'note' && (
+            <FormField
+              label="Note Type"
+              value={modalData.subtype || 'general'}
+              onChange={(value) => setModalData(prev => ({ ...prev, subtype: value }))}
+              type="select"
+              options={[
+                { value: 'general', label: 'General' },
+                { value: 'research', label: 'Research' },
+                { value: 'video', label: 'Video' },
+                { value: 'link', label: 'Link' },
+                { value: 'file', label: 'File' },
+                { value: 'contact', label: 'Contact' },
+                { value: 'meeting', label: 'Meeting' },
+              ]}
+              entityType={modalEntity.type}
+            />
+          )}
+
           <TagInput
             value={modalData.tags || []}
             onChange={(tags) => setModalData(prev => ({ ...prev, tags }))}
@@ -613,6 +648,42 @@ export default function HomePage() {
 
           {modalEntity.type === 'task' && (
             <>
+              <FormField
+                label="Status"
+                value={modalData.status || 'pending'}
+                onChange={(value) => setModalData(prev => ({ ...prev, status: value }))}
+                type="select"
+                options={[
+                  { value: 'pending', label: 'Pending' },
+                  { value: 'in-progress', label: 'In Progress' },
+                  { value: 'completed', label: 'Completed' },
+                ]}
+                entityType={modalEntity.type}
+              />
+
+              <FormField
+                label="Priority"
+                value={modalData.priority || '1'}
+                onChange={(value) => setModalData(prev => ({ ...prev, priority: value }))}
+                type="number"
+                placeholder="1-5"
+                min={1}
+                max={5}
+                entityType={modalEntity.type}
+              />
+
+              <FormField
+                label="Project (Optional)"
+                value={modalData.project_id || ''}
+                onChange={(value) => setModalData(prev => ({ ...prev, project_id: value }))}
+                type="select"
+                options={[
+                  { value: '', label: 'None' },
+                  ...projects.map(p => ({ value: p.id, label: p.text }))
+                ]}
+                entityType={modalEntity.type}
+              />
+
               <FormField
                 label="Due Date"
                 value={modalData.dueDate || ''}
@@ -633,13 +704,55 @@ export default function HomePage() {
           )}
 
           {modalEntity.type === 'project' && (
-            <FormField
-              label="Deadline"
-              value={modalData.deadline || ''}
-              onChange={(value) => setModalData(prev => ({ ...prev, deadline: value }))}
-              type="date"
-              entityType={modalEntity.type}
-            />
+            <>
+              <FormField
+                label="Status"
+                value={modalData.projectStatus || 'planning'}
+                onChange={(value) => setModalData(prev => ({ ...prev, projectStatus: value }))}
+                type="select"
+                options={[
+                  { value: 'planning', label: 'Planning' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'completed', label: 'Completed' },
+                ]}
+                entityType={modalEntity.type}
+              />
+
+              <FormField
+                label="Progress (%)"
+                value={modalData.progress || '0'}
+                onChange={(value) => setModalData(prev => ({ ...prev, progress: value }))}
+                type="number"
+                placeholder="0-100"
+                min={0}
+                max={100}
+                entityType={modalEntity.type}
+              />
+
+              <FormField
+                label="Start Date"
+                value={modalData.start_date || ''}
+                onChange={(value) => setModalData(prev => ({ ...prev, start_date: value }))}
+                type="date"
+                entityType={modalEntity.type}
+              />
+
+              <FormField
+                label="End Date"
+                value={modalData.end_date || ''}
+                onChange={(value) => setModalData(prev => ({ ...prev, end_date: value }))}
+                type="date"
+                entityType={modalEntity.type}
+              />
+
+              <FormField
+                label="Deadline"
+                value={modalData.deadline || ''}
+                onChange={(value) => setModalData(prev => ({ ...prev, deadline: value }))}
+                type="date"
+                entityType={modalEntity.type}
+              />
+            </>
           )}
         </EntityModal>
       )}
@@ -653,5 +766,23 @@ export default function HomePage() {
       </div>
       <div className="retro-device-button"></div>
     </div>
+  )
+}
+
+// Loading fallback component
+function LoadingFallback() {
+  return (
+    <div className="flex items-center justify-center h-screen bg-[var(--bg-primary)]">
+      <div className="text-xl text-[var(--text-secondary)]">Loading...</div>
+    </div>
+  )
+}
+
+// Wrapper component with Suspense boundary
+export default function HomePage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <HomePageContent />
+    </Suspense>
   )
 }

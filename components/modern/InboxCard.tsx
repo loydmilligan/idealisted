@@ -19,7 +19,7 @@ interface InboxCardProps {
   id: string
   text: string
   createdAt: Date | string
-  onSort: (entityType: Exclude<EntityType, 'idea'>) => void
+  onSort: (entityType: Exclude<EntityType, 'idea'>, subtype?: string) => void
   onConvert: (entityType: Exclude<EntityType, 'idea'>) => void
   onAIAction: (action: 'sort' | 'convert' | 'full') => void
   className?: string
@@ -47,11 +47,11 @@ export const InboxCard: React.FC<InboxCardProps> = ({
     { type: 'list', label: 'List' },
   ]
 
-  const handleEntityClick = (type: Exclude<EntityType, 'idea'>) => {
-    if (type === 'note') {
+  const handleEntityClick = (type: Exclude<EntityType, 'idea'>, subtype?: string) => {
+    if (type === 'note' && !subtype) {
       setShowNoteMenu(!showNoteMenu)
     } else {
-      onSort(type)
+      onSort(type, subtype)
     }
   }
 
@@ -91,16 +91,23 @@ export const InboxCard: React.FC<InboxCardProps> = ({
       {/* Note Template Menu (if shown) */}
       {showNoteMenu && (
         <div className="retro-card absolute z-10 mt-2 w-36">
-          {['Note', 'Research', 'Video', 'Link', 'File', 'Meeting'].map((template) => (
+          {[
+            { label: 'Note', subtype: 'general' },
+            { label: 'Research', subtype: 'research' },
+            { label: 'Video', subtype: 'video' },
+            { label: 'Link', subtype: 'link' },
+            { label: 'File', subtype: 'file' },
+            { label: 'Meeting', subtype: 'meeting' },
+          ].map((template) => (
             <button
-              key={template}
+              key={template.label}
               onClick={() => {
-                onSort('note')
+                onSort('note', template.subtype)
                 setShowNoteMenu(false)
               }}
               className="retro-btn retro-btn-secondary w-full text-left"
             >
-              {template}
+              {template.label}
             </button>
           ))}
         </div>

@@ -14,6 +14,7 @@
 'use client'
 
 import React, { useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { EntityType } from '@/lib/entity-colors'
 
 interface EntityModalProps {
@@ -22,6 +23,7 @@ interface EntityModalProps {
   entityType: Exclude<EntityType, 'idea'>
   initialData?: Record<string, any>
   onSave: (data: Record<string, any>) => void | Promise<void>
+  onSaveAndNavigate?: (data: Record<string, any>) => void | Promise<void>
   onAIFill?: () => void | Promise<void>
   children: React.ReactNode
   className?: string
@@ -33,6 +35,7 @@ export const EntityModal: React.FC<EntityModalProps> = ({
   entityType,
   initialData = {},
   onSave,
+  onSaveAndNavigate,
   onAIFill,
   children,
   className = '',
@@ -77,25 +80,33 @@ export const EntityModal: React.FC<EntityModalProps> = ({
     }
   }, [isOpen, onClose])
 
-  if (!isOpen) return null
-
   return (
-    <>
-      {/* Overlay */}
-      <div
-        onClick={onClose}
-        className="retro-overlay"
-      />
+    <AnimatePresence mode="wait">
+      {isOpen && (
+        <>
+          {/* Overlay */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={onClose}
+            className="retro-overlay"
+          />
 
-      {/* Modal */}
-      <div
-        ref={modalRef}
-        className={`retro-bottom-sheet ${getEntityClass()} ${className}`}
-        style={{
-          maxHeight: '85vh',
-          paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
-        }}
-      >
+          {/* Modal */}
+          <motion.div
+            ref={modalRef}
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className={`retro-bottom-sheet ${getEntityClass()} ${className}`}
+            style={{
+              maxHeight: '85vh',
+              paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+            }}
+          >
         {/* Sheet Handle */}
         <div className="flex justify-center pt-3 pb-2">
           <div className="retro-sheet-handle" />
@@ -139,15 +150,27 @@ export const EntityModal: React.FC<EntityModalProps> = ({
           )}
 
           {/* Convert/Save Button */}
-          <button
-            onClick={() => onSave(initialData)}
-            className="retro-btn retro-btn-primary w-full"
-          >
-            {initialData?.id ? 'SAVE CHANGES' : 'CONVERT'}
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => onSave(initialData)}
+              className="retro-btn retro-btn-primary flex-1"
+            >
+              {initialData?.id ? 'SAVE' : 'CONVERT'}
+            </button>
+            {onSaveAndNavigate && (
+              <button
+                onClick={() => onSaveAndNavigate(initialData)}
+                className="retro-btn retro-btn-secondary flex-1"
+              >
+                SAVE & GO TO FILES
+              </button>
+            )}
+          </div>
         </div>
-      </div>
-    </>
+      </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   )
 }
 
@@ -156,10 +179,13 @@ interface FormFieldProps {
   label: string
   value: string
   onChange: (value: string) => void
-  type?: 'text' | 'textarea' | 'date' | 'number'
+  type?: 'text' | 'textarea' | 'date' | 'number' | 'select'
   placeholder?: string
   entityType?: Exclude<EntityType, 'idea'>
   className?: string
+  options?: Array<{ value: string; label: string }>
+  min?: number
+  max?: number
 }
 
 export const FormField: React.FC<FormFieldProps> = ({
@@ -169,6 +195,9 @@ export const FormField: React.FC<FormFieldProps> = ({
   type = 'text',
   placeholder = '',
   className = '',
+  options = [],
+  min,
+  max,
 }) => {
   return (
     <div className="mb-4">
@@ -182,6 +211,18 @@ export const FormField: React.FC<FormFieldProps> = ({
           placeholder={placeholder}
           className={`retro-textarea ${className}`}
         />
+      ) : type === 'select' ? (
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={`retro-input ${className}`}
+        >
+          {options.map(opt => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       ) : (
         <input
           type={type}
@@ -189,6 +230,8 @@ export const FormField: React.FC<FormFieldProps> = ({
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           className={`retro-input ${className}`}
+          min={min}
+          max={max}
         />
       )}
     </div>

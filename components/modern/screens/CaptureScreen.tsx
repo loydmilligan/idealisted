@@ -25,7 +25,7 @@ interface RecentItem {
 }
 
 interface CaptureScreenProps {
-  onCapture: (text: string, entityType?: Exclude<EntityType, 'idea'> | null) => void
+  onCapture: (text: string, entityType?: Exclude<EntityType, 'idea'> | null, subtype?: string) => void
   onAICapture?: (text: string, action: 'sort' | 'convert' | 'full') => void
   recentItems?: RecentItem[]
   className?: string
@@ -47,10 +47,10 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
     textareaRef.current?.focus()
   }, [])
 
-  const handleCapture = (entityType?: Exclude<EntityType, 'idea'> | null) => {
+  const handleCapture = (entityType?: Exclude<EntityType, 'idea'> | null, subtype?: string) => {
     if (!inputText.trim()) return
 
-    onCapture(inputText, entityType)
+    onCapture(inputText, entityType, subtype)
     setInputText('')
     textareaRef.current?.focus()
   }
@@ -136,11 +136,18 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
               border: '1px solid var(--palm-border)',
               boxShadow: '2px 2px 0 rgba(0,0,0,0.2)'
             }}>
-              {['Note', 'Research', 'Video', 'Link', 'File', 'Meeting'].map((template, idx) => (
+              {[
+                { label: 'Note', subtype: 'general' },
+                { label: 'Research', subtype: 'research' },
+                { label: 'Video', subtype: 'video' },
+                { label: 'Link', subtype: 'link' },
+                { label: 'File', subtype: 'file' },
+                { label: 'Meeting', subtype: 'meeting' },
+              ].map((template, idx) => (
                 <button
-                  key={template}
+                  key={template.label}
                   onClick={() => {
-                    handleCapture('note')
+                    handleCapture('note', template.subtype)
                     setShowNoteMenu(false)
                   }}
                   className="w-full px-4 text-left"
@@ -158,7 +165,7 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
                   onMouseEnter={(e) => e.currentTarget.style.background = 'var(--palm-screen-base)'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
-                  {template}
+                  {template.label}
                 </button>
               ))}
             </div>
