@@ -25,6 +25,7 @@ interface EntityModalProps {
   onSave: (data: Record<string, any>) => void | Promise<void>
   onSaveAndNavigate?: (data: Record<string, any>) => void | Promise<void>
   onAIFill?: () => void | Promise<void>
+  onChange?: (data: Record<string, any>) => void  // Phase 4: For tag suggestions
   children: React.ReactNode
   className?: string
 }
@@ -37,12 +38,22 @@ export const EntityModal: React.FC<EntityModalProps> = ({
   onSave,
   onSaveAndNavigate,
   onAIFill,
+  onChange,
   children,
   className = '',
 }) => {
   const modalRef = useRef<HTMLDivElement>(null)
   const [aiEnabled, setAiEnabled] = useState(false)
   const [tagSuggestionsEnabled, setTagSuggestionsEnabled] = useState(false)
+
+  // Phase 4: Tag Suggestions State
+  const [suggestedTags, setSuggestedTags] = useState<Array<{
+    name: string
+    source: 'existing' | 'new'
+    confidence: number
+    usage_count?: number
+  }>>([])
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
 
   const entityLabel = entityType.charAt(0).toUpperCase() + entityType.slice(1)
 
@@ -103,6 +114,54 @@ export const EntityModal: React.FC<EntityModalProps> = ({
       document.body.style.overflow = ''
     }
   }, [isOpen, onClose])
+
+  // Phase 4: Tag Suggestion Handler
+  const handleSuggestTags = async () => {
+    if (!initialData?.title || loadingSuggestions) return
+
+    setLoadingSuggestions(true)
+    setSuggestedTags([])
+
+    try {
+      const response = await fetch('/api/ai/suggest-tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: initialData.title,
+          entityType: entityType
+        })
+      })
+
+      const data = await response.json()
+      if (data.success && data.tags) {
+        setSuggestedTags(data.tags)
+      }
+    } catch (error) {
+      console.error('Failed to suggest tags:', error)
+    } finally {
+      setLoadingSuggestions(false)
+    }
+  }
+
+  const handleAddTag = (tagName: string) => {
+    const currentTags = initialData?.tags || []
+    if (!currentTags.includes(tagName)) {
+      onChange?.({ ...initialData, tags: [...currentTags, tagName] })
+    }
+    // Remove from suggestions
+    setSuggestedTags(prev => prev.filter(t => t.name !== tagName))
+  }
+
+  const handleAcceptAllTags = () => {
+    const currentTags = initialData?.tags || []
+    const newTags = suggestedTags.map(t => t.name).filter(name => !currentTags.includes(name))
+    onChange?.({ ...initialData, tags: [...currentTags, ...newTags] })
+    setSuggestedTags([])
+  }
+
+  const handleDismissSuggestions = () => {
+    setSuggestedTags([])
+  }
 
   return (
     <AnimatePresence mode="wait">
@@ -173,19 +232,88 @@ export const EntityModal: React.FC<EntityModalProps> = ({
             </button>
           )}
 
-          {/*
-            TODO Phase 4 Task 4.3: Add Tag Suggestions Button
-            When implementing tag suggestions, check tagSuggestionsEnabled state:
-
-            {aiEnabled && tagSuggestionsEnabled && (
+          {/* Phase 4: Tag Suggestions Button */}
+          {aiEnabled && tagSuggestionsEnabled && initialData?.title && (
+            <div className="mb-4">
               <button
-                onClick={handleTagSuggestions}
+                onClick={handleSuggestTags}
+                disabled={loadingSuggestions || !initialData?.title}
                 className="retro-btn retro-btn-secondary"
+                style={{
+                  width: '160px',
+                  margin: '0 auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
               >
-                🏷️ SUGGEST TAGS
+                <span className="text-lg">🏷️</span>
+                {loadingSuggestions ? 'ANALYZING...' : 'SUGGEST TAGS'}
               </button>
-            )}
-          */}
+
+              {/* Suggested Tags Display */}
+              {suggestedTags.length > 0 && (
+                <div
+                  className="mt-3 p-3"
+                  style={{
+                    background: 'var(--retro-screen-light)',
+                    border: '1px solid var(--retro-border)',
+                    borderRadius: '4px',
+                  }}
+                >
+                  <div className="text-xs font-semibold mb-2" style={{ fontFamily: 'var(--font-mono)' }}>
+                    SUGGESTED TAGS:
+                  </div>
+                  {suggestedTags.map((tag) => (
+                    <div
+                      key={tag.name}
+                      className="flex items-center justify-between mb-2 pb-2"
+                      style={{ borderBottom: '1px solid var(--retro-border-light)' }}
+                    >
+                      <div className="flex items-center gap-2 flex-1">
+                        <span style={{ fontSize: '12px' }}>
+                          {tag.source === 'existing' ? '●' : '○'}
+                        </span>
+                        <span className="text-xs font-semibold">{tag.name}</span>
+                        <span className="text-xs opacity-60">
+                          ({Math.round(tag.confidence * 100)}%)
+                        </span>
+                        {tag.usage_count !== undefined && tag.usage_count > 0 && (
+                          <span className="text-xs opacity-40">
+                            {tag.usage_count} uses
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleAddTag(tag.name)}
+                        className="retro-btn retro-btn-sm retro-btn-secondary"
+                        style={{ fontSize: '10px', padding: '2px 8px' }}
+                      >
+                        ADD
+                      </button>
+                    </div>
+                  ))}
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={handleAcceptAllTags}
+                      className="retro-btn retro-btn-primary flex-1"
+                      style={{ fontSize: '11px' }}
+                    >
+                      ACCEPT ALL
+                    </button>
+                    <button
+                      onClick={handleDismissSuggestions}
+                      className="retro-btn retro-btn-secondary flex-1"
+                      style={{ fontSize: '11px' }}
+                    >
+                      DISMISS
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Convert/Save Button */}
           <div className="flex gap-3">

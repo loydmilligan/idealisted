@@ -373,3 +373,28 @@ export function initializeDatabase() {
 initializeDatabase()
 
 export default db
+
+// Phase 4: Tag Usage Tracking Helpers
+export function updateTagUsage(addedTags: string[], removedTags: string[]) {
+  const now = Date.now()
+
+  // Increment for added tags
+  for (const tag of addedTags) {
+    db.prepare(`
+      INSERT INTO tags (name, usage_count, last_used_at, is_default)
+      VALUES (?, 1, ?, 0)
+      ON CONFLICT(name) DO UPDATE SET
+        usage_count = usage_count + 1,
+        last_used_at = ?
+    `).run(tag, now, now)
+  }
+
+  // Decrement for removed tags (don't go below 0)
+  for (const tag of removedTags) {
+    db.prepare(`
+      UPDATE tags
+      SET usage_count = MAX(0, usage_count - 1)
+      WHERE name = ?
+    `).run(tag)
+  }
+}

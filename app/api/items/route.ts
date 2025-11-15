@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, updateTagUsage } from '@/lib/db'
 import { Item, CreateItemRequest, ItemWithRelations } from '@/types'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -282,6 +282,11 @@ export async function POST(request: NextRequest) {
         body.project.start_date || null,
         body.project.end_date || null
       )
+    }
+
+    // Phase 4: Update tag usage counts
+    if (body.tags && body.tags.length > 0) {
+      updateTagUsage(body.tags, [])
     }
 
     // Fetch the created item

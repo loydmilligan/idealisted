@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, updateTagUsage } from '@/lib/db'
 import { Item, UpdateItemRequest, ItemWithRelations } from '@/types'
 
 // GET /api/items/[id] - Get a specific item
@@ -367,6 +367,16 @@ export async function PUT(
           body.note.media_type || null
         )
       }
+    }
+
+    // Phase 4: Update tag usage counts
+    const oldTags = existingItem.tags ? JSON.parse(existingItem.tags) : []
+    const newTags = body.tags || oldTags
+    const addedTags = newTags.filter((tag: string) => !oldTags.includes(tag))
+    const removedTags = oldTags.filter((tag: string) => !newTags.includes(tag))
+
+    if (addedTags.length > 0 || removedTags.length > 0) {
+      updateTagUsage(addedTags, removedTags)
     }
 
     // Fetch updated item
