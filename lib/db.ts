@@ -16,6 +16,105 @@ export const db = new Database(DB_PATH)
 db.pragma('journal_mode = WAL')
 db.pragma('foreign_keys = ON')
 
+// Seed default starter tags
+function seedDefaultTags() {
+  // Check if tags already exist (idempotent)
+  const existingCount = db.prepare('SELECT COUNT(*) as count FROM tags').get() as { count: number }
+  if (existingCount.count > 0) {
+    return // Tags already seeded
+  }
+
+  const tags = [
+    // Work & Productivity
+    { name: 'work', category: 'Work' },
+    { name: 'urgent', category: 'Work' },
+    { name: 'meeting', category: 'Work' },
+    { name: 'deadline', category: 'Work' },
+    { name: 'focus', category: 'Work' },
+
+    // Personal
+    { name: 'home', category: 'Personal' },
+    { name: 'health', category: 'Health' },
+    { name: 'finance', category: 'Finance' },
+    { name: 'shopping', category: 'Personal' },
+    { name: 'family', category: 'Personal' },
+
+    // Project Management
+    { name: 'bug', category: 'Other' },
+    { name: 'feature', category: 'Other' },
+    { name: 'design', category: 'Other' },
+    { name: 'planning', category: 'Other' },
+    { name: 'review', category: 'Other' },
+
+    // Categories
+    { name: 'news', category: 'Other' },
+    { name: 'politics', category: 'Other' },
+    { name: 'tech', category: 'Other' },
+    { name: 'entertainment', category: 'Personal' },
+    { name: 'culture', category: 'Personal' },
+    { name: 'web', category: 'Other' },
+    { name: 'hobby', category: 'Personal' },
+    { name: 'history', category: 'Personal' },
+    { name: 'philosophy', category: 'Personal' },
+    { name: 'science', category: 'Other' },
+  ]
+
+  try {
+    const insert = db.prepare(`
+      INSERT INTO tags (id, name, color, category, created_at, is_default)
+      VALUES (?, ?, ?, ?, ?, 1)
+    `)
+
+    const now = Date.now()
+    tags.forEach(tag => {
+      const id = crypto.randomUUID()
+      const color = '#999999' // Default gray for all starter tags
+      insert.run(id, tag.name, color, tag.category, now)
+    })
+
+    console.log('Seeded 25 default tags')
+  } catch (error) {
+    console.warn('Failed to seed default tags:', error)
+    // Don't throw - let app continue without defaults
+  }
+}
+
+function seedAIFeatureSettings() {
+  const features = [
+    {
+      name: 'suggestion_panel',
+      enabled: 1,
+      description: 'Preview AI analysis before creating items'
+    },
+    {
+      name: 'tag_suggestions',
+      enabled: 1,
+      description: 'AI-powered tag recommendations'
+    },
+    {
+      name: 'daily_summary',
+      enabled: 0,
+      description: 'AI summary in daily review notifications'
+    },
+  ]
+
+  try {
+    const insert = db.prepare(`
+      INSERT OR IGNORE INTO ai_feature_settings (feature_name, enabled, description)
+      VALUES (?, ?, ?)
+    `)
+
+    features.forEach(feature => {
+      insert.run(feature.name, feature.enabled, feature.description)
+    })
+
+    console.log('Seeded AI feature settings')
+  } catch (error) {
+    console.warn('Failed to seed AI feature settings:', error)
+    // Don't throw - let app continue
+  }
+}
+
 // Initialize tables
 export function initializeDatabase() {
   // Check if we need to migrate by dropping and recreating tables with new schema
@@ -89,6 +188,27 @@ export function initializeDatabase() {
       FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
     )
   `)
+
+  // Add reminder columns to tasks table
+  try {
+    db.exec(`ALTER TABLE tasks ADD COLUMN reminder_datetime INTEGER`)
+  } catch (e) {
+    if (!e.message?.includes('duplicate column name')) {
+      console.error('Failed to add reminder_datetime column:', e)
+      throw e
+    }
+    // Column already exists, safe to ignore
+  }
+
+  try {
+    db.exec(`ALTER TABLE tasks ADD COLUMN last_notified_at INTEGER`)
+  } catch (e) {
+    if (!e.message?.includes('duplicate column name')) {
+      console.error('Failed to add last_notified_at column:', e)
+      throw e
+    }
+    // Column already exists, safe to ignore
+  }
 
   // Notes table
   db.exec(`
@@ -179,6 +299,15 @@ export function initializeDatabase() {
     )
   `)
 
+  // AI feature settings table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS ai_feature_settings (
+      feature_name TEXT PRIMARY KEY,
+      enabled INTEGER DEFAULT 0,
+      description TEXT NOT NULL
+    )
+  `)
+
   // Tags table - stores tag metadata (color, category)
   db.exec(`
     CREATE TABLE IF NOT EXISTS tags (
@@ -190,6 +319,37 @@ export function initializeDatabase() {
     )
   `)
 
+  // Add usage tracking columns to tags table
+  try {
+    db.exec(`ALTER TABLE tags ADD COLUMN usage_count INTEGER DEFAULT 0`)
+  } catch (e) {
+    if (!e.message?.includes('duplicate column name')) {
+      console.error('Failed to add usage_count column:', e)
+      throw e
+    }
+    // Column already exists, safe to ignore
+  }
+
+  try {
+    db.exec(`ALTER TABLE tags ADD COLUMN is_default INTEGER DEFAULT 0`)
+  } catch (e) {
+    if (!e.message?.includes('duplicate column name')) {
+      console.error('Failed to add is_default column:', e)
+      throw e
+    }
+    // Column already exists, safe to ignore
+  }
+
+  try {
+    db.exec(`ALTER TABLE tags ADD COLUMN last_used_at INTEGER`)
+  } catch (e) {
+    if (!e.message?.includes('duplicate column name')) {
+      console.error('Failed to add last_used_at column:', e)
+      throw e
+    }
+    // Column already exists, safe to ignore
+  }
+
   // Create indexes for performance
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_items_type ON items(type);
@@ -199,9 +359,14 @@ export function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_todos_due_date ON todos(due_date);
     CREATE INDEX IF NOT EXISTS idx_plans_date ON plans(date);
     CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
+    CREATE INDEX IF NOT EXISTS idx_tags_usage ON tags(usage_count DESC);
   `)
 
   console.log('Database initialized successfully')
+
+  // Seed default data
+  seedDefaultTags()
+  seedAIFeatureSettings()
 }
 
 // Initialize the database

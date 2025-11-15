@@ -39,6 +39,17 @@ export interface Item {
   }
 }
 
+export interface Tag {
+  id: string
+  name: string
+  color: string
+  category: string
+  created_at: number
+  usage_count?: number      // Added in Task 1.1
+  is_default?: number       // Added in Task 1.1 (0 or 1)
+  last_used_at?: number     // Added in Task 1.1
+}
+
 export interface AISuggestion {
   suggested_type: 'note' | 'task' | 'project' | 'list'
   confidence: number
@@ -76,6 +87,8 @@ export interface Task {
   estimated_time?: number
   project_id?: string
   due_date?: number
+  reminder_datetime?: number    // Added in Task 1.3
+  last_notified_at?: number     // Added in Task 1.3
 }
 
 export interface Note {
@@ -148,6 +161,12 @@ export interface AIConfig {
   systemPrompt: string
   temperature: number
   maxTokens: number
+}
+
+export interface AIFeatureSetting {
+  feature_name: string
+  enabled: number          // SQLite boolean (0 or 1)
+  description: string
 }
 
 export interface NtfyConfig {
