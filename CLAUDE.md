@@ -18,7 +18,7 @@ IdeaListed is a Next.js-based idea capture and task management application with 
 - `reference-IMPLEMENTATION_UPDATES.md` - User feedback and requirements
 - `reference-IMPLEMENTATION_UPDATES_V2.md` - Final scope refinement
 
-**Sprint Status**: Phase 1 Complete ✅, Phase 2 Complete ✅, Phase 4 Complete ✅, Phase 5 Tasks 5.1 ✅ and 5.3 ✅ Complete
+**Sprint Status**: Phase 1 Complete ✅, Phase 2 Complete ✅, Phase 3 Task 3.1 Complete ✅, Phase 4 Complete ✅, Phase 5 Tasks 5.1 ✅ and 5.3 ✅ Complete
 
 **IMPORTANT**: When working on this sprint:
 1. Use `AI_AND_NTFY_PLAN.md` for phase-level context
@@ -98,8 +98,17 @@ The application uses a unified entity model centered around `items` with special
 - All AI UI elements hidden when disabled (capture AI button, autofill, suggestions)
 - Configurable models: free and paid options
 - AI features (when enabled):
-  - **AI Suggestion Panel** - Parse ideas and extract structured information
-  - **AI Tag Suggestions** - Smart tag recommendations prioritizing existing tags
+  - **AI Suggestion Panel** - Preview-first analysis before item creation (Phase 3)
+    - User clicks AI button → analysis runs → preview panel shows
+    - Displays: confidence score, suggested type, reasoning, extracted metadata
+    - User can accept, override type, or dismiss
+    - Metadata validation: date strings → timestamps, priority 1-5, status enum
+    - Input validation: empty text check, field validation
+    - Error handling: graceful fallback instead of browser alerts
+  - **AI Tag Suggestions** - Smart tag recommendations prioritizing existing tags (Phase 4)
+    - Analyzes entity text and suggests 3-5 tags
+    - Prioritizes reusing top 50 existing tags (confidence >= 70%)
+    - Shows confidence %, usage count, source indicator (existing/new)
   - **AI Daily Summary** - Generate daily plans and summaries (planned)
   - Convert ideas to appropriate entity types
   - Suggest rewrites and improvements
@@ -371,14 +380,22 @@ All Phases 1-5 implemented (January 2025). See BETA_MVP_IMPLEMENTATION_PLAN.md f
 **Post-Beta Features - AI & Notification Sprint**:
 - Phase 1: Database Foundation ✅
 - Phase 2: AI Settings UI ✅
+- Phase 3: AI Suggestion Flow (Task 3.1 ✅)
+  - Preview-first capture flow with input validation
+  - Metadata transformation with date string → timestamp conversion
+  - Field validation (priority 1-5, status enum, positive estimated_time)
+  - Error handling with graceful fallback (no browser alerts)
+  - Removed redundant /api/tags/usage endpoint call
 - Phase 4: AI Tag Suggestions ✅
+  - AI-powered tag suggestions prioritizing existing tags
+  - Tag usage tracking with atomic database operations
 - Phase 5: Task Reminders (Tasks 5.1 ✅, 5.3 ✅)
   - Task modal reminder datetime picker with quick presets
   - CRON job for reminder checks (re-enabled scheduler)
   - NTFY push notifications for due tasks
 
 **Deferred for Future**:
-- Phase 3: AI Suggestion Flow (preview-first AI analysis)
+- Phase 3: Tasks 3.2-3.4 (AI Suggestion Panel UI enhancements)
 - Phase 6: Scheduled Summary (daily activity digests)
 - Phase 7: Onboarding Wizard (interactive tour)
 - List entity enhancements

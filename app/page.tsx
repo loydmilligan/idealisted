@@ -231,6 +231,12 @@ function HomePageContent() {
 
   // Phase 3: Preview-First AI Capture
   const handleAICapture = async (text: string, action: 'sort' | 'convert' | 'full') => {
+    // Validate input
+    if (!text || text.trim().length === 0) {
+      console.warn('[AI Capture] Empty text provided, ignoring')
+      return
+    }
+
     try {
       // Store text for later creation
       setCapturedText(text)
@@ -254,12 +260,17 @@ function HomePageContent() {
       setAiSuggestion(data)
       setIsAnalyzing(false)
     } catch (error) {
-      console.error('Failed to analyze with AI:', error)
+      console.error('[AI Capture] Error getting AI suggestion:', error)
+      // Set error state for UI display (instead of alert)
+      setAiSuggestion({
+        suggested_type: 'task',
+        confidence: 0.1, // Low confidence (valid range 0.0-1.0)
+        processed_text: text,
+        tags: [],
+        additional_fields: {},
+        reasoning: 'AI analysis failed. You can manually select the type below or try again.',
+      })
       setIsAnalyzing(false)
-      setAiSuggestion(null)
-
-      // Fallback: Allow manual sorting
-      alert('AI analysis failed. You can still capture the item manually.')
     }
   }
 
@@ -270,22 +281,96 @@ function HomePageContent() {
     try {
       const entityType = overrideType || aiSuggestion.suggested_type
 
-      // Create item with AI-extracted metadata
+      // Transform AI metadata to match API schema
+      const transformedMetadata: any = { ...aiSuggestion.additional_fields }
+
+      // Convert date strings to Unix timestamps (with validation)
+      if (transformedMetadata.due_date && typeof transformedMetadata.due_date === 'string') {
+        const timestamp = new Date(transformedMetadata.due_date).getTime()
+        transformedMetadata.due_date = isNaN(timestamp) ? null : timestamp
+      }
+      if (transformedMetadata.deadline && typeof transformedMetadata.deadline === 'string') {
+        const timestamp = new Date(transformedMetadata.deadline).getTime()
+        transformedMetadata.deadline = isNaN(timestamp) ? null : timestamp
+      }
+
+      // Build entity-specific data object based on type
+      let entityData: any = {
+        text: aiSuggestion.processed_text || capturedText,
+        type: entityType,
+        tags: aiSuggestion.tags || [],
+        parsed: true,
+        entity_type: entityType,
+      }
+
+      // Add type-specific fields
+      if (entityType === 'task') {
+        // Validate priority (1-5 range)
+        const priority = Math.max(1, Math.min(5, Number(transformedMetadata.priority) || 1))
+
+        // Validate status
+        const validStatuses = ['pending', 'in-progress', 'completed']
+        const status = validStatuses.includes(transformedMetadata.status)
+          ? transformedMetadata.status
+          : 'pending'
+
+        // Validate estimated_time (must be positive or null)
+        const estimatedTime = transformedMetadata.estimated_time > 0
+          ? transformedMetadata.estimated_time
+          : null
+
+        entityData.task = {
+          status,
+          priority,
+          tags: aiSuggestion.tags || [],
+          estimated_time: estimatedTime,
+          due_date: transformedMetadata.due_date || null,
+          project_id: null,
+        }
+      }
+
+      if (entityType === 'note') {
+        entityData.note = {
+          subtype: transformedMetadata.category || 'general',
+          content: null,
+        }
+        // Store category in metadata for notes
+        entityData.metadata = { category: transformedMetadata.category }
+      }
+
+      if (entityType === 'project') {
+        entityData.project = {
+          status: transformedMetadata.status || 'planning',
+          tags: aiSuggestion.tags || [],
+          deadline: transformedMetadata.deadline || null,
+          description: null,
+          progress: 0,
+        }
+      }
+
+      if (entityType === 'list') {
+        entityData.list = {
+          name: transformedMetadata.list_name || 'Untitled List',
+          tags: aiSuggestion.tags || [],
+          description: null,
+          items: (transformedMetadata.list_items || []).map((text: string, index: number) => ({
+            text,
+            done: false,
+            position: index,
+          })),
+        }
+      }
+
       const response = await fetch('/api/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: aiSuggestion.processed_text || capturedText,
-          type: entityType,
-          tags: aiSuggestion.tags || [],
-          metadata: aiSuggestion.additional_fields || {},
-          parsed: true,
-          entity_type: entityType,
-        }),
+        body: JSON.stringify(entityData),
       })
 
       if (response.ok) {
         await fetchItems()
+
+        // Tag usage is automatically tracked by /api/items POST endpoint
 
         // Flash appropriate tab
         tabNavRef.current?.triggerFlash('ready', entityType)

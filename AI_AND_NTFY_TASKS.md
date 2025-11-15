@@ -198,8 +198,543 @@ async isFeatureEnabled(featureName: string): Promise<boolean> {
 
 ## Phase 3: AI Suggestion Flow
 
-**Status**: Not Started
-**Dependencies**: Phase 2 complete
+**Status**: In Progress (Task 3.1 Complete ✅)
+**Dependencies**: Phase 2 complete ✅
+
+---
+
+## Context Manifest
+
+### How The Current Capture Flow Works: From Idea to Item Creation
+
+When a user wants to capture an idea in IdeaListed, they interact with the **CaptureScreen** component which is the primary entry point for all new content. Understanding this flow deeply is critical because Phase 3 fundamentally changes WHEN the AI analysis happens - moving it from post-creation to pre-creation (preview-first).
+
+**Current Architecture - Direct Capture Flow**:
+
+The user opens the app and lands on the Capture tab (the default tab, see `app/page.tsx` line 45). The screen displays a retro-styled textarea with the placeholder "Type your idea..." (CaptureScreen.tsx line 125). Below the textarea are 5 action buttons arranged horizontally:
+
+1. **"✓ Unsorted"** (primary button, beveled style) - Captures as an idea without categorization
+2. **"Task"** - Captures directly as a task entity
+3. **"Note ▾"** - Opens dropdown with note subtypes (general, research, video, link, file, meeting)
+4. **"Project"** - Captures as a project entity
+5. **"List"** - Captures as a list entity
+
+If AI is enabled (checked via `/api/settings` on component mount, line 68-72), a 6th button appears:
+6. **"AI ▾"** - Opens dropdown with AI actions (Sort, Convert, Full)
+
+**The Direct Capture Path (Current Behavior)**:
+
+When the user clicks one of the entity type buttons (Task, Project, List, or a Note subtype), here's what happens:
+
+1. **Frontend Handler** (`CaptureScreen.tsx` lines 82-88):
+   - The `handleCapture` function is called with the text and optional entity type/subtype
+   - Validation: If `inputText.trim()` is empty, the function returns early (no-op)
+   - The function calls the parent's `onCapture` prop handler
+   - Locally: `setInputText('')` clears the textarea and refocuses it
+
+2. **Parent Handler** (`app/page.tsx` lines 196-229):
+   - The `handleCapture` function constructs a POST request to `/api/items`
+   - Body contains: `text`, `type` (entity type or 'idea'), `parsed` (boolean - true if entity type provided), `entity_type`, `metadata` (contains subtype for notes)
+   - On success: Calls `fetchItems()` to reload all items from the database
+   - Tab flash: If no entity type → flashes 'unsorted' tab, else flashes 'ready' tab with entity color animation
+
+3. **API Route** (`app/api/items/route.ts`):
+   - Receives POST request with item data
+   - Generates UUID for the item
+   - Inserts into `items` table with all fields
+   - If entity type is provided AND it's not 'idea', also creates a row in the entity-specific table (tasks, notes, projects, lists)
+   - Returns success response with created item
+
+4. **Database State**:
+   - New row in `items` table with `type='idea'` or `type='task'|'note'|'project'|'list'`
+   - If not an idea: `parsed=1` and `entity_type` set to match `type`
+   - If entity type: Corresponding row created in tasks/notes/projects/lists table
+
+5. **UI Update**:
+   - Items list refreshes (all tabs re-render with new data)
+   - Appropriate tab badge flashes with entity color (600ms animation)
+   - Textarea is cleared and ready for next input
+   - User can immediately capture another idea
+
+**The AI Capture Path (Current Behavior - Post-Creation)**:
+
+When the user clicks the "AI ▾" dropdown and selects "Sort", "Convert", or "Full", the current flow is:
+
+1. **Frontend Handler** (`CaptureScreen.tsx` lines 90-98):
+   - The `handleAIAction` function is called with text and action type
+   - Calls parent's `onAICapture` prop handler
+   - Clears textarea and refocuses
+
+2. **Parent Handler** (`app/page.tsx` lines 232-263):
+   - The `handleAICapture` function is invoked
+   - **CRITICAL CHANGE IN PHASE 3**: Currently this handler stores the text in `capturedText` state and sets `isAnalyzing=true`
+   - Makes POST request to `/api/ai/suggest` with just the text (NO item created yet)
+   - On success: Sets `aiSuggestion` state with the AI response
+   - On failure: Shows alert and allows manual sorting
+
+This is the **preview-first** pattern that Phase 3 needs to fully implement. The code structure exists but isn't fully wired up yet.
+
+**AI Suggestion API Endpoint** (`app/api/ai/suggest/route.ts`):
+
+This endpoint is the heart of AI analysis. When called with text, it:
+
+1. **Validation** (lines 12-14): Checks that text is a non-empty string
+2. **Feature Flag Check** (lines 16-23): Verifies `suggestion_panel` feature is enabled via `aiService.isFeatureEnabled('suggestion_panel')`
+3. **API Key Check** (lines 26-32): If no OpenRouter API key, returns smart fallback suggestion
+4. **AI Processing** (lines 35-97):
+   - Constructs prompt with text and detailed instructions for response format
+   - Requests JSON object with fields: `suggested_type`, `confidence`, `processed_text`, `tags`, `additional_fields`, `reasoning`
+   - Additional fields vary by entity type:
+     - Tasks: `priority` (1-3), `due_date` (YYYY-MM-DD), `estimated_time` (hours), `status`
+     - Notes: `category` (string)
+     - Projects: `deadline` (YYYY-MM-DD), `status`
+     - Lists: `list_name`, `list_items` (array of strings)
+   - Sends request to OpenRouter API with model specified in environment
+   - Parses JSON response (handles markdown code block wrapping)
+5. **Smart Fallback** (lines 105-233):
+   - If AI fails or no API key, uses keyword-based heuristics
+   - Detects lists by "list", "shopping", "checklist", "grocery" keywords
+   - Detects projects by "project", "launch", "build", "create" keywords
+   - Detects tasks by "task", "complete", "finish" keywords
+   - Detects notes by "note", "remember", "information" keywords
+   - Extracts priority from "urgent", "asap", "important" keywords
+   - Extracts dates from YYYY-MM-DD pattern or "tomorrow"/"today" keywords
+   - Returns same JSON structure as AI with 0.7 confidence
+
+**AISuggestionPanel Component** (`components/ui/AISuggestionPanel.tsx`):
+
+This is the preview UI that shows AI analysis results. Currently it has:
+
+1. **Feature Flag Loading** (lines 26-39): Fetches `/api/ai-features` to check if `suggestion_panel` is enabled
+2. **Loading State** (lines 52-63): Shows "🤖 AI is analyzing..." with spinner
+3. **Suggestion Display** (lines 83-195):
+   - Header: "AI SUGGESTION" with confidence percentage and dismiss button
+   - Processed Text: Shows `suggestion.processed_text` in a bordered box
+   - Tags: Displays `suggestion.tags` array as pill badges with # prefix
+   - Details: Shows `additional_fields` (priority, due date, category, estimated time, status)
+   - Reasoning: Shows `suggestion.reasoning` in italic text
+   - Action Buttons: Grid of entity type buttons
+     - Primary button: Suggested type (highlighted)
+     - Secondary buttons: Other entity types (task, note, project) - allows override
+
+4. **Button Handlers**:
+   - Each button calls `onApplySuggestion(type)` with the selected entity type
+   - The parent component receives this and creates the item with that type
+   - Dismiss button calls `onDismiss()` to hide panel and clear state
+
+**Data Flow Summary**:
+
+```
+User types text
+  ↓
+Clicks "AI ▾" → "Sort" (or other AI action)
+  ↓
+handleAIAction() in CaptureScreen
+  ↓
+onAICapture() in app/page.tsx
+  ↓
+POST /api/ai/suggest with { text }
+  ↓
+AI analysis (or smart fallback)
+  ↓
+Returns AISuggestion object
+  ↓
+setAiSuggestion(data) in app/page.tsx
+  ↓
+AISuggestionPanel renders with suggestion
+  ↓
+User clicks entity type button
+  ↓
+onApplySuggestion(type) in AISuggestionPanel
+  ↓
+handleAcceptSuggestion(type) in app/page.tsx
+  ↓
+POST /api/items with AI-extracted metadata
+  ↓
+Item created in database
+  ↓
+fetchItems() refreshes UI
+  ↓
+Tab flash animation
+  ↓
+Clear suggestion state
+```
+
+### What's Already Built (Phase 1 & 2 Foundation)
+
+**Database Schema** (Phase 1):
+- `items` table has all necessary fields: `id`, `type`, `text`, `tags`, `metadata`, `parsed`, `entity_type`, `created_at`, `updated_at`, `archived`
+- Entity-specific tables: `tasks`, `notes`, `projects`, `lists` with foreign keys to `items.id`
+- `ai_feature_settings` table with 3 rows: `suggestion_panel`, `tag_suggestions`, `daily_summary`
+- All tables have proper indexes and constraints
+
+**AI Configuration** (Phase 2):
+- `AIService.isFeatureEnabled(featureName)` method in `lib/ai.ts` (lines 140-149)
+- Two-tier checking: Master AI toggle + individual feature flag
+- Feature flags stored in database, loaded on each check
+- Returns `false` if master toggle off OR feature disabled
+- Defense-in-depth: Both route-level and component-level checks
+
+**Feature Flag UI** (Phase 2):
+- Settings > AI tab has master toggle at top
+- Below: "AI Features" section with 3 toggles
+- Each toggle shows description explaining what it does
+- Toggles disabled (grayed out) when master AI toggle is off
+- Changes save immediately to database via `/api/ai-features` PUT endpoint
+
+**API Endpoints**:
+- `GET /api/ai-features` - Returns all 3 feature settings with `feature_name`, `enabled`, `description`
+- `PUT /api/ai-features` - Updates one or more features (array of `{ feature_name, enabled }`)
+- `POST /api/ai/suggest` - AI suggestion endpoint (already exists, feature-flag protected)
+
+**UI Components**:
+- `AISuggestionPanel` component exists and displays all AI data
+- `CaptureScreen` already has props for `aiSuggestion`, `isAnalyzing`, `onAcceptSuggestion`, `onDismissSuggestion`
+- Parent component (`app/page.tsx`) already has state: `aiSuggestion`, `isAnalyzing`, `capturedText`
+
+### What Needs To Be Implemented For Phase 3
+
+**Current State Analysis**:
+
+The preview-first infrastructure is **90% complete**. The code exists but has rough edges that need polishing. Here's what's missing or needs improvement:
+
+### Task 3.1: Modify Capture Flow for Preview-First ✅ COMPLETE
+
+**Status**: Completed 2025-11-15
+
+**Implementation** (`app/page.tsx`):
+- ✅ Input validation before API call (lines 234-238: empty text check with trim())
+- ✅ Better error handling (lines 263-273: graceful fallback instead of browser alert)
+- ✅ Metadata transformation with validation (lines 284-330):
+  - Date strings converted to timestamps with isNaN validation
+  - Task fields validated: priority 1-5, status enum, positive estimated_time
+  - All additional_fields properly mapped to database schema
+- ✅ Removed redundant API call (lines 354-358: removed non-existent /api/tags/usage endpoint)
+- ✅ Tag usage tracking already handled by POST /api/items endpoint
+
+**Code Review Fixes**:
+1. Critical: Removed non-existent /api/tags/usage endpoint call
+2. Warning: Error state uses valid confidence (0.1 instead of 0)
+3. Warning: Date conversion validates timestamp with isNaN check
+4. Suggestion: Task field validation (priority 1-5, status enum, positive estimated_time)
+5. Suggestion: Input validation pattern (trim before checking empty)
+
+**Success Criteria**: ✅ All met
+- ✅ AI button triggers analysis without creating item
+- ✅ Empty input validated before API call
+- ✅ Error handling shows user-friendly message (no browser alerts)
+- ✅ Metadata correctly mapped to database schema (date strings → timestamps)
+- ✅ Field validation prevents invalid data (priority 1-5, status enum, etc.)
+- ✅ Tag usage already handled by existing POST /api/items endpoint
+
+---
+
+**Task 3.2: Enhance AISuggestionPanel Component** ✅ MOSTLY DONE
+
+Current state (`components/ui/AISuggestionPanel.tsx`):
+- Shows confidence score ✅ (line 94)
+- Shows processed text ✅ (lines 108-113)
+- Shows tags ✅ (lines 116-130)
+- Shows additional fields ✅ (lines 133-155)
+- Shows reasoning ✅ (lines 158-161)
+- Action buttons for each entity type ✅ (lines 164-193)
+- Dismiss button ✅ (line 102)
+
+**What's missing**:
+- Confidence bar visualization (currently just text "X% confidence")
+- Better formatting for additional fields (currently plain list)
+- Icon for each entity type in action buttons (currently just text labels)
+- Visual hierarchy improvement (confidence score needs more prominence)
+- Empty states (what if tags array is empty? Currently shows "Tags:" header with nothing)
+
+**Task 3.3: Implement Accept/Override/Dismiss Logic** ✅ MOSTLY DONE
+
+Current state:
+- Accept suggestion: `handleAcceptSuggestion` in `app/page.tsx` (lines 266-299) ✅
+- Override type: `onApplySuggestion` accepts type parameter ✅
+- Dismiss: `handleDismissSuggestion` in `app/page.tsx` (lines 302-307) ✅
+- Creates item with AI metadata ✅
+- Clears textarea after success ✅
+- Tab flash animation ✅
+
+**What's missing**:
+- Error handling if item creation fails (currently just logs to console)
+- Success feedback (currently silent - maybe show toast notification?)
+- Metadata mapping needs validation (ensure AI fields map to database schema correctly)
+- Tag integration with tag usage tracking (should call `updateTagUsage` from Phase 4)
+
+**Task 3.4: Add Loading States and Error Handling** ⚠️ PARTIALLY DONE
+
+Current state:
+- Loading state shows in AISuggestionPanel ✅ (lines 52-63)
+- "Analyzing with AI..." message ✅
+- Spinner/loading icon ✅
+- Error handling in `handleAICapture` shows alert ❌ (not ideal UX)
+
+**What's missing**:
+- Disable ALL buttons during analysis (not just AI button)
+- Spinner overlay on textarea (visual feedback where user typed)
+- Error messages displayed in UI (not browser alert)
+- Retry button on error (allow user to retry without re-typing)
+- Fallback to manual sorting on error (already in code but UX is poor)
+- Loading progress indicator if AI takes > 2 seconds
+
+### Technical Implementation Details
+
+#### File Locations
+
+**Files to Modify**:
+1. `/home/mmariani/Projects/idealisted/components/ui/AISuggestionPanel.tsx` - Enhance UI display
+2. `/home/mmariani/Projects/idealisted/app/page.tsx` - Improve handlers and error handling
+3. `/home/mmariani/Projects/idealisted/components/modern/screens/CaptureScreen.tsx` - Add loading state UI
+
+**Files to Reference (Don't Modify)**:
+- `/home/mmariani/Projects/idealisted/app/api/ai/suggest/route.ts` - AI endpoint (already complete)
+- `/home/mmariani/Projects/idealisted/types/index.ts` - AISuggestion interface (lines 52-68)
+- `/home/mmariani/Projects/idealisted/lib/ai.ts` - AIService with isFeatureEnabled() method
+
+#### Component Props & State Management
+
+**CaptureScreen Props** (lines 30-40):
+```typescript
+interface CaptureScreenProps {
+  onCapture: (text: string, entityType?, subtype?) => void
+  onAICapture?: (text: string, action: 'sort' | 'convert' | 'full') => void
+  recentItems?: RecentItem[]
+  className?: string
+  aiSuggestion?: AISuggestion | null      // AI analysis result
+  isAnalyzing?: boolean                    // Loading state
+  onAcceptSuggestion?: (overrideType?) => void  // User accepts
+  onDismissSuggestion?: () => void         // User dismisses
+}
+```
+
+**Parent State** (`app/page.tsx` lines 63-66):
+```typescript
+const [aiSuggestion, setAiSuggestion] = useState<AISuggestion | null>(null)
+const [isAnalyzing, setIsAnalyzing] = useState(false)
+const [capturedText, setCapturedText] = useState('')
+```
+
+**State Transitions**:
+1. Initial: `isAnalyzing=false`, `aiSuggestion=null`, `capturedText=''`
+2. User clicks AI button: `isAnalyzing=true`, `capturedText=inputText`, `aiSuggestion=null`
+3. AI returns: `isAnalyzing=false`, `aiSuggestion=data`, `capturedText` unchanged
+4. User accepts: Create item, then reset all to initial state
+5. User dismisses: Reset all to initial state without creating item
+
+#### AISuggestion Interface
+
+From `types/index.ts` lines 52-68:
+```typescript
+export interface AISuggestion {
+  suggested_type: 'note' | 'task' | 'project' | 'list'
+  confidence: number  // 0.0 to 1.0
+  processed_text: string  // Cleaned/improved version of user's text
+  tags: string[]  // Suggested tags (lowercase, no # prefix)
+  additional_fields: {
+    priority?: number  // 1-3 (tasks)
+    due_date?: string  // YYYY-MM-DD (tasks)
+    category?: string  // (notes)
+    estimated_time?: number  // hours (tasks)
+    deadline?: string  // YYYY-MM-DD (projects)
+    status?: string  // pending|in-progress|completed (tasks/projects)
+    list_name?: string  // (lists)
+    list_items?: string[]  // (lists)
+  }
+  reasoning: string  // 1-2 sentences explaining why this type
+}
+```
+
+#### Metadata Mapping Pattern
+
+When creating item from AI suggestion (`app/page.tsx` lines 273-283):
+
+```typescript
+const response = await fetch('/api/items', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    text: aiSuggestion.processed_text || capturedText,
+    type: entityType,  // Override or suggested_type
+    tags: aiSuggestion.tags || [],
+    metadata: aiSuggestion.additional_fields || {},
+    parsed: true,
+    entity_type: entityType,
+  }),
+})
+```
+
+**Critical Mapping Issue**:
+
+The current implementation passes `additional_fields` as `metadata` directly to the API. However, the API expects entity-specific objects (task, note, project, list) with specific field names. There's a mismatch:
+
+- AI returns: `due_date` (string "YYYY-MM-DD")
+- API expects: `due_date` (number - Unix timestamp)
+
+- AI returns: `priority` (1-3)
+- API expects: `priority` (1-5 for tasks table)
+
+**Required Fix**: In `handleAcceptSuggestion`, transform `additional_fields` into proper entity-specific format before sending to API.
+
+#### UI Enhancement Specifications
+
+**Confidence Bar Visualization**:
+```tsx
+{/* Instead of just text */}
+<div className="confidence-bar">
+  <div
+    className="confidence-fill"
+    style={{ width: `${suggestion.confidence * 100}%` }}
+  />
+  <span className="confidence-text">{Math.round(suggestion.confidence * 100)}%</span>
+</div>
+```
+
+**Loading Overlay Pattern**:
+```tsx
+{isAnalyzing && (
+  <div className="absolute inset-0 bg-retro-surface/80 flex items-center justify-center z-10">
+    <div className="text-center">
+      <RetroIcon type="ai" size="md" className="animate-pulse" />
+      <p className="mt-2 text-xs">Analyzing with AI...</p>
+    </div>
+  </div>
+)}
+```
+
+**Error Display Pattern**:
+```tsx
+{errorMessage && (
+  <div className="retro-alert retro-alert-danger mb-4">
+    <p className="retro-alert-title">AI Analysis Failed</p>
+    <p className="retro-alert-message">{errorMessage}</p>
+    <div className="retro-alert-actions">
+      <button onClick={retryAnalysis} className="retro-btn retro-btn-sm">
+        Retry
+      </button>
+      <button onClick={fallbackToManual} className="retro-btn retro-btn-sm retro-btn-secondary">
+        Sort Manually
+      </button>
+    </div>
+  </div>
+)}
+```
+
+#### Integration Points
+
+**Where AI Suggestion Flow Connects**:
+
+1. **User Input**: CaptureScreen textarea → text input
+2. **Trigger**: AI button click → `handleAIAction` → `onAICapture` prop
+3. **Analysis**: `handleAICapture` → POST `/api/ai/suggest` → AI processing
+4. **Preview**: Response → `setAiSuggestion` → AISuggestionPanel renders
+5. **Decision**: User clicks entity button → `onApplySuggestion` → `handleAcceptSuggestion`
+6. **Creation**: POST `/api/items` → Database insert → UI refresh
+7. **Cleanup**: `setAiSuggestion(null)` → Panel hidden → Ready for next capture
+
+**Feature Flag Chain**:
+
+1. **Frontend Check**: AISuggestionPanel `useEffect` → GET `/api/ai-features` → Check `suggestion_panel` enabled
+2. **Backend Check**: `/api/ai/suggest` route → `aiService.isFeatureEnabled('suggestion_panel')` → 403 if disabled
+3. **UI Gating**: If frontend check fails, panel doesn't render (returns null)
+4. **API Protection**: If backend check fails, returns 403 error with clear message
+
+**Error Handling Chain**:
+
+1. **Network Error**: fetch() throws → catch block → setErrorMessage → Show retry UI
+2. **API Error**: response.ok=false → throw error → catch block → Same as network error
+3. **AI Parsing Error**: JSON.parse() fails → Backend returns smart fallback → Success path (always succeeds)
+4. **Feature Disabled**: 403 response → catch block → Show "feature disabled, enable in settings" message
+
+### Success Criteria for Phase 3 Completion
+
+**Task 3.1 Success Criteria**:
+- [ ] AI button triggers analysis without creating item
+- [ ] Loading state shows immediately on button click
+- [ ] Textarea becomes read-only during analysis (user can't edit)
+- [ ] All buttons disabled during analysis (prevent multiple requests)
+- [ ] Error handling shows user-friendly message (no browser alerts)
+- [ ] Textarea remains visible with original text until user accepts/dismisses
+
+**Task 3.2 Success Criteria**:
+- [ ] Confidence score displayed as visual bar (not just text percentage)
+- [ ] AI reasoning shown prominently (larger font, distinct styling)
+- [ ] Suggested entity type highlighted with icon
+- [ ] Extracted metadata formatted clearly (labels, values, proper spacing)
+- [ ] Tags displayed as pill badges (retro theme)
+- [ ] Empty states handled (no "Tags:" header if tags array empty)
+
+**Task 3.3 Success Criteria**:
+- [ ] Accept button creates item with exact AI-suggested type and metadata
+- [ ] Override buttons allow changing type while preserving metadata
+- [ ] Metadata correctly mapped to database schema (date strings → timestamps, etc.)
+- [ ] Dismiss button clears panel and re-enables textarea for editing
+- [ ] Textarea cleared only after successful item creation
+- [ ] Tag usage tracking integrated (calls `updateTagUsage` for AI-suggested tags)
+- [ ] Success feedback shown (toast notification or flash animation)
+
+**Task 3.4 Success Criteria**:
+- [ ] Loading state shows immediately (no delay)
+- [ ] User knows AI is processing (clear visual feedback)
+- [ ] Errors displayed in UI (not console or alert)
+- [ ] Retry button available on error
+- [ ] Graceful fallback to manual sorting if AI fails
+- [ ] Loading progress indicator if processing > 2 seconds
+- [ ] All UI elements responsive during loading (no frozen interface)
+
+**Overall Phase 3 Success**:
+- [ ] Users can preview AI analysis before creating item
+- [ ] Users can accept, override, or reject AI suggestions
+- [ ] Loading and error states provide clear feedback
+- [ ] Feature flag protection works at both frontend and backend
+- [ ] No breaking changes to existing capture flow
+- [ ] Manual capture buttons still work if user wants to skip AI
+- [ ] AI button only visible when AI master toggle enabled
+
+### Edge Cases & Error Scenarios
+
+**Edge Case 1: User modifies text while AI is analyzing**
+- Current: Text cleared immediately on AI button click
+- Fix: Keep textarea read-only but visible with original text
+- Reasoning: User might want to copy text or compare with AI's processed version
+
+**Edge Case 2: AI suggests entity type user didn't expect**
+- Current: Override buttons allow changing type
+- Verify: Override preserves all AI-extracted metadata (tags, priority, etc.)
+- UX: Make override buttons equal size/prominence (not hidden as "secondary")
+
+**Edge Case 3: AI returns confidence < 50%**
+- Current: Panel shows regardless of confidence
+- Consider: Add warning banner if confidence < 0.6 ("Low confidence - review carefully")
+- UX: Encourage user to override or dismiss if AI isn't confident
+
+**Edge Case 4: Network timeout during AI call**
+- Current: fetch() waits indefinitely (browser default ~2 minutes)
+- Fix: Add timeout to fetch (AbortController with 30-second limit)
+- UX: Show specific "request timed out" message, offer retry
+
+**Edge Case 5: User clicks AI button, then immediately clicks manual button**
+- Current: Both requests fire (race condition)
+- Fix: Disable ALL buttons during AI analysis
+- State: isAnalyzing flag should gate all button handlers
+
+**Edge Case 6: AI feature disabled mid-session**
+- Current: Frontend checks on mount only
+- Consider: Re-check feature flag on each AI button click (fresh validation)
+- UX: Show clear message "AI features were disabled by admin"
+
+**Edge Case 7: Empty or whitespace-only input**
+- Current: API returns 400 error
+- Fix: Frontend validation before API call (check `text.trim().length > 0`)
+- UX: Disable AI button if textarea is empty (same as entity buttons)
+
+**Edge Case 8: AI returns malformed JSON**
+- Current: Backend has fallback to smart heuristics
+- Verify: Fallback always returns valid AISuggestion object
+- Logging: Log parse errors for debugging but don't expose to user
+
+---
 
 ### Task 3.1: Modify Capture Flow for Preview-First
 **Objective**: AI processes BEFORE item creation
@@ -1201,5 +1736,5 @@ try {
 ---
 
 **Last Updated**: 2025-11-15
-**Current Status**: Phase 4 Complete ✅ (Tasks 4.1-4.4), Phase 5 Tasks 5.1 ✅ and 5.3 ✅ Complete
-**Next Tasks**: Phase 5 Task 5.4 (Notification Integration - settings UI) or Phase 3 (Tasks 3.1-3.4)
+**Current Status**: Phase 3 Task 3.1 Complete ✅, Phase 4 Complete ✅ (Tasks 4.1-4.4), Phase 5 Tasks 5.1 ✅ and 5.3 ✅ Complete
+**Next Tasks**: Phase 3 Tasks 3.2-3.4 (AI Suggestion Panel enhancements) or Phase 5 Task 5.4 (Notification Integration)
