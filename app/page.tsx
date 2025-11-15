@@ -22,7 +22,7 @@ import { EntityModal, FormField } from '@/components/modern/EntityModal'
 import { SettingsModal } from '@/components/modern/SettingsModal'
 import { TagInput } from '@/components/modern/TagInput'
 import { EntityType } from '@/lib/entity-colors'
-import { ItemWithRelations } from '@/types'
+import { ItemWithRelations, AISuggestion } from '@/types'
 import { FrondNutLogo } from '@/components/ui/FrondNutLogo'
 // DISABLED (causes build error - server-side only): import { ntfyService } from '@/lib/notify'
 
@@ -60,6 +60,11 @@ function HomePageContent() {
 
   // Settings modal state
   const [settingsOpen, setSettingsOpen] = useState(false)
+
+  // AI suggestion state (Phase 3: Preview-First)
+  const [aiSuggestion, setAiSuggestion] = useState<AISuggestion | null>(null)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [capturedText, setCapturedText] = useState('')
 
   // Load items on mount
   useEffect(() => {
@@ -224,41 +229,81 @@ function HomePageContent() {
     }
   }
 
+  // Phase 3: Preview-First AI Capture
   const handleAICapture = async (text: string, action: 'sort' | 'convert' | 'full') => {
     try {
-      // Create item first
-      const createResponse = await fetch('/api/items', {
+      // Store text for later creation
+      setCapturedText(text)
+      setIsAnalyzing(true)
+      setAiSuggestion(null)
+
+      // Call AI suggestion endpoint (no item created yet)
+      const response = await fetch('/api/ai/suggest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, type: 'idea' }),
+        body: JSON.stringify({ text }),
       })
 
-      const createData = await createResponse.json()
-      if (!createData.success) return
+      if (!response.ok) {
+        throw new Error('AI analysis failed')
+      }
 
-      const itemId = createData.data.id
+      const data = await response.json()
 
-      // Call AI action
-      if (action === 'sort') {
-        const aiResponse = await fetch(`/api/items/${itemId}/parse`, {
-          method: 'POST',
-        })
-        const aiData = await aiResponse.json()
-        if (aiData.success) {
-          await fetchItems()
-        }
-      } else if (action === 'convert' || action === 'full') {
-        const aiResponse = await fetch(`/api/items/${itemId}/convert`, {
-          method: 'POST',
-        })
-        const aiData = await aiResponse.json()
-        if (aiData.success) {
-          await fetchItems()
-        }
+      // Show suggestion panel with preview
+      setAiSuggestion(data)
+      setIsAnalyzing(false)
+    } catch (error) {
+      console.error('Failed to analyze with AI:', error)
+      setIsAnalyzing(false)
+      setAiSuggestion(null)
+
+      // Fallback: Allow manual sorting
+      alert('AI analysis failed. You can still capture the item manually.')
+    }
+  }
+
+  // Handle user accepting AI suggestion
+  const handleAcceptSuggestion = async (overrideType?: Exclude<EntityType, 'idea'>) => {
+    if (!aiSuggestion || !capturedText) return
+
+    try {
+      const entityType = overrideType || aiSuggestion.suggested_type
+
+      // Create item with AI-extracted metadata
+      const response = await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: aiSuggestion.processed_text || capturedText,
+          type: entityType,
+          tags: aiSuggestion.tags || [],
+          metadata: aiSuggestion.additional_fields || {},
+          parsed: true,
+          entity_type: entityType,
+        }),
+      })
+
+      if (response.ok) {
+        await fetchItems()
+
+        // Flash appropriate tab
+        tabNavRef.current?.triggerFlash('ready', entityType)
+
+        // Clear AI state
+        setAiSuggestion(null)
+        setCapturedText('')
       }
     } catch (error) {
-      console.error('Failed to AI capture:', error)
+      console.error('Failed to create item from suggestion:', error)
     }
+  }
+
+  // Handle user dismissing AI suggestion
+  const handleDismissSuggestion = () => {
+    setAiSuggestion(null)
+    setCapturedText('')
+    setIsAnalyzing(false)
   }
 
   // ===== Unsorted Handlers =====
@@ -557,6 +602,10 @@ function HomePageContent() {
               entityType: i.type !== 'idea' ? (i.type as Exclude<EntityType, 'idea'>) : null,
               createdAt: i.created_at,
             }))}
+            aiSuggestion={aiSuggestion}
+            isAnalyzing={isAnalyzing}
+            onAcceptSuggestion={handleAcceptSuggestion}
+            onDismissSuggestion={handleDismissSuggestion}
           />
         )}
 

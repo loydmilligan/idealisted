@@ -17,6 +17,8 @@ import { EntityType } from '@/lib/entity-colors'
 import { formatDistanceToNow } from 'date-fns'
 import { motion } from 'framer-motion'
 import { useSpeechRecognition } from '@/lib/useSpeechRecognition'
+import { AISuggestion } from '@/types'
+import { AISuggestionPanel } from '@/components/ui/AISuggestionPanel'
 
 interface RecentItem {
   id: string
@@ -30,6 +32,11 @@ interface CaptureScreenProps {
   onAICapture?: (text: string, action: 'sort' | 'convert' | 'full') => void
   recentItems?: RecentItem[]
   className?: string
+  // Phase 3: AI Suggestion Preview
+  aiSuggestion?: AISuggestion | null
+  isAnalyzing?: boolean
+  onAcceptSuggestion?: (overrideType?: Exclude<EntityType, 'idea'>) => void
+  onDismissSuggestion?: () => void
 }
 
 export const CaptureScreen: React.FC<CaptureScreenProps> = ({
@@ -37,6 +44,10 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
   onAICapture,
   recentItems = [],
   className = '',
+  aiSuggestion,
+  isAnalyzing,
+  onAcceptSuggestion,
+  onDismissSuggestion,
 }) => {
   const [inputText, setInputText] = useState('')
   const [showNoteMenu, setShowNoteMenu] = useState(false)
@@ -264,6 +275,22 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
           </div>
         )}
       </div>
+
+      {/* Phase 3: AI Suggestion Panel */}
+      {(aiSuggestion || isAnalyzing) && (
+        <div className="px-4 mb-4">
+          <AISuggestionPanel
+            suggestion={aiSuggestion}
+            isLoading={isAnalyzing || false}
+            onApplySuggestion={(type) => {
+              onAcceptSuggestion?.(type as Exclude<EntityType, 'idea'>)
+            }}
+            onDismiss={() => {
+              onDismissSuggestion?.()
+            }}
+          />
+        </div>
+      )}
 
       {/* Divider */}
       <hr className="retro-separator" style={{ marginLeft: '16px', marginRight: '16px' }} />
