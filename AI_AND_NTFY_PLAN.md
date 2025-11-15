@@ -64,7 +64,7 @@ This sprint implements AI-powered features and notification capabilities for Ide
 ## Phase 2: AI Settings UI ✅ COMPLETE
 
 **Status**: Completed 2025-11-14
-**Commit**: [To be added after commit]
+**Commit**: c015cd6 "Complete Phase 2: AI Settings UI (all 4 tasks)"
 **Dependencies**: Phase 1 complete ✅
 
 **Purpose**: Build UI for AI feature management and wire up feature flag checking.
