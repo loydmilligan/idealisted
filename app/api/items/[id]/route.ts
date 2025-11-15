@@ -9,10 +9,11 @@ export async function GET(
 ) {
   try {
     const query = `
-      SELECT i.*, 
+      SELECT i.*,
              t.id as todo_id, t.done as todo_done, t.due_date, t.priority, t.recurring_rule, t.completed_at,
-             task.id as task_id, task.status as task_status, task.priority as task_priority, 
+             task.id as task_id, task.status as task_status, task.priority as task_priority,
              task.tags as task_tags, task.estimated_time, task.project_id, task.due_date as task_due_date,
+             task.reminder_datetime, task.last_notified_at,
              n.id as note_id, n.subtype, n.content, n.url, n.media_type,
              l.id as list_id, l.name as list_name, l.tags as list_tags, l.description as list_description,
              p.id as project_id, p.status as project_status, p.tags as project_tags, 
@@ -65,7 +66,9 @@ export async function GET(
         tags: row.task_tags ? JSON.parse(row.task_tags) : [],
         estimated_time: row.estimated_time,
         project_id: row.project_id,
-        due_date: row.task_due_date
+        due_date: row.task_due_date,
+        reminder_datetime: row.reminder_datetime,
+        last_notified_at: row.last_notified_at
       }
     }
 
@@ -238,8 +241,8 @@ export async function PUT(
       
       if (existingTask) {
         const updateTask = db.prepare(`
-          UPDATE tasks 
-          SET status = ?, priority = ?, tags = ?, estimated_time = ?, project_id = ?, due_date = ?
+          UPDATE tasks
+          SET status = ?, priority = ?, tags = ?, estimated_time = ?, project_id = ?, due_date = ?, reminder_datetime = ?
           WHERE item_id = ?
         `)
         updateTask.run(
@@ -249,12 +252,13 @@ export async function PUT(
           body.task.estimated_time || null,
           body.task.project_id || null,
           body.task.due_date || null,
+          body.task.reminder_datetime || null,
           params.id
         )
       } else {
         const insertTask = db.prepare(`
-          INSERT INTO tasks (id, item_id, status, priority, tags, estimated_time, project_id, due_date)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO tasks (id, item_id, status, priority, tags, estimated_time, project_id, due_date, reminder_datetime)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `)
         insertTask.run(
           `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -264,7 +268,8 @@ export async function PUT(
           body.task.tags ? JSON.stringify(body.task.tags) : null,
           body.task.estimated_time || null,
           body.task.project_id || null,
-          body.task.due_date || null
+          body.task.due_date || null,
+          body.task.reminder_datetime || null
         )
       }
     }

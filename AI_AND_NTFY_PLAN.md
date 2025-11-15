@@ -2,7 +2,7 @@
 
 **Sprint**: Post-Beta AI & NTFY Integration
 **Started**: 2025-01-14
-**Status**: Phase 1 Complete ✅, Phase 2 Complete ✅
+**Status**: Phase 1 Complete ✅, Phase 2 Complete ✅, Phase 4 Complete ✅, Phase 5 Task 5.1 Complete ✅
 
 ---
 
@@ -124,56 +124,98 @@ This sprint implements AI-powered features and notification capabilities for Ide
 
 ---
 
-## Phase 4: AI Tag Suggestions
+## Phase 4: AI Tag Suggestions ✅ COMPLETE
 
-**Status**: Not Started
-**Dependencies**: Phase 2 complete (feature flags), Phase 1 complete (tags table)
+**Status**: Completed 2025-11-15
+**Commit**: [Pending - to be created]
+**Dependencies**: Phase 2 complete (feature flags) ✅, Phase 1 complete (tags table) ✅
 
 **Purpose**: AI-powered tag suggestions that prioritize existing tags.
 
-**What Will Be Built**:
-- `/api/ai/suggest-tags` endpoint
-- Existing tag reuse logic (1-3 from pool if confidence >= 70%)
-- EntityModal tag suggestion UI
-- "Accept All" + individual click-to-add buttons
+**What Was Built**:
+1. **AI Tag Suggestion API** - `/api/ai/suggest-tags` endpoint with feature flag protection
+2. **Existing Tag Reuse Logic** - Fetches top 50 tags, prioritizes reuse (confidence >= 70%)
+3. **EntityModal Tag UI** - "Suggest Tags" button with loading states and visual indicators
+4. **Tag Usage Tracking** - `updateTagUsage()` helper with atomic database operations
+
+**Components Modified**:
+- `app/api/ai/suggest-tags/route.ts` (NEW - 182 lines)
+- `components/modern/EntityModal.tsx` - Added tag suggestion UI
+- `lib/db.ts` - Added `updateTagUsage()` function (lines 391-436)
+- `app/api/items/route.ts` - Integrated tag tracking
+- `app/api/items/[id]/route.ts` - Integrated tag tracking
 
 **AI Prompt Strategy**:
 - Request 3-5 tags total
 - Include top 50 existing tags by usage in prompt
-- Prioritize existing tags when confidence high
+- Prioritize existing tags when confidence >= 70%
 - Return with source indicator (existing vs new)
+- Filter displayed suggestions: confidence >= 60%
 
 **UI Features**:
-- Button-triggered (not auto-suggest on open)
-- Shows confidence scores
+- Button-triggered (🏷️ Suggest Tags)
+- Shows confidence scores and usage counts
 - Visual indicator for existing (●) vs new (○) tags
-- One-click add individual or all
+- One-click add individual or "Accept All"
+- Loading state during analysis
+- Gated by AI master toggle + tag_suggestions feature flag
+
+**Code Review Improvements**:
+- Input validation and sanitization for tag names
+- Transaction wrapper for atomic database operations
+- EntityType parameter validation (task, note, project, list)
+- Empty/whitespace text handling
+- Performance optimization (Map instead of Array.find)
+- Better error messages with specific HTTP status codes
+- JSDoc documentation for updateTagUsage()
+
+**Success Criteria**:
+- Users can request AI tag suggestions in entity modals
+- System prioritizes reusing existing tags over creating new ones
+- Tags ranked by existing/new status and confidence
+- Usage tracking updates automatically on tag add/remove
+- All operations atomic and validated
+
+**Verification**:
+- ✅ All 4 tasks complete (4.1, 4.2, 4.3, 4.4)
+- ✅ Code review passed with comprehensive improvements
+- ✅ Feature flag protection working
+- ✅ Tag usage tracking integrated in all item operations
+- ✅ UI gated by master AI toggle + feature flag
 
 ---
 
 ## Phase 5: Task Reminders
 
-**Status**: Not Started
-**Dependencies**: Phase 1 complete (reminder_datetime column)
+**Status**: In Progress (Task 5.1 Complete ✅)
+**Dependencies**: Phase 1 complete (reminder_datetime column) ✅
 
 **Purpose**: NTFY-based task due reminders with configurable timing.
 
-**What Will Be Built**:
-- Task modal reminder datetime picker
-- Quick options (Morning of, 1hr before, 1 day before, Custom)
-- CRON job for reminder checks (every 15 minutes)
-- NTFY notification integration
-- Settings UI for reminder preferences
+**What Was Built (Task 5.1)**:
+- ✅ Task modal reminder datetime picker with checkbox
+- ✅ Quick reminder presets: Morning of (9 AM), 1hr before (4 PM), 1 day before (9 AM)
+- ✅ Custom datetime picker option
+- ✅ Human-readable display with past-time warning
+- ✅ API integration for saving/loading reminder_datetime
+- ✅ UX improvement: Checkbox disabled without due date
 
-**Notification Format**:
+**What Will Be Built (Remaining Tasks)**:
+- CRON job for reminder checks (every 15 minutes) - Task 5.3
+- NTFY notification integration - Task 5.4
+- Settings UI for reminder preferences - Task 5.4
+
+**Notification Format** (Planned):
 - Title: "⏰ Task Due Soon"
 - Message: Task text + due time
 - Actions: Mark Complete, Snooze, View Task
 
-**Configuration Options**:
+**Configuration Options** (Planned):
 - Default reminder timing
 - Priority filtering (high/medium/low)
 - Quiet hours (22:00 - 08:00)
+
+**Implementation Note**: Task 5.2 (Quick Reminder Options) was implemented as part of Task 5.1, as the quick options are integral to the datetime picker UI.
 
 ---
 
@@ -259,12 +301,13 @@ This sprint implements AI-powered features and notification capabilities for Ide
 ## Success Metrics
 
 **Phase Completion Checklist**:
-- [ ] All tasks in phase complete
-- [ ] Code review passed
-- [ ] Tests passing (where applicable)
-- [ ] Documentation updated
-- [ ] Changes committed to git
-- [ ] Phase marked complete in this document
+- [x] Phase 1: Database Foundation ✅
+- [x] Phase 2: AI Settings UI ✅
+- [ ] Phase 3: AI Suggestion Flow
+- [x] Phase 4: AI Tag Suggestions ✅
+- [ ] Phase 5: Task Reminders (Task 5.1 Complete ✅, Tasks 5.2-5.4 Pending)
+- [ ] Phase 6: Scheduled Summary
+- [ ] Phase 7: Onboarding Wizard
 
 **Overall Sprint Goals**:
 - AI features optional and user-controlled
@@ -285,6 +328,6 @@ This sprint implements AI-powered features and notification capabilities for Ide
 
 ---
 
-**Last Updated**: 2025-11-14
-**Current Phase**: Phase 2 Complete ✅
-**Next Phase**: Phase 3 (AI Suggestion Flow)
+**Last Updated**: 2025-11-15
+**Current Phase**: Phase 5 In Progress (Task 5.1 Complete ✅)
+**Next Phase**: Phase 5 Tasks 5.2-5.4 (CRON & Notifications) or Phase 3 (AI Suggestion Flow)

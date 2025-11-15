@@ -407,13 +407,42 @@ function HomePageContent() {
     const entity = items.find(i => i.id === entityId)
     if (!entity) return
 
-    setModalEntity({ id: entityId, type: entity.type as Exclude<EntityType, 'idea'> })
-    setModalData({
+    // Fetch full entity details including reminder data
+    const response = await fetch(`/api/items/${entityId}`)
+    const data = await response.json()
+    const fullEntity = data.item
+
+    // Prepare modal data
+    const modalDataFields: Record<string, any> = {
       title: entity.text,
       id: entityId,
       tags: entity.tags || [],
       description: entity.note?.content || entity.project?.description || entity.list?.description || ''
-    })
+    }
+
+    // If task, populate task-specific fields including reminder
+    if (entity.type === 'task' && fullEntity.task) {
+      modalDataFields.status = fullEntity.task.status
+      modalDataFields.priority = fullEntity.task.priority
+      modalDataFields.project_id = fullEntity.task.project_id
+      modalDataFields.estimatedTime = fullEntity.task.estimated_time
+
+      // Populate due date
+      if (fullEntity.task.due_date) {
+        modalDataFields.dueDate = new Date(fullEntity.task.due_date).toISOString().split('T')[0]
+      }
+
+      // Populate reminder data
+      if (fullEntity.task.reminder_datetime) {
+        modalDataFields.reminderEnabled = true
+        modalDataFields.reminder_datetime = fullEntity.task.reminder_datetime
+        modalDataFields.reminderDatetime = new Date(fullEntity.task.reminder_datetime).toISOString().slice(0, 16)
+        modalDataFields.reminderOption = 'custom' // Default to custom when loading existing
+      }
+    }
+
+    setModalEntity({ id: entityId, type: entity.type as Exclude<EntityType, 'idea'> })
+    setModalData(modalDataFields)
     setModalOpen(true)
   }
 
@@ -475,6 +504,7 @@ function HomePageContent() {
           estimated_time: data.estimatedTime ? parseInt(data.estimatedTime) : null,
           due_date: data.dueDate ? new Date(data.dueDate).getTime() : null,
           project_id: data.project_id || null,
+          reminder_datetime: modalData.reminder_datetime || null
         }
       } else if (modalEntity?.type === 'note') {
         entityData.note = {
@@ -756,6 +786,145 @@ function HomePageContent() {
                 type="date"
                 entityType={modalEntity.type}
               />
+
+              {/* Reminder Section */}
+              <div className="mb-4">
+                <label className="retro-checkbox-label">
+                  <input
+                    type="checkbox"
+                    className="retro-checkbox"
+                    checked={modalData.reminderEnabled || false}
+                    onChange={(e) => {
+                      const enabled = e.target.checked
+                      setModalData(prev => ({
+                        ...prev,
+                        reminderEnabled: enabled,
+                        // Clear reminder data if unchecking
+                        ...(!enabled && {
+                          reminderOption: null,
+                          reminderDatetime: '',
+                          reminder_datetime: null
+                        })
+                      }))
+                    }}
+                    disabled={!modalData.dueDate}
+                  />
+                  <span>Set Reminder</span>
+                </label>
+                {!modalData.dueDate && (
+                  <p className="text-xs opacity-60 ml-6 -mt-2">Set a due date first</p>
+                )}
+              </div>
+
+              {modalData.reminderEnabled && modalData.dueDate && (
+                <div className="mb-4 ml-6">
+                  {/* Quick Options */}
+                  <div className="flex gap-2 flex-wrap mb-3">
+                    <button
+                      type="button"
+                      className={`retro-btn retro-btn-sm ${modalData.reminderOption === 'morning' ? 'retro-btn-primary' : 'retro-btn-secondary'}`}
+                      onClick={() => {
+                        const due = new Date(modalData.dueDate + 'T00:00:00')
+                        due.setHours(9, 0, 0, 0)
+                        const timestamp = due.getTime()
+                        setModalData(prev => ({
+                          ...prev,
+                          reminderOption: 'morning',
+                          reminder_datetime: timestamp,
+                          reminderDatetime: due.toISOString().slice(0, 16)
+                        }))
+                      }}
+                    >
+                      Morning of
+                    </button>
+                    <button
+                      type="button"
+                      className={`retro-btn retro-btn-sm ${modalData.reminderOption === '1hr' ? 'retro-btn-primary' : 'retro-btn-secondary'}`}
+                      onClick={() => {
+                        const due = new Date(modalData.dueDate + 'T00:00:00')
+                        due.setHours(17, 0, 0, 0) // Default to 5 PM on due date
+                        const remind = new Date(due.getTime() - (60 * 60 * 1000)) // 4 PM on due date
+                        const timestamp = remind.getTime()
+                        setModalData(prev => ({
+                          ...prev,
+                          reminderOption: '1hr',
+                          reminder_datetime: timestamp,
+                          reminderDatetime: remind.toISOString().slice(0, 16)
+                        }))
+                      }}
+                    >
+                      1hr before
+                    </button>
+                    <button
+                      type="button"
+                      className={`retro-btn retro-btn-sm ${modalData.reminderOption === '1day' ? 'retro-btn-primary' : 'retro-btn-secondary'}`}
+                      onClick={() => {
+                        const due = new Date(modalData.dueDate + 'T00:00:00')
+                        const remind = new Date(due.getTime() - (24 * 60 * 60 * 1000))
+                        remind.setHours(9, 0, 0, 0)
+                        const timestamp = remind.getTime()
+                        setModalData(prev => ({
+                          ...prev,
+                          reminderOption: '1day',
+                          reminder_datetime: timestamp,
+                          reminderDatetime: remind.toISOString().slice(0, 16)
+                        }))
+                      }}
+                    >
+                      1 day before
+                    </button>
+                    <button
+                      type="button"
+                      className={`retro-btn retro-btn-sm ${modalData.reminderOption === 'custom' ? 'retro-btn-primary' : 'retro-btn-secondary'}`}
+                      onClick={() => setModalData(prev => ({ ...prev, reminderOption: 'custom' }))}
+                    >
+                      Custom
+                    </button>
+                  </div>
+
+                  {/* Custom Datetime Picker */}
+                  {modalData.reminderOption === 'custom' && (
+                    <div className="mb-3">
+                      <label className="retro-label">Reminder Date & Time</label>
+                      <input
+                        type="datetime-local"
+                        className="retro-input"
+                        value={modalData.reminderDatetime || ''}
+                        onChange={(e) => {
+                          const timestamp = new Date(e.target.value).getTime()
+                          setModalData(prev => ({
+                            ...prev,
+                            reminderDatetime: e.target.value,
+                            reminder_datetime: timestamp
+                          }))
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Display Reminder Info */}
+                  {modalData.reminder_datetime && (
+                    <div className="text-xs p-2" style={{
+                      background: 'var(--retro-screen-light)',
+                      border: '1px solid var(--retro-border)',
+                      borderRadius: '4px'
+                    }}>
+                      <div className="font-semibold mb-1">⏰ Reminder set for:</div>
+                      <div>{new Date(modalData.reminder_datetime).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      })}</div>
+                      {modalData.reminder_datetime < Date.now() && (
+                        <div className="mt-1" style={{ color: 'var(--swipe-delete)' }}>⚠️ This reminder is in the past</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <FormField
                 label="Estimated Time (hours)"

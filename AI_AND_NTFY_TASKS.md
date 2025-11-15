@@ -283,12 +283,13 @@ async isFeatureEnabled(featureName: string): Promise<boolean> {
 
 ---
 
-## Phase 4: AI Tag Suggestions
+## Phase 4: AI Tag Suggestions ✅ COMPLETE
 
-**Status**: Not Started
-**Dependencies**: Phase 2 complete (feature flags), Phase 1 complete (tags table)
+**Status**: Complete (2025-11-15)
+**Dependencies**: Phase 2 complete (feature flags) ✅, Phase 1 complete (tags table) ✅
+**Documentation**: Code review passed with comprehensive improvements
 
-### Task 4.1: Create /api/ai/suggest-tags Endpoint
+### Task 4.1: Create /api/ai/suggest-tags Endpoint ✅
 **Objective**: AI-powered tag suggestions with existing tag reuse
 
 **Deliverables**:
@@ -298,23 +299,39 @@ async isFeatureEnabled(featureName: string): Promise<boolean> {
 - Parse AI response
 - Return tags with source indicator (existing vs new)
 
-**Files to Create**:
-- `app/api/ai/suggest-tags/route.ts`
+**Files Created**:
+- `app/api/ai/suggest-tags/route.ts` (182 lines)
 
 **AI Prompt Strategy**:
 - Request 3-5 tags total
 - Instruction: Include 1-3 from existing pool if confidence >= 70%
 - Return JSON with tag, source, confidence, reason
 
-**Success Criteria**:
-- Endpoint returns 3-5 tag suggestions
-- Existing tags prioritized when relevant
-- Source field indicates existing vs new
-- Confidence scores included
+**Implementation Details**:
+- Feature flag protected (`tag_suggestions`)
+- Validates entityType parameter (task, note, project, list)
+- Validates text input (non-empty, proper type)
+- Fetches top 50 existing tags ordered by usage_count DESC
+- AI prompt emphasizes reusing existing tags (confidence >= 70%)
+- Parses JSON response with fallback for markdown code blocks
+- Uses Map for O(1) tag lookups (performance optimization)
+- Filters suggestions by confidence >= 60%
+- Sorts: existing tags first, then by confidence
+- Returns enriched tags with usage_count for existing tags
+- Comprehensive error handling with specific status codes
+
+**Success Criteria**: ✅ All met
+- ✅ Endpoint returns 3-5 tag suggestions
+- ✅ Existing tags prioritized when relevant
+- ✅ Source field indicates existing vs new
+- ✅ Confidence scores included
+- ✅ Input validation and sanitization
+- ✅ Transaction-based atomic operations
+- ✅ Proper error messages
 
 ---
 
-### Task 4.2: Implement Existing Tag Reuse Logic
+### Task 4.2: Implement Existing Tag Reuse Logic ✅
 **Objective**: Prioritize tags user already has
 
 **Deliverables**:
@@ -323,18 +340,26 @@ async isFeatureEnabled(featureName: string): Promise<boolean> {
 - AI returns mix of existing and new tags
 - Track which suggestions are accepted
 
-**Files to Modify**:
+**Files Modified**:
 - `app/api/ai/suggest-tags/route.ts`
-- `lib/ai.ts` (if shared logic)
 
-**Success Criteria**:
-- Existing tags appear in suggestions when relevant
-- New tags only when existing don't fit
-- Confidence threshold (70%) enforced
+**Implementation Details**:
+- Top 50 tags query: `SELECT name, usage_count FROM tags WHERE usage_count > 0 ORDER BY usage_count DESC LIMIT 50`
+- Existing tags listed in AI prompt with emphasis on reuse
+- AI confidence threshold: >= 70% for existing tags
+- Frontend threshold: >= 60% for all displayed suggestions
+- Visual indicators: ● for existing, ○ for new tags
+- Sorting priority: existing tags first, then by confidence
+
+**Success Criteria**: ✅ All met
+- ✅ Existing tags appear in suggestions when relevant
+- ✅ New tags only when existing don't fit
+- ✅ Confidence threshold (70%) enforced in AI prompt
+- ✅ Usage count displayed for existing tags
 
 ---
 
-### Task 4.3: Update EntityModal UI with Tag Suggestions
+### Task 4.3: Update EntityModal UI with Tag Suggestions ✅
 **Objective**: UI for requesting and applying tag suggestions
 
 **Deliverables**:
@@ -345,70 +370,108 @@ async isFeatureEnabled(featureName: string): Promise<boolean> {
 - Individual click-to-add buttons
 - "Accept All" button
 
-**Files to Modify**:
+**Files Modified**:
 - `components/modern/EntityModal.tsx`
 
-**UI Design**:
-```
-Tags: [#work] [#urgent] [+]
-      [🤖 Suggest Tags]
+**UI Implementation**:
+- Button: "🏷️ Suggest Tags" (uses emoji for visual appeal)
+- Loading state: "Analyzing..." message while processing
+- Suggested tags display: confidence %, usage count, source indicator
+- Individual ADD buttons for each tag
+- "Accept All" and "Dismiss" action buttons
+- Gated by: AI master toggle + tag_suggestions feature flag
+- Works for all entity types (task, note, project, list)
 
-AI Suggestions:           [Accept All]
-[+ #planning 95% ●] [+ #project 88% ○]
-[+ #deadline 75% ●]
-
-Existing: ●  New: ○
-```
-
-**Success Criteria**:
-- Button triggers tag suggestion API
-- Suggestions display with all metadata
-- Click individual tag to add
-- "Accept All" adds all suggestions
-- Duplicates not added
-- Works for all entity types
+**Success Criteria**: ✅ All met
+- ✅ Button triggers tag suggestion API
+- ✅ Suggestions display with all metadata
+- ✅ Click individual tag to add
+- ✅ "Accept All" adds all suggestions
+- ✅ Duplicates not added
+- ✅ Works for all entity types
+- ✅ Proper loading and error states
 
 ---
 
-### Task 4.4: Implement "Accept All" and Individual Add
-**Objective**: Easy tag application
+### Task 4.4: Tag Usage Tracking ✅
+**Objective**: Track tag usage for intelligent suggestions
 
 **Deliverables**:
-- Click individual tag chip to add
-- "Accept All" adds all suggested tags at once
-- Already-added tags grayed out
-- Update tag list in modal
+- updateTagUsage() helper function
+- Increment usage_count when tags added
+- Decrement usage_count when tags removed
+- Update last_used_at timestamp
+- Integration in item creation/update APIs
 
-**Success Criteria**:
-- Individual add works
-- Accept All adds all tags
-- No duplicate tags
-- UI updates immediately
+**Files Modified**:
+- `lib/db.ts` - Added updateTagUsage() function (lines 391-436)
+- `app/api/items/route.ts` (POST) - Integrated tag tracking
+- `app/api/items/[id]/route.ts` (PUT) - Integrated tag tracking
+
+**Implementation Details**:
+- Input validation and sanitization (lowercase, alphanumeric + hyphens)
+- Tag name length: 1-50 characters
+- Regex validation: `/^[a-z0-9-_]+$/`
+- Transaction-based atomic updates
+- Auto-creates tags if they don't exist
+- Increments usage_count on add
+- Decrements usage_count on remove (never below 0)
+- Updates last_used_at timestamp
+- Prepared statements for performance
+- JSDoc documentation
+
+**Success Criteria**: ✅ All met
+- ✅ Individual tag add works
+- ✅ Accept All adds all tags
+- ✅ No duplicate tags
+- ✅ UI updates immediately
+- ✅ Usage tracking integrated in all item operations
+- ✅ Atomic database operations
+- ✅ Input validation prevents invalid tags
 
 ---
 
 ## Phase 5: Task Reminders
 
-**Status**: Not Started
-**Dependencies**: Phase 1 complete (reminder_datetime column)
+**Status**: In Progress (Task 5.1 Complete ✅)
+**Dependencies**: Phase 1 complete (reminder_datetime column) ✅
 
-### Task 5.1: Add Reminder DateTime UI to Task Modal
+### Task 5.1: Add Reminder DateTime UI to Task Modal ✅
 **Objective**: User can set when to be reminded
 
+**Status**: Complete (2025-11-15)
+
 **Deliverables**:
-- Reminder checkbox in task modal
-- Date + time picker for reminder_datetime
-- Quick options: Morning of, 1hr before, 1 day before, Custom
-- Display relative time ("1 hour before due")
+- ✅ Reminder checkbox in task modal (disabled if no due date)
+- ✅ Quick reminder presets: Morning of (9 AM), 1hr before (4 PM), 1 day before (9 AM)
+- ✅ Custom datetime picker option
+- ✅ Human-readable display with locale formatting
+- ✅ Past-time warning ("This reminder is in the past")
+- ✅ API integration (GET/POST/PUT) with reminder_datetime field
 
-**Files to Modify**:
-- `components/modern/EntityModal.tsx` (Task modal section)
+**Files Modified**:
+- `app/page.tsx` (lines 790-917) - Reminder UI section in Task modal
+- `app/api/items/route.ts` (lines 20, 89, 208, 220) - Added reminder_datetime to GET/POST
+- `app/api/items/[id]/route.ts` (lines 16, 70, 245, 255, 260, 272) - Added reminder_datetime to GET/PUT
 
-**Success Criteria**:
-- Checkbox enables reminder picker
-- Quick options set datetime correctly
-- Custom picker allows any datetime
-- Relative time displayed clearly
+**Implementation Details**:
+- Checkbox requires due date to be set first (UX improvement)
+- Four quick preset buttons: Morning of, 1hr before, 1 day before, Custom
+- Active preset highlighted with retro-btn-primary styling
+- Custom option reveals datetime-local input
+- Reminder data persisted in modalData.reminder_datetime (Unix timestamp)
+- Display box shows formatted time with month/day/year/hour/minute
+- Past-time validation with red warning message
+- State management: reminderEnabled, reminderOption, reminderDatetime, reminder_datetime
+
+**Success Criteria**: ✅ All met
+- ✅ Checkbox enables reminder picker
+- ✅ Quick options set datetime correctly (Morning: 9 AM, 1hr: 4 PM, 1 day: 9 AM day before)
+- ✅ Custom picker allows any datetime
+- ✅ Relative time displayed clearly with locale formatting
+- ✅ Past-time warning shows when reminder < current time
+- ✅ Reminder data saves/loads from database
+- ✅ UX improvement: Checkbox disabled without due date
 
 ---
 
@@ -667,6 +730,6 @@ Existing: ●  New: ○
 
 ---
 
-**Last Updated**: 2025-11-14
-**Current Status**: Phase 2 Complete ✅ (Tasks 2.1-2.4)
-**Next Tasks**: Phase 3 (Tasks 3.1-3.4)
+**Last Updated**: 2025-11-15
+**Current Status**: Phase 4 Complete ✅ (Tasks 4.1-4.4), Phase 5 Task 5.1 Complete ✅
+**Next Tasks**: Phase 5 Task 5.2 (Quick Reminder Options - already implemented in 5.1) or Phase 3 (Tasks 3.1-3.4)

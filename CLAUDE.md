@@ -18,7 +18,7 @@ IdeaListed is a Next.js-based idea capture and task management application with 
 - `reference-IMPLEMENTATION_UPDATES.md` - User feedback and requirements
 - `reference-IMPLEMENTATION_UPDATES_V2.md` - Final scope refinement
 
-**Sprint Status**: Phase 1 Complete ✅, Phase 2 In Progress
+**Sprint Status**: Phase 1 Complete ✅, Phase 2 Complete ✅, Phase 4 Complete ✅, Phase 5 Task 5.1 Complete ✅
 
 **IMPORTANT**: When working on this sprint:
 1. Use `AI_AND_NTFY_PLAN.md` for phase-level context
@@ -77,18 +77,34 @@ The application uses a unified entity model centered around `items` with special
 - **Foreign keys** enforced
 - **Migration strategy**: lib/db.ts:20-43 contains auto-migration logic that drops and recreates tables when schema changes
 
+### Tag System
+
+- **Tags table**: Stores tag metadata (name, color, category, usage tracking)
+- **Default tags**: 25 starter tags seeded across 4 categories (Work, Personal, Health, Finance, Other)
+- **Usage tracking**: `usage_count` incremented on add, decremented on remove
+- **Tag suggestions**: AI prioritizes top 50 existing tags by usage (confidence >= 70%)
+- **Tag helpers**: `updateTagUsage(addedTags, removedTags)` in lib/db.ts
+  - Input validation and sanitization (lowercase, alphanumeric + hyphens)
+  - Transaction-based atomic operations
+  - Auto-creates new tags when needed
+  - Updates `last_used_at` timestamp
+  - Never decrements `usage_count` below 0
+
 ### AI Integration
 
 - Uses OpenRouter API for AI functionality (lib/ai.ts)
 - **Master Toggle**: AI disabled by default (user configurable in Settings > AI)
+- **Feature Flags**: Individual AI features can be toggled independently (ai_feature_settings table)
 - All AI UI elements hidden when disabled (capture AI button, autofill, suggestions)
 - Configurable models: free and paid options
 - AI features (when enabled):
-  - Parse ideas and extract structured information
+  - **AI Suggestion Panel** - Parse ideas and extract structured information
+  - **AI Tag Suggestions** - Smart tag recommendations prioritizing existing tags
+  - **AI Daily Summary** - Generate daily plans and summaries (planned)
   - Convert ideas to appropriate entity types
-  - Suggest tags and rewrites
-  - Generate daily plans from todos
-- Configuration: AIConfig.enabled boolean controls all AI functionality app-wide
+  - Suggest rewrites and improvements
+- Configuration: AIConfig.enabled boolean controls master toggle, ai_feature_settings controls individual features
+- Feature flag checking: `aiService.isFeatureEnabled(featureName)` method provides two-tier protection
 
 ### API Layer
 
@@ -96,7 +112,9 @@ All API routes follow Next.js App Router conventions in `app/api/`:
 - `/api/items` - CRUD operations for items
 - `/api/items/[id]` - Single item operations
 - `/api/ai` - AI processing endpoints
-- `/api/ai/suggest` - AI suggestions
+- `/api/ai/suggest` - AI suggestions for entity type and metadata
+- `/api/ai/suggest-tags` - AI tag suggestions (prioritizes existing tags)
+- `/api/ai-features` - AI feature settings management
 - `/api/plans` - Daily plan management
 - `/api/settings` - Application settings
 - `/api/notify` - Ntfy.sh notification integration
@@ -161,27 +179,42 @@ Each entity type has specific required fields in their modals:
 - Status (dropdown: not_started, in_progress, done, archived)
 - Priority (dropdown: low, medium, high)
 - Due Date (date picker)
+- **Reminder** (Phase 5 feature):
+  - Checkbox to enable reminder (disabled if no due date)
+  - Quick presets: Morning of (9 AM), 1hr before (4 PM), 1 day before (9 AM), Custom
+  - Custom datetime picker for precise time selection
+  - Human-readable display with locale formatting
+  - Past-time warning (red alert if reminder < current time)
+  - Stored as reminder_datetime (Unix timestamp in tasks table)
 - Project (dropdown, optional)
-- Tags (tag input)
+- Tags (tag input with AI suggestions)
 - Notes (textarea)
 
 **Note Modal**:
 - Title (text input)
 - Subtype (dropdown: general, meeting, research, reference - must persist selection)
 - Project (dropdown, optional)
-- Tags (tag input)
+- Tags (tag input with AI suggestions)
 - Content (textarea)
 
 **Project Modal**:
 - Name (text input)
 - Status (dropdown: active, planning, on_hold, completed, archived)
 - Description (textarea)
-- Tags (tag input)
+- Tags (tag input with AI suggestions)
 
 **List Modal**:
 - Name (text input)
-- Tags (tag input)
+- Tags (tag input with AI suggestions)
 - Items (textarea or item list UI)
+
+**AI Tag Suggestions** (Phase 4 feature):
+- "🏷️ Suggest Tags" button in all entity modals
+- Analyzes entity text/content for relevant tags
+- Prioritizes existing tags (marked with ●) over new tags (marked with ○)
+- Shows confidence % and usage count
+- Individual ADD buttons + Accept All/Dismiss options
+- Gated by AI master toggle + tag_suggestions feature flag
 
 ### Badge System
 
