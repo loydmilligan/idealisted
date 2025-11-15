@@ -8,6 +8,33 @@ IdeaListed is a Next.js-based idea capture and task management application with 
 
 **Current Status**: Beta MVP complete (Phases 1-5 implemented January 2025). See BETA_MVP_IMPLEMENTATION_PLAN.md for implementation details and UNUSED_CODE.md for deprecated features.
 
+## Current Sprint: AI & Notification Features
+
+**CURRENT WORKING PLAN**: `AI_AND_NTFY_PLAN.md` (high-level phase overview)
+**CURRENT TASK BREAKDOWN**: `AI_AND_NTFY_TASKS.md` (detailed tasks for all phases)
+
+**Reference Documents** (historical decisions):
+- `reference-FOCUSED_IMPLEMENTATION_PLAN.md` - Original detailed feature designs
+- `reference-IMPLEMENTATION_UPDATES.md` - User feedback and requirements
+- `reference-IMPLEMENTATION_UPDATES_V2.md` - Final scope refinement
+
+**Sprint Status**: Phase 1 Complete ✅, Phase 2 In Progress
+
+**IMPORTANT**: When working on this sprint:
+1. Use `AI_AND_NTFY_PLAN.md` for phase-level context
+2. Use `AI_AND_NTFY_TASKS.md` for specific task details
+3. Reference docs contain decision history but are NOT the current plan
+4. Each phase follows the Implementation Workflow documented in AI_AND_NTFY_PLAN.md
+
+## Development Principles
+
+**IMPORTANT - Timeline Estimation:**
+- **DO NOT estimate timeframes or create timeline predictions** when planning or implementing features
+- Focus on priority and implementation order, not duration
+- AI timeline estimates are consistently inaccurate (Beta MVP: estimated weeks, completed in one night)
+- Think about what to do first, not how long it will take
+- User velocity far exceeds typical AI timeline predictions
+
 ## Development Commands
 
 ```bash

@@ -60,11 +60,18 @@ class ReviewService {
     let aiSummary: string | undefined
 
     if (includeAI && activeProjects.length > 0) {
-      try {
-        aiSummary = await this.generateAIProjectSummary(activeProjects, snapshot)
-      } catch (error) {
-        console.error('Failed to generate AI summary:', error)
-        aiSummary = undefined
+      // Check if daily_summary feature is enabled
+      const dailySummaryEnabled = await aiService.isFeatureEnabled('daily_summary')
+
+      if (!dailySummaryEnabled) {
+        console.log('Daily summary skipped: feature disabled')
+      } else {
+        try {
+          aiSummary = await this.generateAIProjectSummary(activeProjects, snapshot)
+        } catch (error) {
+          console.error('Failed to generate AI summary:', error)
+          aiSummary = undefined
+        }
       }
     }
 

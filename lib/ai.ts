@@ -263,6 +263,32 @@ class AIService {
       maxTokens: this.config.maxTokens
     }
   }
+
+  /**
+   * Check if a specific AI feature is enabled
+   * @param featureName - Name of feature from ai_feature_settings table
+   * @returns Promise<boolean> - True if master toggle AND feature flag are both enabled
+   */
+  async isFeatureEnabled(featureName: string): Promise<boolean> {
+    // Check master toggle first (fail fast)
+    if (!this.config?.enabled) {
+      return false
+    }
+
+    try {
+      const { db } = await import('@/lib/db')
+      const feature = db.prepare(`
+        SELECT enabled FROM ai_feature_settings WHERE feature_name = ?
+      `).get(featureName) as { enabled: number } | undefined
+
+      // SQLite stores booleans as 0 or 1, must check === 1
+      return feature?.enabled === 1
+    } catch (error) {
+      console.error(`Failed to check feature flag: ${featureName}`, error)
+      // Fail closed - disable feature on error
+      return false
+    }
+  }
 }
 
 export const aiService = new AIService()

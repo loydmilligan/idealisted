@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AISuggestion } from '@/types'
+import { aiService } from '@/lib/ai'
 
 export async function POST(request: NextRequest) {
   let text: string = ''
@@ -10,6 +11,15 @@ export async function POST(request: NextRequest) {
 
     if (!text || typeof text !== 'string') {
       return NextResponse.json({ error: 'Text is required' }, { status: 400 })
+    }
+
+    // Check if suggestion_panel feature is enabled
+    const featureEnabled = await aiService.isFeatureEnabled('suggestion_panel')
+    if (!featureEnabled) {
+      return NextResponse.json(
+        { error: 'AI suggestion panel feature is disabled. Enable it in Settings > AI > Features.' },
+        { status: 403 }
+      )
     }
 
     // Get AI configuration from environment

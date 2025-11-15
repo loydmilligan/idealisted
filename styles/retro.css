@@ -1234,6 +1234,8 @@ body {
   background: var(--palm-screen-light);
   border: 1px solid var(--palm-border-light);
   border-radius: 2px;
+  white-space: pre-line;
+  line-height: 1.5;
 }
 
 .retro-button-row {

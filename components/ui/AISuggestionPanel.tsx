@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { RetroCard } from './RetroCard'
 import { RetroButton } from './RetroButton'
 import { RetroIcon } from './RetroIcon'
@@ -12,12 +13,42 @@ interface AISuggestionPanelProps {
   onDismiss: () => void
 }
 
-export function AISuggestionPanel({ 
-  suggestion, 
-  isLoading, 
-  onApplySuggestion, 
-  onDismiss 
+export function AISuggestionPanel({
+  suggestion,
+  isLoading,
+  onApplySuggestion,
+  onDismiss
 }: AISuggestionPanelProps) {
+  const [featureEnabled, setFeatureEnabled] = useState(false)
+  const [featureCheckComplete, setFeatureCheckComplete] = useState(false)
+
+  // Check if suggestion_panel feature is enabled
+  useEffect(() => {
+    fetch('/api/ai-features')
+      .then(res => res.json())
+      .then(data => {
+        const feature = data.features?.find((f: any) => f.feature_name === 'suggestion_panel')
+        setFeatureEnabled(feature?.enabled === 1)
+        setFeatureCheckComplete(true)
+      })
+      .catch(() => {
+        console.log('Failed to check suggestion_panel feature flag')
+        setFeatureEnabled(false)
+        setFeatureCheckComplete(true)
+      })
+  }, [])
+
+  // Don't render anything until feature check is complete
+  if (!featureCheckComplete) {
+    return null
+  }
+
+  // Hide panel if feature is disabled
+  if (!featureEnabled) {
+    console.log('AI suggestion panel hidden: feature disabled')
+    return null
+  }
+
   if (isLoading) {
     return (
       <RetroCard className="palm-ai-suggestion">

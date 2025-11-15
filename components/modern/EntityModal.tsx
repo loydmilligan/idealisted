@@ -42,6 +42,7 @@ export const EntityModal: React.FC<EntityModalProps> = ({
 }) => {
   const modalRef = useRef<HTMLDivElement>(null)
   const [aiEnabled, setAiEnabled] = useState(false)
+  const [tagSuggestionsEnabled, setTagSuggestionsEnabled] = useState(false)
 
   const entityLabel = entityType.charAt(0).toUpperCase() + entityType.slice(1)
 
@@ -67,6 +68,20 @@ export const EntityModal: React.FC<EntityModalProps> = ({
       .then(res => res.json())
       .then(data => setAiEnabled(data.settings?.ai_config?.enabled ?? false))
       .catch(() => setAiEnabled(false))
+  }, [])
+
+  // Check if tag_suggestions feature is enabled
+  useEffect(() => {
+    fetch('/api/ai-features')
+      .then(res => res.json())
+      .then(data => {
+        const feature = data.features?.find((f: any) => f.feature_name === 'tag_suggestions')
+        setTagSuggestionsEnabled(feature?.enabled === 1)
+      })
+      .catch(() => {
+        console.log('Failed to check tag_suggestions feature flag')
+        setTagSuggestionsEnabled(false)
+      })
   }, [])
 
   // Close on escape key
@@ -157,6 +172,20 @@ export const EntityModal: React.FC<EntityModalProps> = ({
               AI AUTOFILL
             </button>
           )}
+
+          {/*
+            TODO Phase 4 Task 4.3: Add Tag Suggestions Button
+            When implementing tag suggestions, check tagSuggestionsEnabled state:
+
+            {aiEnabled && tagSuggestionsEnabled && (
+              <button
+                onClick={handleTagSuggestions}
+                className="retro-btn retro-btn-secondary"
+              >
+                🏷️ SUGGEST TAGS
+              </button>
+            )}
+          */}
 
           {/* Convert/Save Button */}
           <div className="flex gap-3">
