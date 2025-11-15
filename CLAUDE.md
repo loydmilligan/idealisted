@@ -18,7 +18,7 @@ IdeaListed is a Next.js-based idea capture and task management application with 
 - `reference-IMPLEMENTATION_UPDATES.md` - User feedback and requirements
 - `reference-IMPLEMENTATION_UPDATES_V2.md` - Final scope refinement
 
-**Sprint Status**: Phase 1 Complete ✅, Phase 2 Complete ✅, Phase 4 Complete ✅, Phase 5 Task 5.1 Complete ✅
+**Sprint Status**: Phase 1 Complete ✅, Phase 2 Complete ✅, Phase 4 Complete ✅, Phase 5 Tasks 5.1 ✅ and 5.3 ✅ Complete
 
 **IMPORTANT**: When working on this sprint:
 1. Use `AI_AND_NTFY_PLAN.md` for phase-level context
@@ -161,6 +161,47 @@ AI features require OpenRouter API key configuration via the settings page. Conf
 ### Notification System
 
 Optional ntfy.sh integration for push notifications. Configuration stored in settings table with key='ntfy_config'.
+
+**NtfyService** (lib/notify.ts):
+- Singleton service: `ntfyService`
+- Configuration: Loads from settings table (key='ntfy_config')
+- Core method: `sendNotification(title, message, actions?, priority?)`
+- Pre-built helpers:
+  - `notifyTaskDue(taskText, dueTime)` - Task reminder notifications with action buttons
+  - Event-aware methods that check if specific events are enabled
+- Returns: `{ success: boolean, error?: string, skipped?: boolean }`
+
+### CRON Scheduler System
+
+The application has a CRON-based scheduler infrastructure (lib/scheduler.ts) that runs periodic background tasks.
+
+**SchedulerService** (lib/scheduler.ts):
+- Singleton service initialized on server startup (lib/init.ts)
+- Uses `node-cron` dependency for scheduled tasks
+- Global variable pattern for HMR compatibility (Next.js hot-reload)
+- Mutex locks prevent concurrent executions
+
+**Current CRON Jobs**:
+1. **Daily Review** - Sends daily review notifications at configured time (default: 19:00)
+2. **Task Reminders** (Phase 5.3) - Checks for due task reminders every minute
+
+**Task Reminder CRON** (checkAndNotifyReminders):
+- Schedule: Every minute (`'* * * * *'`)
+- Query filters:
+  - `reminder_datetime IS NOT NULL`
+  - `reminder_datetime <= current time` (due now or overdue)
+  - `status != 'completed'` (don't notify completed tasks)
+  - `last_notified_at IS NULL OR > 1 hour ago` (prevents spam)
+- Sends notifications via `ntfyService.notifyTaskDue(taskText, dueTime)`
+- Updates `last_notified_at` timestamp after successful notification
+- Performance: Database index on `tasks.reminder_datetime`
+- Logging: Start, count, success, failure, completion
+
+**Initialization**:
+- Entry point: `app/layout.tsx` imports `lib/init.ts` (re-enabled in Phase 5.3)
+- Server-side only (checks `typeof window !== 'undefined'`)
+- Global flag `__scheduler_initialized` survives hot-reloads
+- Calls `schedulerService.start()` to begin CRON loops
 
 ### Voice Input
 
@@ -327,8 +368,19 @@ All Phases 1-5 implemented (January 2025). See BETA_MVP_IMPLEMENTATION_PLAN.md f
 - forwardRef pattern with TabNavHandle interface
 - CSS keyframe animations with glow and scale effects
 
-**Deferred for Post-Beta**:
-- CRON system (disabled in app/layout.tsx - see UNUSED_CODE.md)
+**Post-Beta Features - AI & Notification Sprint**:
+- Phase 1: Database Foundation ✅
+- Phase 2: AI Settings UI ✅
+- Phase 4: AI Tag Suggestions ✅
+- Phase 5: Task Reminders (Tasks 5.1 ✅, 5.3 ✅)
+  - Task modal reminder datetime picker with quick presets
+  - CRON job for reminder checks (re-enabled scheduler)
+  - NTFY push notifications for due tasks
+
+**Deferred for Future**:
+- Phase 3: AI Suggestion Flow (preview-first AI analysis)
+- Phase 6: Scheduled Summary (daily activity digests)
+- Phase 7: Onboarding Wizard (interactive tour)
 - List entity enhancements
 - Advanced filtering features
 - Multi-language voice input

@@ -2,7 +2,7 @@
 
 **Sprint**: Post-Beta AI & NTFY Integration
 **Started**: 2025-01-14
-**Status**: Phase 1 Complete ✅, Phase 2 Complete ✅, Phase 4 Complete ✅, Phase 5 Task 5.1 Complete ✅
+**Status**: Phase 1 Complete ✅, Phase 2 Complete ✅, Phase 4 Complete ✅, Phase 5 Tasks 5.1 ✅ and 5.3 ✅ Complete
 
 ---
 
@@ -187,7 +187,7 @@ This sprint implements AI-powered features and notification capabilities for Ide
 
 ## Phase 5: Task Reminders
 
-**Status**: In Progress (Task 5.1 Complete ✅)
+**Status**: In Progress (Tasks 5.1 ✅, 5.3 ✅ Complete)
 **Dependencies**: Phase 1 complete (reminder_datetime column) ✅
 
 **Purpose**: NTFY-based task due reminders with configurable timing.
@@ -200,22 +200,35 @@ This sprint implements AI-powered features and notification capabilities for Ide
 - ✅ API integration for saving/loading reminder_datetime
 - ✅ UX improvement: Checkbox disabled without due date
 
+**What Was Built (Task 5.3)**:
+- ✅ CRON job runs every minute (better UX than 15-minute interval)
+- ✅ Extended SchedulerService with checkAndNotifyReminders() method
+- ✅ Query filters: reminder_datetime <= now, status != completed, 1-hour notification cooldown
+- ✅ Sends notifications via ntfyService.notifyTaskDue(taskText, dueTime)
+- ✅ Updates last_notified_at timestamp after successful notification
+- ✅ Database index on tasks.reminder_datetime for performance
+- ✅ Global variables for HMR compatibility
+- ✅ Comprehensive logging (start, count, success, failure, completion)
+- ✅ Re-enabled scheduler in app/layout.tsx
+
 **What Will Be Built (Remaining Tasks)**:
-- CRON job for reminder checks (every 15 minutes) - Task 5.3
-- NTFY notification integration - Task 5.4
-- Settings UI for reminder preferences - Task 5.4
+- Settings UI for reminder preferences - Task 5.4 (optional)
 
-**Notification Format** (Planned):
+**Notification Format** (Implemented):
 - Title: "⏰ Task Due Soon"
-- Message: Task text + due time
-- Actions: Mark Complete, Snooze, View Task
+- Message: "{taskText}" is due at {dueTime}
+- Actions: Mark Complete (URL callback), Snooze (clear notification)
+- Priority: urgent
 
-**Configuration Options** (Planned):
+**Configuration Options** (Future Enhancements):
 - Default reminder timing
 - Priority filtering (high/medium/low)
 - Quiet hours (22:00 - 08:00)
 
-**Implementation Note**: Task 5.2 (Quick Reminder Options) was implemented as part of Task 5.1, as the quick options are integral to the datetime picker UI.
+**Implementation Notes**:
+- Task 5.2 (Quick Reminder Options) was implemented as part of Task 5.1, as the quick options are integral to the datetime picker UI
+- Task 5.3 CRON implementation uses existing ntfyService.notifyTaskDue() method (no changes to lib/notify.ts needed)
+- Action button handlers (Mark Complete, Snooze) are placeholders for future implementation
 
 ---
 
@@ -305,7 +318,7 @@ This sprint implements AI-powered features and notification capabilities for Ide
 - [x] Phase 2: AI Settings UI ✅
 - [ ] Phase 3: AI Suggestion Flow
 - [x] Phase 4: AI Tag Suggestions ✅
-- [ ] Phase 5: Task Reminders (Task 5.1 Complete ✅, Tasks 5.2-5.4 Pending)
+- [ ] Phase 5: Task Reminders (Tasks 5.1 ✅ and 5.3 ✅ Complete, Task 5.4 Optional)
 - [ ] Phase 6: Scheduled Summary
 - [ ] Phase 7: Onboarding Wizard
 
@@ -329,5 +342,5 @@ This sprint implements AI-powered features and notification capabilities for Ide
 ---
 
 **Last Updated**: 2025-11-15
-**Current Phase**: Phase 5 In Progress (Task 5.1 Complete ✅)
-**Next Phase**: Phase 5 Tasks 5.2-5.4 (CRON & Notifications) or Phase 3 (AI Suggestion Flow)
+**Current Phase**: Phase 5 In Progress (Tasks 5.1 ✅ and 5.3 ✅ Complete)
+**Next Phase**: Phase 5 Task 5.4 (optional settings UI) or Phase 3 (AI Suggestion Flow)

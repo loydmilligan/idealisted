@@ -360,6 +360,7 @@ export function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_plans_date ON plans(date);
     CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
     CREATE INDEX IF NOT EXISTS idx_tags_usage ON tags(usage_count DESC);
+    CREATE INDEX IF NOT EXISTS idx_tasks_reminder ON tasks(reminder_datetime);
   `)
 
   console.log('Database initialized successfully')

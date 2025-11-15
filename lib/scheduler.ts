@@ -7,6 +7,8 @@ import { format } from 'date-fns'
 declare global {
   var __daily_review_cron_task: any | undefined
   var __daily_review_is_running: boolean | undefined
+  var __reminder_check_cron_task: any | undefined
+  var __reminder_check_is_running: boolean | undefined
 }
 
 class SchedulerService {
@@ -28,6 +30,18 @@ class SchedulerService {
     })
 
     console.log('[Scheduler] Daily review scheduler started')
+
+    // Task Reminder Check (Phase 5 - Task 5.3)
+    if (global.__reminder_check_cron_task) {
+      global.__reminder_check_cron_task.stop()
+      global.__reminder_check_cron_task = undefined
+    }
+
+    global.__reminder_check_cron_task = cron.schedule('* * * * *', async () => {
+      await this.checkAndNotifyReminders()
+    })
+
+    console.log('[Scheduler] Task reminder check cron started (every minute)')
   }
 
   /**
@@ -132,6 +146,98 @@ class SchedulerService {
       console.error('[Scheduler] Error in daily review check:', error)
     } finally {
       global.__daily_review_is_running = false
+    }
+  }
+
+  /**
+   * Check for tasks with due reminders and send notifications
+   * Runs every minute via cron job
+   */
+  private async checkAndNotifyReminders() {
+    // Mutex lock to prevent concurrent executions
+    if (global.__reminder_check_is_running) {
+      return
+    }
+
+    try {
+      global.__reminder_check_is_running = true
+      const now = Date.now()
+      const oneHourAgo = now - (60 * 60 * 1000)
+
+      // Query tasks with due reminders
+      const { db } = await import('./db')
+      const dueTasks = db.prepare(`
+        SELECT task.id, task.reminder_datetime, task.last_notified_at,
+               i.text, task.due_date
+        FROM tasks task
+        JOIN items i ON i.id = task.item_id
+        WHERE task.reminder_datetime IS NOT NULL
+          AND task.reminder_datetime <= ?
+          AND task.status != 'completed'
+          AND (task.last_notified_at IS NULL OR task.last_notified_at < ?)
+        ORDER BY task.reminder_datetime ASC
+      `).all(now, oneHourAgo) as Array<{
+        id: string
+        reminder_datetime: number
+        last_notified_at: number | null
+        text: string
+        due_date: number | null
+      }>
+
+      if (dueTasks.length === 0) {
+        // No tasks need notification - silent return (don't spam logs)
+        return
+      }
+
+      console.log(`[Reminder Check] Found ${dueTasks.length} task(s) needing notification`)
+
+      // Process each task
+      let successCount = 0
+      let failureCount = 0
+
+      for (const task of dueTasks) {
+        try {
+          // Format due time as human-readable
+          const dueTime = task.due_date
+            ? new Date(task.due_date).toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+              })
+            : 'soon'
+
+          // Send notification using existing helper
+          const result = await ntfyService.notifyTaskDue(task.text, dueTime)
+
+          if (result.success) {
+            // Update last_notified_at timestamp
+            db.prepare(`
+              UPDATE tasks SET last_notified_at = ? WHERE id = ?
+            `).run(now, task.id)
+
+            console.log(`[Reminder] ✓ Sent notification for task: "${task.text}"`)
+            successCount++
+          } else if (result.error === 'Ntfy notifications disabled') {
+            console.log(`[Reminder] Skipped "${task.text}" - NTFY disabled`)
+          } else {
+            console.error(`[Reminder] ✗ Failed to notify task "${task.text}":`, result.error)
+            failureCount++
+          }
+        } catch (error) {
+          console.error(`[Reminder] ✗ Error processing task ${task.id}:`, error)
+          failureCount++
+          // Continue with next task even if this one fails
+        }
+      }
+
+      const elapsed = Date.now() - now
+      console.log(`[Reminder Check] Completed in ${elapsed}ms (${successCount} sent, ${failureCount} failed)`)
+    } catch (error) {
+      console.error('[Reminder Check] Fatal error:', error)
+    } finally {
+      global.__reminder_check_is_running = false
     }
   }
 }

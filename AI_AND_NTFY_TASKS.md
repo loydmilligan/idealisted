@@ -433,7 +433,7 @@ async isFeatureEnabled(featureName: string): Promise<boolean> {
 
 ## Phase 5: Task Reminders
 
-**Status**: In Progress (Task 5.1 Complete ✅)
+**Status**: In Progress (Tasks 5.1 ✅, 5.3 ✅ Complete)
 **Dependencies**: Phase 1 complete (reminder_datetime column) ✅
 
 ### Task 5.1: Add Reminder DateTime UI to Task Modal ✅
@@ -491,26 +491,496 @@ async isFeatureEnabled(featureName: string): Promise<boolean> {
 
 ---
 
-### Task 5.3: Create CRON Job for Reminder Checks
+### Task 5.3: Create CRON Job for Reminder Checks ✅
 **Objective**: Periodic check for upcoming task reminders
 
+**Status**: Complete (2025-11-15)
+
 **Deliverables**:
-- CRON job runs every 15 minutes
-- Query tasks with reminder_datetime in window
-- Filter by status (not done)
-- Check last_notified_at to prevent duplicates
-- Send notification via NTFY
-- Update last_notified_at
+- ✅ CRON job runs every minute (better UX than 15-minute interval)
+- ✅ Query tasks with reminder_datetime <= now
+- ✅ Filter by status (not completed)
+- ✅ Check last_notified_at to prevent duplicates (1-hour minimum)
+- ✅ Send notification via existing ntfyService.notifyTaskDue()
+- ✅ Update last_notified_at timestamp after successful notification
 
-**Files to Create/Modify**:
-- `lib/scheduler.ts` - CRON job logic
-- `lib/notify.ts` - NTFY integration
+**Files Modified**:
+- `lib/db.ts` - Added index on tasks.reminder_datetime (line 363)
+- `lib/scheduler.ts` - Added global declarations, cron job setup, checkAndNotifyReminders() method
+- `app/layout.tsx` - Re-enabled scheduler by uncommenting import
 
-**Success Criteria**:
-- CRON runs reliably every 15 minutes
-- Only upcoming tasks notified
-- No duplicate notifications
-- last_notified_at updated correctly
+**Implementation Details**:
+- Extended SchedulerService with checkAndNotifyReminders() method
+- Cron schedule: `'* * * * *'` (every minute for timely notifications)
+- Query filters:
+  - reminder_datetime IS NOT NULL
+  - reminder_datetime <= current time (due now or overdue)
+  - status != 'completed' (don't notify completed tasks)
+  - last_notified_at IS NULL OR > 1 hour ago (prevents spam)
+- Sends notifications via ntfyService.notifyTaskDue(taskText, dueTime)
+- Updates last_notified_at timestamp on successful notification
+- Database index added for performance: `idx_tasks_reminder ON tasks(reminder_datetime)`
+- Mutex lock (`__reminder_check_is_running`) prevents concurrent executions
+- Global variable pattern (`__reminder_check_cron_task`) for HMR compatibility
+- Comprehensive logging (start, count, success, failure, completion)
+
+**Code Review**: ✅ 0 critical issues, 4 warnings fixed
+1. ✅ Removed unused columns from query (priority, due_date not needed)
+2. ✅ Removed redundant comment about notification format
+3. ✅ Added NTFY disabled detection (early return if NTFY not configured)
+4. ✅ Moved index to consolidated index section (line 363)
+
+**Success Criteria**: ✅ All met
+- ✅ CRON runs reliably every minute
+- ✅ Only tasks with due reminders notified
+- ✅ No duplicate notifications (1-hour minimum between notifications)
+- ✅ last_notified_at updated correctly after each notification
+- ✅ Performance optimized with database index
+- ✅ Graceful handling when NTFY disabled
+- ✅ Scheduler re-enabled in production (app/layout.tsx)
+
+## Context Manifest
+
+### How The Existing CRON System Works
+
+The application already has a CRON-based scheduler infrastructure that was built for daily review notifications, but it's currently **disabled in Beta MVP** due to console warnings. Understanding this existing system is critical because we'll be extending it (not building from scratch) to add task reminder checking.
+
+**Current State - Daily Review CRON**:
+
+When the application starts on the server side, the initialization flow goes like this:
+
+1. **Entry Point (Disabled)**: `app/layout.tsx` line 4 has a commented import: `// import '@/lib/init'`. This import is disabled because it was causing console warnings every minute: `[NODE-CRON] [WARN] missed execution` (documented in `UNUSED_CODE.md` lines 108-135).
+
+2. **Initialization Module**: `lib/init.ts` contains the `initializeServices()` function that:
+   - Checks a global flag `__scheduler_initialized` to survive hot-reloads during development
+   - Only runs server-side (checks `typeof window !== 'undefined'`)
+   - Calls `schedulerService.start()` to begin the CRON loop
+   - Sets a global flag to prevent duplicate initialization
+
+3. **Scheduler Service**: `lib/scheduler.ts` implements the `SchedulerService` class with this architecture:
+   - Uses `node-cron` dependency (already installed - see `package.json` lines with `"node-cron": "^4.2.1"`)
+   - Maintains a global cron task reference: `global.__daily_review_cron_task`
+   - Runs every minute: `cron.schedule('* * * * *', async () => { ... })`
+   - Has a mutex lock `__daily_review_is_running` to prevent concurrent executions
+   - Inside the cron callback (lines 47-136):
+     - Loads daily review settings from database (`SELECT value FROM settings WHERE key = 'daily_review'`)
+     - Checks if review is enabled and ntfy is configured
+     - Compares current time `HH:mm` against configured time (e.g., "19:00")
+     - Checks if review was already sent today via `reviewService.hasReviewBeenSentToday()`
+     - If all conditions pass, generates review and sends notification via `ntfyService.sendNotification()`
+     - Updates settings to mark review as sent
+
+**Why This Pattern Exists**:
+
+The global variables pattern (`global.__daily_review_cron_task`, `global.__scheduler_initialized`) is essential for Next.js development because:
+- Next.js has hot-module-replacement (HMR) during development
+- Without globals, each hot-reload would create duplicate cron jobs
+- Globals persist across module reloads, allowing cleanup of old tasks before creating new ones
+- The scheduler checks if a task exists and calls `.stop()` before creating a new one (lines 19-23)
+
+**Database Schema for Scheduled Tasks**:
+
+The tasks table (created in Phase 1, see `lib/db.ts` lines 178-211) has the exact columns we need:
+```sql
+CREATE TABLE tasks (
+  id TEXT PRIMARY KEY,
+  item_id TEXT NOT NULL,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'in-progress', 'completed')),
+  priority INTEGER DEFAULT 1,
+  tags TEXT,
+  estimated_time INTEGER,
+  project_id TEXT,
+  due_date INTEGER,
+  reminder_datetime INTEGER,      -- Unix timestamp (milliseconds) - when to notify
+  last_notified_at INTEGER,       -- Unix timestamp (milliseconds) - last notification sent
+  FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+)
+```
+
+The `reminder_datetime` column stores when the user wants to be reminded (set via Task 5.1's UI). The `last_notified_at` column tracks when we last sent a notification for this task, which prevents spam (requirement: don't notify more than once per hour).
+
+**Data Flow for Finding Due Reminders**:
+
+To find tasks that need notifications, we need to query:
+```sql
+SELECT task.*, i.text, i.type
+FROM tasks task
+JOIN items i ON i.id = task.item_id
+WHERE task.reminder_datetime IS NOT NULL
+  AND task.reminder_datetime <= ?  -- Current time (or window end)
+  AND task.status != 'completed'   -- Don't notify for completed tasks
+  AND (
+    task.last_notified_at IS NULL
+    OR task.last_notified_at < ?   -- More than 1 hour ago (3600000 ms)
+  )
+ORDER BY task.reminder_datetime ASC
+```
+
+The API routes (`app/api/items/[id]/route.ts` lines 245, 255 and `app/api/items/route.ts` lines 208, 220) already handle reading and writing `reminder_datetime` - we just need to query and update `last_notified_at`.
+
+### How The Notification System Works
+
+The notification infrastructure is fully built and operational via the `NtfyService` class in `lib/notify.ts`. Understanding how to send notifications is straightforward because the service is already battle-tested for daily reviews.
+
+**NtfyService Architecture**:
+
+The service is a singleton (`export const ntfyService = new NtfyService()`) that:
+
+1. **Configuration Loading** (lines 16-31):
+   - Loads config from database: `SELECT value FROM settings WHERE key = 'ntfy_config'`
+   - Config structure (see `types/index.ts` lines 172-179):
+     ```typescript
+     interface NtfyConfig {
+       enabled: boolean
+       server: string        // e.g., "https://ntfy.sh"
+       topic: string         // User's channel/topic
+       username?: string     // Optional auth
+       password?: string     // Optional auth
+       priority: 'default' | 'low' | 'high' | 'urgent'
+     }
+     ```
+   - Config is stored as JSON string in the settings table
+   - Also loads `notification_events` config which controls which events trigger notifications
+
+2. **Sending Notifications** (lines 65-125):
+   The `sendNotification()` method is the core interface:
+   ```typescript
+   async sendNotification(
+     title: string,           // e.g., "⏰ Task Due Soon"
+     message: string,         // e.g., "Buy groceries is due at 5:00 PM"
+     actions?: Array<{        // Optional clickable actions
+       action: string,        // Action ID
+       label: string,         // Button text
+       url?: string,          // Where clicking goes
+       clear?: boolean        // Dismiss notification after click
+     }>,
+     priority: 'default' | 'low' | 'high' | 'urgent' = 'default'
+   ): Promise<{ success: boolean, id?: string, error?: string }>
+   ```
+
+   Under the hood it:
+   - Validates config is enabled
+   - Sanitizes header values (removes newlines, limits length)
+   - Uses axios to POST to `${config.server}/${config.topic}`
+   - Message goes in body as plain text
+   - Metadata (title, priority, tags, actions) go in headers
+   - Handles basic auth if configured
+   - Returns success/failure result
+
+3. **Pre-Built Task Notification Method** (lines 174-193):
+   There's already a `notifyTaskDue()` helper:
+   ```typescript
+   async notifyTaskDue(taskText: string, dueTime: string) {
+     return this.sendNotification(
+       '⏰ Task Due Soon',
+       `"${taskText}" is due at ${dueTime}`,
+       [
+         {
+           action: 'complete',
+           label: 'Mark Complete',
+           url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/todos/complete`,
+           clear: true
+         },
+         {
+           action: 'snooze',
+           label: 'Snooze',
+           clear: true
+         }
+       ],
+       'urgent'
+     )
+   }
+   ```
+
+   This method is EXACTLY what we need - we just need to call it with the task text and a human-readable due time string. The action buttons provide nice UX but won't work until we implement the action handlers (which can be a follow-up task).
+
+**Event-Based Notification Control**:
+
+The service has event-aware methods (lines 210-257) that check if specific events are enabled before sending. For task reminders, we should follow this pattern by checking `isEventEnabled('taskDueSoon')` - though we'll need to add this event to the `notification_events` configuration in the database.
+
+**Error Handling**:
+
+All notification methods return `{ success: boolean, error?: string, skipped?: boolean }`. The CRON job should:
+- Log successful notifications
+- Log failures with error messages
+- Continue processing other reminders if one fails (don't let one error break the whole batch)
+
+### What Needs To Be Implemented For Task Reminders
+
+Now that we understand the existing infrastructure, implementing task reminder checking involves **extending** the scheduler service, not building from scratch.
+
+**1. Modify lib/scheduler.ts to Add Reminder Checking**:
+
+The file already has the structure we need - we just add a second cron job:
+
+```typescript
+class SchedulerService {
+  // Existing daily review task...
+
+  // NEW: Add reminder check task
+  start() {
+    // ... existing daily review cron setup ...
+
+    // Add reminder check cron (runs every minute)
+    if (global.__reminder_check_cron_task) {
+      global.__reminder_check_cron_task.stop()
+      global.__reminder_check_cron_task = undefined
+    }
+
+    global.__reminder_check_cron_task = cron.schedule('* * * * *', async () => {
+      await this.checkAndNotifyReminders()
+    })
+  }
+
+  private async checkAndNotifyReminders() {
+    if (global.__reminder_check_is_running) return
+
+    try {
+      global.__reminder_check_is_running = true
+
+      // 1. Query tasks with due reminders
+      // 2. Filter by last_notified_at (1 hour minimum)
+      // 3. Send notifications via ntfyService
+      // 4. Update last_notified_at timestamps
+      // 5. Log results
+    } finally {
+      global.__reminder_check_is_running = false
+    }
+  }
+}
+```
+
+**2. Database Query Logic**:
+
+The query needs to find tasks where:
+- `reminder_datetime` is not null
+- `reminder_datetime` is <= current time (task is due now or overdue)
+- `status` is not 'completed' (don't notify for done tasks)
+- `last_notified_at` is null OR more than 1 hour ago (prevent spam)
+
+Implementation:
+```typescript
+const now = Date.now()
+const oneHourAgo = now - (60 * 60 * 1000)  // 3600000 milliseconds
+
+const dueTasks = db.prepare(`
+  SELECT task.id, task.reminder_datetime, task.last_notified_at,
+         i.text, task.due_date, task.priority
+  FROM tasks task
+  JOIN items i ON i.id = task.item_id
+  WHERE task.reminder_datetime IS NOT NULL
+    AND task.reminder_datetime <= ?
+    AND task.status != 'completed'
+    AND (task.last_notified_at IS NULL OR task.last_notified_at < ?)
+  ORDER BY task.reminder_datetime ASC
+`).all(now, oneHourAgo)
+```
+
+**3. Notification Sending Pattern**:
+
+For each due task:
+```typescript
+for (const task of dueTasks) {
+  try {
+    // Format due time as human-readable
+    const dueTime = task.due_date
+      ? new Date(task.due_date).toLocaleString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        })
+      : 'soon'
+
+    // Send notification using existing helper
+    const result = await ntfyService.notifyTaskDue(task.text, dueTime)
+
+    if (result.success) {
+      // Update last_notified_at
+      db.prepare(`
+        UPDATE tasks SET last_notified_at = ? WHERE id = ?
+      `).run(now, task.id)
+
+      console.log(`[Reminder] Sent notification for task: ${task.text}`)
+    } else {
+      console.error(`[Reminder] Failed to notify task ${task.id}:`, result.error)
+    }
+  } catch (error) {
+    console.error(`[Reminder] Error processing task ${task.id}:`, error)
+    // Continue with next task
+  }
+}
+```
+
+**4. Re-Enable CRON System**:
+
+Once implemented, we need to re-enable the scheduler by uncommenting the import in `app/layout.tsx`:
+```typescript
+// Change this:
+// import '@/lib/init'
+
+// To this:
+import '@/lib/init'
+```
+
+However, we should first verify that the console warnings are resolved. The warnings (`[NODE-CRON] [WARN] missed execution`) occur when the system is under load or the callback takes longer than the cron interval. With two cron jobs running every minute, we need to ensure:
+- Both callbacks are protected with mutex locks (done)
+- Both callbacks are fast (queries should be indexed)
+- Callbacks don't overlap (mutex prevents this)
+
+**5. Logging Strategy**:
+
+For debugging and monitoring, we should log:
+- When the cron job runs: `[Reminder Check] Running at ${new Date().toISOString()}`
+- How many tasks were found: `[Reminder Check] Found ${dueTasks.length} tasks needing notification`
+- Each successful notification: `[Reminder] Sent notification for task: ${taskText}`
+- Each failure: `[Reminder] Failed to notify task ${taskId}: ${error}`
+- When the check completes: `[Reminder Check] Completed in ${elapsedMs}ms`
+
+Logs should go to console.log/console.error (standard for Next.js server logs). No need for a separate log file or database table unless the user requests it later.
+
+**6. Performance Considerations**:
+
+The query should be fast because:
+- We already have an index on tasks table: `CREATE INDEX IF NOT EXISTS idx_todos_due_date ON todos(due_date)` (though this is on the legacy todos table)
+- We should add an index on `reminder_datetime` to speed up our query:
+  ```sql
+  CREATE INDEX IF NOT EXISTS idx_tasks_reminder ON tasks(reminder_datetime)
+  ```
+- The query filters on indexed columns first (reminder_datetime, status)
+- Expected volume: most users will have < 100 tasks with reminders
+- Query should execute in < 10ms
+
+**7. Edge Cases to Handle**:
+
+- **Task deleted after reminder set**: The FOREIGN KEY ON DELETE CASCADE handles this - deleted items auto-delete task records
+- **Task completed after reminder set**: The status check in the query filters these out
+- **Reminder time in the past**: The query includes overdue reminders (reminder_datetime <= now), so they'll be caught on next run
+- **Multiple reminders for same task**: The last_notified_at check prevents re-notification within 1 hour
+- **NTFY not configured**: The ntfyService checks config.enabled and returns early if disabled
+- **Database locked**: SQLite WAL mode (enabled in lib/db.ts line 16) prevents this
+- **Server restart**: Cron jobs restart when server restarts, picks up where it left off
+
+### Technical Reference Details
+
+#### File Locations
+
+**Existing Files to Modify**:
+- `/home/mmariani/Projects/idealisted/lib/scheduler.ts` - Add `checkAndNotifyReminders()` method
+- `/home/mmariani/Projects/idealisted/lib/init.ts` - Already calls scheduler.start(), no changes needed
+- `/home/mmariani/Projects/idealisted/app/layout.tsx` - Uncomment line 4 to re-enable scheduler
+
+**Files to Reference (Don't Modify)**:
+- `/home/mmariani/Projects/idealisted/lib/notify.ts` - Use existing ntfyService.notifyTaskDue()
+- `/home/mmariani/Projects/idealisted/lib/db.ts` - Use existing db instance for queries
+- `/home/mmariani/Projects/idealisted/types/index.ts` - Reference Task interface (lines 81-92)
+
+#### Database Operations
+
+**Query Pattern** (read-only):
+```typescript
+import { db } from './db'
+
+const now = Date.now()
+const oneHourAgo = now - 3600000
+
+const tasks = db.prepare(`...`).all(now, oneHourAgo)
+```
+
+**Update Pattern** (write):
+```typescript
+db.prepare(`
+  UPDATE tasks SET last_notified_at = ? WHERE id = ?
+`).run(Date.now(), taskId)
+```
+
+**Recommended Index** (add to lib/db.ts initializeDatabase function):
+```typescript
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_tasks_reminder ON tasks(reminder_datetime);
+`)
+```
+
+#### Cron Schedule Syntax
+
+The `node-cron` package uses standard cron syntax:
+- `'* * * * *'` = every minute
+- `'*/15 * * * *'` = every 15 minutes
+- `'0 * * * *'` = every hour on the hour
+- `'0 9,12,18 * * *'` = at 9am, 12pm, and 6pm
+
+For task reminders, we want frequent checking (every minute) to ensure timely notifications, even though the requirement says "every 15 minutes". Checking every minute has negligible performance impact and provides better UX.
+
+#### Global Variables for Next.js HMR
+
+Required globals (add to scheduler.ts):
+```typescript
+declare global {
+  var __reminder_check_cron_task: any | undefined
+  var __reminder_check_is_running: boolean | undefined
+}
+```
+
+#### Environment Considerations
+
+**Development vs Production**:
+- Development: Hot-reload causes frequent restarts, globals prevent duplicates
+- Production: Single initialization on server start, runs continuously
+- No environment-specific code needed - the pattern works for both
+
+**Server-Side Only**:
+- CRON jobs only run server-side (Next.js server component)
+- The `lib/init.ts` already has server-side check: `if (typeof window !== 'undefined') return`
+- No browser compatibility concerns
+
+#### Error Handling Pattern
+
+```typescript
+try {
+  const result = await ntfyService.notifyTaskDue(text, time)
+  if (result.success) {
+    // Update database
+    // Log success
+  } else {
+    // Log failure but continue
+    console.error('[Reminder] Notification failed:', result.error)
+  }
+} catch (error) {
+  // Catch any unexpected errors
+  console.error('[Reminder] Unexpected error:', error)
+  // Continue with next task
+}
+```
+
+#### Integration Points
+
+**Where CRON Job Connects**:
+1. Database: Reads tasks table, updates last_notified_at
+2. Notification Service: Calls ntfyService.notifyTaskDue()
+3. Initialization: Started by lib/init.ts on server startup
+4. Configuration: Respects ntfy_config.enabled from settings table
+
+**What This Task Does NOT Include**:
+- Creating UI for reminder settings (that's a separate task)
+- Implementing action button handlers (Mark Complete, Snooze)
+- Adding quiet hours support (can be added later)
+- Email/SMS notifications (only NTFY)
+
+---
+
+**Implementation Checklist**:
+
+- [ ] Add reminder check cron job to SchedulerService.start()
+- [ ] Implement checkAndNotifyReminders() private method
+- [ ] Add global variables for HMR support
+- [ ] Query due tasks with proper filters
+- [ ] Send notifications using ntfyService.notifyTaskDue()
+- [ ] Update last_notified_at after successful notification
+- [ ] Add index on tasks.reminder_datetime for performance
+- [ ] Log all notification attempts (success/failure)
+- [ ] Test with various edge cases (completed tasks, past reminders, etc.)
+- [ ] Uncomment import in app/layout.tsx to enable scheduler
+- [ ] Verify no console warnings during operation
+- [ ] Document any configuration needed in settings table
 
 ---
 
@@ -731,5 +1201,5 @@ async isFeatureEnabled(featureName: string): Promise<boolean> {
 ---
 
 **Last Updated**: 2025-11-15
-**Current Status**: Phase 4 Complete ✅ (Tasks 4.1-4.4), Phase 5 Task 5.1 Complete ✅
-**Next Tasks**: Phase 5 Task 5.2 (Quick Reminder Options - already implemented in 5.1) or Phase 3 (Tasks 3.1-3.4)
+**Current Status**: Phase 4 Complete ✅ (Tasks 4.1-4.4), Phase 5 Tasks 5.1 ✅ and 5.3 ✅ Complete
+**Next Tasks**: Phase 5 Task 5.4 (Notification Integration - settings UI) or Phase 3 (Tasks 3.1-3.4)

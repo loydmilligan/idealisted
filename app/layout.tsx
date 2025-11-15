@@ -1,7 +1,7 @@
 import './globals.css'
 import '../styles/retro.css'
 import type { Metadata } from 'next'
-// import '@/lib/init'  // DISABLED for beta MVP - scheduler requires node-cron dependency and causes warnings
+import '@/lib/init'
 
 export const metadata: Metadata = {
   title: 'IdeaListed - Idea Capture & Task Management',
