@@ -1,0 +1,530 @@
+{
+  "manifest_version": "1.0",
+  "directory_path": "/home/mmariani/Projects/idealisted",
+  "generated_at": "2025-11-14T00:00:00Z",
+  "summary": {
+    "total_files": 35,
+    "essential_files": 5,
+    "current_files": 3,
+    "outdated_files": 23,
+    "redundant_files": 3,
+    "unclear_files": 1,
+    "keep_count": 8,
+    "archive_count": 26,
+    "update_needed_count": 1
+  },
+  "primary_purpose": "Root directory documentation for IdeaListed project - a retro Palm Pilot-styled idea capture and task management application with AI-powered suggestions",
+  "files": [
+    {
+      "filename": "README.md",
+      "type": "documentation",
+      "classification": "essential",
+      "last_modified": "2025-11-08",
+      "size_bytes": 6982,
+      "purpose": "Project README with setup instructions, Daily Review feature documentation, and development commands",
+      "status": "keep",
+      "update_priority": "none",
+      "update_reason": ""
+    },
+    {
+      "filename": "CLAUDE.md",
+      "type": "documentation",
+      "classification": "essential",
+      "last_modified": "2025-11-13",
+      "size_bytes": 10937,
+      "purpose": "AI agent memory file - critical guidance for Claude Code when working with this codebase, includes architecture, patterns, and implementation status",
+      "status": "keep",
+      "update_priority": "none",
+      "update_reason": ""
+    },
+    {
+      "filename": "BETA_MVP_IMPLEMENTATION_PLAN.md",
+      "type": "documentation",
+      "classification": "essential",
+      "last_modified": "2025-11-13",
+      "size_bytes": 17703,
+      "purpose": "Phase-by-phase implementation plan for Beta MVP (Phases 1-6), actively referenced planning document",
+      "status": "keep",
+      "update_priority": "none",
+      "update_reason": ""
+    },
+    {
+      "filename": "UNUSED_CODE.md",
+      "type": "documentation",
+      "classification": "essential",
+      "last_modified": "2025-11-13",
+      "size_bytes": 8237,
+      "purpose": "Documentation of deprecated/unused code (todos system, CRON, removed API routes) - critical for understanding codebase history",
+      "status": "keep",
+      "update_priority": "none",
+      "update_reason": ""
+    },
+    {
+      "filename": "TRASH-FILES.md",
+      "type": "documentation",
+      "classification": "essential",
+      "last_modified": "2025-11-08",
+      "size_bytes": 493,
+      "purpose": "Housekeeping reference listing files that have been moved to TRASH directory",
+      "status": "keep",
+      "update_priority": "none",
+      "update_reason": ""
+    },
+    {
+      "filename": "PLANNING_NEEDED.md",
+      "type": "documentation",
+      "classification": "current",
+      "last_modified": "2025-11-08",
+      "size_bytes": 4020,
+      "purpose": "Forward-looking document listing features requiring planning: AI suggestion flow redesign, markdown support for notes, list items as sub-entities",
+      "status": "keep",
+      "update_priority": "none",
+      "update_reason": ""
+    },
+    {
+      "filename": "TESTING_GUIDE.md",
+      "type": "documentation",
+      "classification": "current",
+      "last_modified": "2024-12-31",
+      "size_bytes": 4252,
+      "purpose": "Testing checklist for entity restructure - AI suggestions, navigation, entity conversion",
+      "status": "keep",
+      "update_priority": "none",
+      "update_reason": ""
+    },
+    {
+      "filename": "Idealist-UI-UX-Design-Document.md",
+      "type": "documentation",
+      "classification": "current",
+      "last_modified": "2025-11-08",
+      "size_bytes": 25696,
+      "purpose": "Comprehensive UI/UX design specification - color system, typography, layout, Palm Pilot aesthetic guidelines",
+      "status": "update_needed",
+      "update_priority": "low",
+      "update_reason": "May need updates to reflect completed Beta MVP implementation and current UI state",
+      "notes": "Contains valuable design system documentation but may have drifted from implemented reality"
+    },
+    {
+      "filename": "90S_UI_UPGRADE.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2024-12-27",
+      "size_bytes": 3998,
+      "purpose": "Implementation log for 90s UI upgrade - branding update to FRONDNUT, RetroIcon component, quick actions feature",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Completed implementation work from December 2024, historical log"
+    },
+    {
+      "filename": "APP_CRASH_FIXES.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2024-12-27",
+      "size_bytes": 2561,
+      "purpose": "Troubleshooting log for app crash resolution - file structure corruption, TypeScript lint errors, module resolution",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Resolved debugging session from December 2024, no longer relevant"
+    },
+    {
+      "filename": "APP_WINDOW_FRAME_COMPLETE.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2024-12-28",
+      "size_bytes": 4320,
+      "purpose": "Implementation log for physical app window frame - separating app from device chrome for authentic PDA feel",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Completed feature implementation from December 2024"
+    },
+    {
+      "filename": "COMPLETE_NAVIGATION_UPDATE.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2024-12-29",
+      "size_bytes": 6952,
+      "purpose": "Implementation log for 7-tab navigation structure restoration and entity field enhancements",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Completed navigation refactor from December 2024"
+    },
+    {
+      "filename": "DEBUG_FIXES.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2024-12-27",
+      "size_bytes": 2168,
+      "purpose": "Debugging log for API client URL resolution, database schema mismatch, TypeScript path resolution",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Resolved issues from December 2024"
+    },
+    {
+      "filename": "DEVICE_TABS_NAVIGATION_COMPLETE.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2024-12-29",
+      "size_bytes": 4290,
+      "purpose": "Implementation log for physical binder tabs navigation - 5 functional tabs with 3D effects",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Completed implementation from December 2024"
+    },
+    {
+      "filename": "ENHANCED_AI_SYSTEM.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2024-12-27",
+      "size_bytes": 4824,
+      "purpose": "Implementation log for enhanced AI assistance - intelligent suggestions, metadata extraction, smart fallback",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Completed AI system enhancements from December 2024"
+    },
+    {
+      "filename": "ENHANCED_RETRO_UI_COMPLETE.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2024-12-28",
+      "size_bytes": 4918,
+      "purpose": "Implementation log for late 90s/early 2000s PDA UI enhancements - header integration, chiseled buttons, enhanced containers",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Completed UI work from December 2024"
+    },
+    {
+      "filename": "ENTITY_MODAL_IMPLEMENTATION_SUMMARY.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2025-11-13",
+      "size_bytes": 11571,
+      "purpose": "Detailed implementation log for Phase 2 entity modal enhancements - task/note/project fields, dual save buttons, animations, API validation",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Completed Phase 2 implementation from November 2025"
+    },
+    {
+      "filename": "ENTITY_MODAL_TESTING.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2025-11-13",
+      "size_bytes": 6422,
+      "purpose": "Testing guide for entity modal enhancements - 10 manual test scenarios, validation checklist",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Testing documentation for completed Phase 2 work"
+    },
+    {
+      "filename": "ENTITY_RESTRUCTURE_COMPLETE.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2024-12-30",
+      "size_bytes": 4733,
+      "purpose": "Implementation log for entity restructure - removing todos, unified tasks, added lists entity, smart detection",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Completed restructure from December 2024"
+    },
+    {
+      "filename": "FAVICON_IMPLEMENTATION.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2025-11-13",
+      "size_bytes": 5907,
+      "purpose": "Implementation log for FrondNut favicon - 2x2 colored grid design, SVG creation, PNG generation instructions",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Completed favicon implementation from November 2025"
+    },
+    {
+      "filename": "FIXED_DEVICE_SIZING.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2024-12-31",
+      "size_bytes": 3228,
+      "purpose": "Bug fix log for device sizing issue - fixed jarring resizing when switching tabs",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Completed bug fix from December 2024"
+    },
+    {
+      "filename": "HEADER_STRUCTURE_FIX.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2024-12-28",
+      "size_bytes": 3089,
+      "purpose": "Implementation log for Palm Pilot UI hierarchy - two-level header system (OS and app levels)",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Completed header restructure from December 2024"
+    },
+    {
+      "filename": "INBOX_CONVERSION_FIX.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2024-12-31",
+      "size_bytes": 4545,
+      "purpose": "Bug fix log for inbox conversion buttons - missing backend support, API handlers, database schema updates",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Completed bug fix from December 2024"
+    },
+    {
+      "filename": "LINT_FIXES_SUMMARY.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2024-12-27",
+      "size_bytes": 2112,
+      "purpose": "TypeScript lint fixes summary - implicit any types, module resolution errors",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Resolved linting issues from December 2024"
+    },
+    {
+      "filename": "PHASE_3_BACKEND_COMPLETE.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2025-11-13",
+      "size_bytes": 6242,
+      "purpose": "Implementation log for Phase 3 AI master toggle system - backend infrastructure, enabled flag, default OFF",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Completed Phase 3 backend from November 2025"
+    },
+    {
+      "filename": "PHASE_5_BADGE_FLASH_TESTING.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2025-11-13",
+      "size_bytes": 4085,
+      "purpose": "Testing guide for Phase 5 badge flash animations - manual checklist, expected behavior, edge cases",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Testing documentation for completed Phase 5"
+    },
+    {
+      "filename": "PHASE_5_IMPLEMENTATION_SUMMARY.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2025-11-13",
+      "size_bytes": 7190,
+      "purpose": "Detailed implementation log for Phase 5 badge flash animations - forwardRef pattern, CSS animations, flash triggers",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Completed Phase 5 implementation from November 2025"
+    },
+    {
+      "filename": "RETRO_COLOR_PALETTES_COMPLETE.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2024-12-28",
+      "size_bytes": 6288,
+      "purpose": "Implementation log for three retro color palettes - Classic BlackBerry (default), Palm OS Classic, Windows CE Professional",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Completed palette implementation from December 2024"
+    },
+    {
+      "filename": "REVIEW_SCREEN_IMPLEMENTATION.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2025-11-08",
+      "size_bytes": 9004,
+      "purpose": "Implementation log for daily review screen - recharts integration, stats visualization, AI summaries, retro styling",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Completed review screen from November 2025"
+    },
+    {
+      "filename": "THEME_SYSTEM_FIXED.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2024-12-28",
+      "size_bytes": 4964,
+      "purpose": "Bug fix log for theme system - replaced hardcoded colors with CSS variables, fixed dark mode text visibility",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Completed theme system fix from December 2024"
+    },
+    {
+      "filename": "UI_IMPROVEMENTS.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2024-12-27",
+      "size_bytes": 2890,
+      "purpose": "Implementation log for UI improvements - settings back button, header fixes, etched device title, theme system, AI integration",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Completed UI improvements from December 2024"
+    },
+    {
+      "filename": "dashboard-2-standalone-prompt.md",
+      "type": "documentation",
+      "classification": "redundant",
+      "last_modified": "2025-01-01",
+      "size_bytes": 7255,
+      "purpose": "Working notes/prompt for dashboard implementation - appears to be temporary development documentation",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Working notes that should not be in root directory, appears temporary"
+    },
+    {
+      "filename": "idealist-v0-ui-brief.md",
+      "type": "documentation",
+      "classification": "redundant",
+      "last_modified": "2025-01-03",
+      "size_bytes": 29861,
+      "purpose": "Original UI brief (v0) - superseded by v2 and by Idealist-UI-UX-Design-Document.md",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Old version superseded by v2 and comprehensive design doc"
+    },
+    {
+      "filename": "idealist-v0-ui-brief-v2.md",
+      "type": "documentation",
+      "classification": "redundant",
+      "last_modified": "2025-01-03",
+      "size_bytes": 29861,
+      "purpose": "Updated UI brief (v2) - likely superseded by Idealist-UI-UX-Design-Document.md and actual implementation",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Superseded by comprehensive design document and completed implementation"
+    },
+    {
+      "filename": "idealist_implementation_guide.md",
+      "type": "documentation",
+      "classification": "unclear",
+      "last_modified": "2025-01-01",
+      "size_bytes": 36573,
+      "purpose": "Large implementation guide - unclear if superseded by CLAUDE.md or provides complementary information",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Likely superseded by CLAUDE.md which is actively maintained as the canonical agent memory. If contains unique valuable information, should be extracted and merged into CLAUDE.md before archiving"
+    }
+  ],
+  "classification_summary": {
+    "essential_docs": [
+      "README.md - Project overview and setup",
+      "CLAUDE.md - AI agent memory (canonical)",
+      "BETA_MVP_IMPLEMENTATION_PLAN.md - Active planning doc",
+      "UNUSED_CODE.md - Codebase history reference",
+      "TRASH-FILES.md - Housekeeping reference"
+    ],
+    "current_docs": [
+      "PLANNING_NEEDED.md - Forward-looking features",
+      "TESTING_GUIDE.md - Testing procedures",
+      "Idealist-UI-UX-Design-Document.md - Design system (needs update)"
+    ],
+    "archive_candidates": {
+      "implementation_logs": [
+        "90S_UI_UPGRADE.md",
+        "APP_WINDOW_FRAME_COMPLETE.md",
+        "COMPLETE_NAVIGATION_UPDATE.md",
+        "DEVICE_TABS_NAVIGATION_COMPLETE.md",
+        "ENHANCED_AI_SYSTEM.md",
+        "ENHANCED_RETRO_UI_COMPLETE.md",
+        "ENTITY_MODAL_IMPLEMENTATION_SUMMARY.md",
+        "ENTITY_RESTRUCTURE_COMPLETE.md",
+        "FAVICON_IMPLEMENTATION.md",
+        "HEADER_STRUCTURE_FIX.md",
+        "INBOX_CONVERSION_FIX.md",
+        "PHASE_3_BACKEND_COMPLETE.md",
+        "PHASE_5_IMPLEMENTATION_SUMMARY.md",
+        "RETRO_COLOR_PALETTES_COMPLETE.md",
+        "REVIEW_SCREEN_IMPLEMENTATION.md",
+        "UI_IMPROVEMENTS.md"
+      ],
+      "testing_logs": [
+        "ENTITY_MODAL_TESTING.md",
+        "PHASE_5_BADGE_FLASH_TESTING.md"
+      ],
+      "bug_fixes": [
+        "APP_CRASH_FIXES.md",
+        "DEBUG_FIXES.md",
+        "FIXED_DEVICE_SIZING.md",
+        "LINT_FIXES_SUMMARY.md",
+        "THEME_SYSTEM_FIXED.md"
+      ],
+      "old_specs": [
+        "idealist-v0-ui-brief.md",
+        "idealist-v0-ui-brief-v2.md"
+      ],
+      "working_notes": [
+        "dashboard-2-standalone-prompt.md"
+      ],
+      "ambiguous": [
+        "idealist_implementation_guide.md"
+      ]
+    }
+  },
+  "archival_recommendations": {
+    "immediate_archive": [
+      "All *_COMPLETE.md files (16 files) - Completed implementation logs from 2024-2025",
+      "All *_FIXES.md and *_SUMMARY.md files (5 files) - Resolved issues logs",
+      "All *_TESTING.md files (2 files) - Testing docs for completed features",
+      "idealist-v0-ui-brief.md and idealist-v0-ui-brief-v2.md (2 files) - Superseded UI specs",
+      "dashboard-2-standalone-prompt.md (1 file) - Working notes"
+    ],
+    "archive_after_review": [
+      "idealist_implementation_guide.md - Review for unique content not in CLAUDE.md before archiving"
+    ],
+    "archive_structure_proposal": {
+      "ARCHIVE/2024-q4/": [
+        "90S_UI_UPGRADE.md",
+        "APP_CRASH_FIXES.md",
+        "APP_WINDOW_FRAME_COMPLETE.md",
+        "COMPLETE_NAVIGATION_UPDATE.md",
+        "DEBUG_FIXES.md",
+        "DEVICE_TABS_NAVIGATION_COMPLETE.md",
+        "ENHANCED_AI_SYSTEM.md",
+        "ENHANCED_RETRO_UI_COMPLETE.md",
+        "ENTITY_RESTRUCTURE_COMPLETE.md",
+        "FIXED_DEVICE_SIZING.md",
+        "HEADER_STRUCTURE_FIX.md",
+        "INBOX_CONVERSION_FIX.md",
+        "LINT_FIXES_SUMMARY.md",
+        "RETRO_COLOR_PALETTES_COMPLETE.md",
+        "THEME_SYSTEM_FIXED.md",
+        "UI_IMPROVEMENTS.md"
+      ],
+      "ARCHIVE/2025-q1/": [
+        "ENTITY_MODAL_IMPLEMENTATION_SUMMARY.md",
+        "ENTITY_MODAL_TESTING.md",
+        "FAVICON_IMPLEMENTATION.md",
+        "PHASE_3_BACKEND_COMPLETE.md",
+        "PHASE_5_BADGE_FLASH_TESTING.md",
+        "PHASE_5_IMPLEMENTATION_SUMMARY.md",
+        "REVIEW_SCREEN_IMPLEMENTATION.md"
+      ],
+      "ARCHIVE/old-specs/": [
+        "idealist-v0-ui-brief.md",
+        "idealist-v0-ui-brief-v2.md",
+        "dashboard-2-standalone-prompt.md",
+        "idealist_implementation_guide.md"
+      ]
+    }
+  },
+  "recommendations": {
+    "keep": {
+      "count": 8,
+      "reasoning": "Essential project documentation (README, CLAUDE.md, BETA_MVP_IMPLEMENTATION_PLAN.md), critical reference files (UNUSED_CODE.md, TRASH-FILES.md), active planning (PLANNING_NEEDED.md), and valuable resources (TESTING_GUIDE.md, Idealist-UI-UX-Design-Document.md)"
+    },
+    "archive": {
+      "count": 26,
+      "reasoning": "Completed implementation logs, resolved bug fixes, testing documentation for finished features, superseded specifications, and temporary working notes. All represent historical work that is complete and no longer actively referenced. Information is preserved in git history."
+    },
+    "update_needed": {
+      "count": 1,
+      "file": "Idealist-UI-UX-Design-Document.md",
+      "reasoning": "Comprehensive design system documentation that may have drifted from actual implementation. Should be reviewed and updated to reflect current UI state post-Beta MVP completion."
+    }
+  },
+  "notes": [
+    "Total of 26 files (74%) recommended for archiving - aggressive but justified",
+    "All archived files represent completed work from 2024-2025 implementation phases",
+    "No information loss - all files tracked in git history and can be recovered",
+    "Archiving will dramatically improve root directory clarity and focus on active docs",
+    "Recommended archive structure preserves temporal organization (by quarter)",
+    "idealist_implementation_guide.md flagged for content review before archiving - may contain unique information not in CLAUDE.md"
+  ]
+}

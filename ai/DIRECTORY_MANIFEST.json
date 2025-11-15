@@ -1,0 +1,92 @@
+{
+  "manifest_version": "1.0",
+  "directory_path": "ai",
+  "generated_at": "2025-11-14T00:00:00Z",
+  "summary": {
+    "total_files": 4,
+    "documentation_files": 4,
+    "code_files": 0,
+    "config_files": 0,
+    "test_files": 0,
+    "asset_files": 0,
+    "subdirectories": 1
+  },
+  "primary_purpose": "AI agent research outputs and context for UI/UX animation research (flow lines, particles, visual feedback). Contains a single completed research run (research-001) from November 2025 that was never implemented in the codebase.",
+  "files": [],
+  "subdirectories": [
+    {
+      "name": "context",
+      "manifest_file": null,
+      "summary": "Container for AI research context and run outputs"
+    }
+  ],
+  "research_runs": [
+    {
+      "run_id": "research-001",
+      "date": "2025-11-06",
+      "status": "complete",
+      "agent": "uiux-researcher",
+      "topic": "UI/UX implementation research for SVG flow lines, Canvas particle effects, and visual feedback animations for retro-themed application",
+      "files": [
+        {
+          "filename": "ai/context/runs/research-001/README.md",
+          "type": "documentation",
+          "classification": "outdated",
+          "last_modified": "2025-11-06",
+          "size_bytes": 7475,
+          "purpose": "Overview of research-001 UI/UX animation research covering flow lines, particles, and visual feedback. Provides navigation guide to other research files and quick start instructions.",
+          "status": "archive",
+          "update_priority": "none",
+          "update_reason": "Research was never implemented. Design direction changed - current app uses simpler badge flash animations (Phase 5 complete as of e6617f9) instead of complex flow lines and particle systems. The research proposed 20-28 hours of work that was never prioritized. Concepts appear in idealist-v0-ui-brief.md but were superseded by actual implementation choices."
+        },
+        {
+          "filename": "ai/context/runs/research-001/IMPLEMENTATION_GUIDE.md",
+          "type": "documentation",
+          "classification": "outdated",
+          "last_modified": "2025-11-06",
+          "size_bytes": 10137,
+          "purpose": "Detailed step-by-step implementation guide for SVG flow lines, Canvas particle systems, and CSS visual feedback animations. Includes technology choices (vanilla CSS + RAF, no Framer Motion), performance optimization, accessibility requirements, and retro aesthetic enhancements.",
+          "status": "archive",
+          "update_priority": "none",
+          "update_reason": "Never implemented. Project chose simpler animation approach with CSS keyframe badge flashes (retro.css contains .flash-task, .flash-note, etc.). Proposed components (FlowLine.tsx, ParticleSystem class, animations.css) were never created. Research is comprehensive but obsolete given actual implementation direction."
+        },
+        {
+          "filename": "ai/context/runs/research-001/QUICK_REFERENCE.md",
+          "type": "documentation",
+          "classification": "outdated",
+          "last_modified": "2025-11-06",
+          "size_bytes": 6345,
+          "purpose": "One-page cheat sheet for animation implementation with quick setup code snippets, performance rules, accessibility reminders, and common pitfalls. Designed as day-to-day reference while coding.",
+          "status": "archive",
+          "update_priority": "none",
+          "update_reason": "Never implemented. Quick reference for code that was never written. The actual codebase uses different animation patterns (entity-specific flash animations in retro.css). No developers referenced this during implementation of Phase 5 badge animations."
+        },
+        {
+          "filename": "ai/context/runs/research-001/uiux-researcher.outputs.json",
+          "type": "documentation",
+          "classification": "outdated",
+          "last_modified": "2025-11-06",
+          "size_bytes": 31744,
+          "purpose": "Comprehensive research findings in JSON format with detailed recommendations, complete code examples (FlowLine component, ParticleSystem class, CSS animations), performance optimization strategies, accessibility guidelines, retro aesthetic enhancements, testing strategy, effort estimates, and 50+ reference links.",
+          "status": "archive",
+          "update_priority": "none",
+          "update_reason": "Never implemented. Contains production-ready code examples that were never used. Research estimated 20-28 hours of work for flow lines, particles, and visual feedback animations. Actual implementation went with simpler badge flash animations (600ms entity-colored flashes). JSON format makes it historical research artifact rather than living documentation."
+        }
+      ],
+      "implementation_status": "not_implemented",
+      "findings_incorporated": false,
+      "superseded_by": "Simpler animation approach: Entity badge flash animations in retro.css (Phase 5, commit 3f9917c). App uses CSS keyframes for tab badges (.flash-task, .flash-note, .flash-project, .flash-list) instead of complex flow lines and particle systems.",
+      "archival_recommendation": "ARCHIVE ALL - Research was thorough but project chose different direction. Findings were NOT incorporated into codebase. If future work needs animation research, this can be recovered from git history or archive, but current implementation is complete and uses different patterns."
+    }
+  ],
+  "notes": [
+    "This directory was created for AI agent research outputs but contains only one research run from November 6, 2025",
+    "The research-001 run researched flow lines, particle effects, and visual feedback animations for a retro UI",
+    "None of the research recommendations were implemented - the project chose simpler badge flash animations instead",
+    "The concepts from this research appear in design documents (idealist-v0-ui-brief.md) but were not built",
+    "All four files in research-001 are comprehensive, well-written, and production-ready but obsolete",
+    "Directory structure suggests expectation of multiple research runs (runs/ folder) but only one exists",
+    "No references to this research exist in CLAUDE.md, BETA_MVP_IMPLEMENTATION_PLAN.md, or other core docs",
+    "Aggressive archiving recommended: entire research-001 directory should be archived as superseded work"
+  ]
+}

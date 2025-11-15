@@ -1,0 +1,247 @@
+{
+  "manifest_version": "1.0",
+  "directory_path": "ui_inspiration",
+  "generated_at": "2025-11-14T00:00:00Z",
+  "summary": {
+    "total_files": 101,
+    "documentation_files": 0,
+    "code_files": 75,
+    "config_files": 5,
+    "test_files": 0,
+    "asset_files": 21,
+    "subdirectories": 5
+  },
+  "primary_purpose": "Archived UI inspiration and prototype directory containing retro design reference images, a standalone v0-generated Next.js prototype (idealisted-simplified), and UI component experiments. This entire directory is excluded from TypeScript compilation and represents early design exploration that predates the current production implementation.",
+  "files": [
+    {
+      "filename": ".gitignore",
+      "type": "config",
+      "classification": "redundant",
+      "last_modified": "2025-11-07",
+      "size_bytes": 313,
+      "purpose": "Git ignore file for the prototype Next.js app, redundant with root .gitignore",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Redundant with root .gitignore, prototype-specific config no longer needed"
+    },
+    {
+      "filename": "0_y5w8LmIq2n7jp9fr.png",
+      "type": "asset",
+      "classification": "outdated",
+      "last_modified": "2025-11-04",
+      "size_bytes": 592897,
+      "purpose": "Retro UI design inspiration image (largest file in directory)",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Design inspiration no longer needed, production UI complete"
+    },
+    {
+      "filename": "656fc677baa0b5f83921fa74_obsolete-psion-3a-calendar.png",
+      "type": "asset",
+      "classification": "outdated",
+      "last_modified": "2025-11-04",
+      "size_bytes": 2915,
+      "purpose": "Psion 3a calendar UI reference image (obsolete retro PDA)",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Design inspiration no longer needed, filename contains 'obsolete'"
+    },
+    {
+      "filename": "Lotus_Organizer_5.0.png",
+      "type": "asset",
+      "classification": "outdated",
+      "last_modified": "2025-11-04",
+      "size_bytes": 67441,
+      "purpose": "Lotus Organizer 5.0 UI reference image for retro design",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Design inspiration no longer needed, production retro UI complete"
+    },
+    {
+      "filename": "Organizer_ToDo.gif",
+      "type": "asset",
+      "classification": "outdated",
+      "last_modified": "2025-11-04",
+      "size_bytes": 62738,
+      "purpose": "Animated GIF showing retro organizer todo interface",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Design inspiration archived, production todo UI implemented"
+    },
+    {
+      "filename": "Palm-m505.jpg",
+      "type": "asset",
+      "classification": "outdated",
+      "last_modified": "2025-11-04",
+      "size_bytes": 117647,
+      "purpose": "Palm m505 device photo for hardware design inspiration",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Hardware design reference no longer needed, FrondNut device design complete"
+    },
+    {
+      "filename": "Palmdatebook41.png",
+      "type": "asset",
+      "classification": "outdated",
+      "last_modified": "2025-11-04",
+      "size_bytes": 1777,
+      "purpose": "Palm OS datebook interface screenshot for calendar UI inspiration",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Design inspiration archived, production UI uses different approach"
+    },
+    {
+      "filename": "Palmtodo41.png",
+      "type": "asset",
+      "classification": "outdated",
+      "last_modified": "2025-11-04",
+      "size_bytes": 1814,
+      "purpose": "Palm OS todo app screenshot for task list UI inspiration",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Design inspiration archived, production task UI complete"
+    },
+    {
+      "filename": "bottom_window_tabish_things.png",
+      "type": "asset",
+      "classification": "outdated",
+      "last_modified": "2025-11-05",
+      "size_bytes": 119951,
+      "purpose": "Bottom tab navigation design mockup/inspiration",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Tab navigation design complete in production, mockup no longer needed"
+    },
+    {
+      "filename": "components.json",
+      "type": "config",
+      "classification": "redundant",
+      "last_modified": "2025-11-07",
+      "size_bytes": 427,
+      "purpose": "Shadcn/ui components configuration for prototype Next.js app",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Prototype-specific config, main app has its own components.json"
+    },
+    {
+      "filename": "idealisted_screen_headers_swapped.png",
+      "type": "asset",
+      "classification": "outdated",
+      "last_modified": "2025-11-05",
+      "size_bytes": 146129,
+      "purpose": "Screen header design variant mockup showing alternative layout",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Design iteration archived, production header structure finalized"
+    },
+    {
+      "filename": "next.config.mjs",
+      "type": "config",
+      "classification": "redundant",
+      "last_modified": "2025-11-07",
+      "size_bytes": 181,
+      "purpose": "Next.js configuration for prototype app",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Prototype config redundant with root next.config.ts"
+    },
+    {
+      "filename": "pnpm-lock.yaml",
+      "type": "config",
+      "classification": "redundant",
+      "last_modified": "2025-11-07",
+      "size_bytes": 92,
+      "purpose": "PNPM lock file for prototype dependencies (minimal/empty)",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Prototype lockfile, main app uses npm not pnpm"
+    },
+    {
+      "filename": "postcss.config.mjs",
+      "type": "config",
+      "classification": "redundant",
+      "last_modified": "2025-11-07",
+      "size_bytes": 144,
+      "purpose": "PostCSS configuration for prototype Tailwind setup",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Prototype config redundant with root postcss.config.mjs"
+    },
+    {
+      "filename": "retrocapture.png",
+      "type": "asset",
+      "classification": "outdated",
+      "last_modified": "2025-11-07",
+      "size_bytes": 34879,
+      "purpose": "Retro-styled capture screen mockup/screenshot",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Design mockup archived, production capture UI complete"
+    },
+    {
+      "filename": "tsconfig.json",
+      "type": "config",
+      "classification": "redundant",
+      "last_modified": "2025-11-07",
+      "size_bytes": 595,
+      "purpose": "TypeScript configuration for prototype Next.js app",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Prototype config redundant, main tsconfig.json excludes ui_inspiration entirely"
+    }
+  ],
+  "subdirectories": [
+    {
+      "name": "public",
+      "purpose": "Prototype app public assets (placeholder images, icons, SVGs)",
+      "file_count": 9,
+      "classification": "redundant",
+      "recommendation": "Archive entire directory - contains only v0-generated placeholder assets for prototype"
+    },
+    {
+      "name": "styles",
+      "purpose": "Prototype app global styles (globals.css only)",
+      "file_count": 1,
+      "classification": "redundant",
+      "recommendation": "Archive entire directory - prototype styles not used in production"
+    },
+    {
+      "name": "hooks",
+      "purpose": "React hooks for prototype (use-toast.ts, use-mobile.ts)",
+      "file_count": 2,
+      "classification": "redundant",
+      "recommendation": "Archive entire directory - production app has own hooks implementations"
+    },
+    {
+      "name": "lib",
+      "purpose": "Utility functions for prototype (utils.ts only)",
+      "file_count": 1,
+      "classification": "redundant",
+      "recommendation": "Archive entire directory - production app has own lib/utils.ts"
+    },
+    {
+      "name": "idealisted-simplified",
+      "purpose": "Complete v0-generated Next.js prototype app with full component library and screens",
+      "file_count": 75,
+      "classification": "outdated",
+      "recommendation": "Archive entire directory - standalone prototype superseded by production implementation. Contains app/, components/, components/ui/ (72 shadcn components), screens/, package.json. This was an early exploration that informed the current design but is no longer referenced."
+    }
+  ],
+  "overall_assessment": {
+    "archive_recommendation": "ARCHIVE ENTIRE DIRECTORY",
+    "rationale": [
+      "Explicitly excluded from TypeScript compilation in root tsconfig.json (line 44)",
+      "Contains only design inspiration images (16 PNG/JPG/GIF files from early November 2025)",
+      "Includes complete standalone prototype app (idealisted-simplified) with 75 files that duplicates production code",
+      "No documentation files found - purely code and assets",
+      "Production app (Beta MVP Phases 1-5) is complete and uses different implementations",
+      "Not referenced anywhere in production codebase except exclusion in tsconfig.json",
+      "Prototype uses different dependency manager (pnpm vs npm) and structure",
+      "All useful design patterns have been extracted and implemented in production"
+    ],
+    "preservation_value": "LOW - git history preserves all design iterations and prototype code",
+    "disk_space_impact": "1.7MB total (1.4MB actual file data)",
+    "estimated_archival_date": "Early November 2025 (files dated Nov 4-7, 2025)",
+    "recovery_instructions": "If UI inspiration needed, check git history or archive directory. Prototype can be reconstructed from package.json dependencies."
+  }
+}

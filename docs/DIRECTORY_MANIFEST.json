@@ -1,0 +1,134 @@
+{
+  "manifest_version": "1.0",
+  "directory_path": "docs/",
+  "generated_at": "2025-11-14T17:50:00Z",
+  "summary": {
+    "total_files": 6,
+    "documentation_files": 4,
+    "code_files": 0,
+    "config_files": 0,
+    "test_files": 0,
+    "asset_files": 2,
+    "subdirectories": 5
+  },
+  "primary_purpose": "Historical documentation archive containing implementation plans from other worktrees and January 2025 design documents. Most content is outdated or superseded by completed implementation.",
+  "files": [
+    {
+      "filename": "AI_SUGGESTION_IMPLEMENTATION_FRM_OTR_WORKTREE.md",
+      "type": "documentation",
+      "classification": "outdated",
+      "last_modified": "2025-11-12",
+      "size_bytes": 19257,
+      "purpose": "Comprehensive AI suggestion system implementation guide imported from another worktree (horizontal workflow implementation). Details API endpoint structure, UI components, and integration patterns.",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Implementation notes from different worktree. Current implementation uses different architecture. Contains valuable reference patterns but not current system documentation. Filename indicates source from 'other worktree'."
+    },
+    {
+      "filename": "ai_suggestion_1_of_2.png",
+      "type": "asset",
+      "classification": "unclear",
+      "last_modified": "2025-11-12",
+      "size_bytes": 284054,
+      "purpose": "Screenshot or visual documentation (part 1 of 2) related to AI suggestion implementation from other worktree.",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Screenshot accompanying outdated implementation documentation from other worktree. Visual reference material that corresponds to superseded implementation approach."
+    },
+    {
+      "filename": "ai_suggestion_2_of_2.png",
+      "type": "asset",
+      "classification": "unclear",
+      "last_modified": "2025-11-12",
+      "size_bytes": 228686,
+      "purpose": "Screenshot or visual documentation (part 2 of 2) related to AI suggestion implementation from other worktree.",
+      "status": "archive",
+      "update_priority": "none",
+      "update_reason": "Screenshot accompanying outdated implementation documentation from other worktree. Visual reference material that corresponds to superseded implementation approach."
+    }
+  ],
+  "subdirectories": [
+    {
+      "name": "plans",
+      "file_count": 3,
+      "purpose": "January 2025 design and implementation plans for final features and retro UI redesign",
+      "files": [
+        {
+          "filename": "2025-01-07-final-features-design.md",
+          "type": "documentation",
+          "classification": "outdated",
+          "last_modified": "2025-11-12",
+          "size_bytes": 10187,
+          "purpose": "Complete design specification for final features including tags system, settings page, AI integration, entity color accents, animated feedback, task status system, and global header. Approved January 7, 2025.",
+          "status": "archive",
+          "update_priority": "none",
+          "update_reason": "Pre-implementation design plan dated January 2025. According to CLAUDE.md, Beta MVP Phases 1-5 were completed in January 2025. This is the planning document that preceded that implementation. Superseded by completed code and BETA_MVP_IMPLEMENTATION_PLAN.md."
+        },
+        {
+          "filename": "2025-01-07-final-features-implementation.md",
+          "type": "documentation",
+          "classification": "outdated",
+          "last_modified": "2025-11-12",
+          "size_bytes": 38450,
+          "purpose": "Detailed 7-phase implementation plan with specific tasks, file paths, code examples, and testing steps for implementing final features (global header, settings modal, tags system, animations). Includes 'For Claude: REQUIRED SUB-SKILL' note indicating this was a Claude-driven implementation.",
+          "status": "archive",
+          "update_priority": "none",
+          "update_reason": "Implementation plan from January 2025 for features now complete. Document indicates incomplete plan (ends at Task 5, notes 'remaining tasks' to be added). Implementation was completed per CLAUDE.md. Historical implementation guide now superseded by actual codebase."
+        },
+        {
+          "filename": "2025-01-07-retro-palm-pilot-redesign.md",
+          "type": "documentation",
+          "classification": "outdated",
+          "last_modified": "2025-11-12",
+          "size_bytes": 18416,
+          "purpose": "Comprehensive retro Palm Pilot UI redesign specification covering color system, typography, button styles, navigation structure, screen layouts, animations, and responsive desktop frame. Approved January 7, 2025.",
+          "status": "archive",
+          "update_priority": "none",
+          "update_reason": "Pre-implementation design specification dated January 2025. The retro UI described in this document is now fully implemented as evidenced by styles/retro.css and current UI components. Design decisions have been incorporated into the live application. Historical design artifact."
+        }
+      ]
+    },
+    {
+      "name": "ai",
+      "file_count": 0,
+      "purpose": "Empty subdirectory - intended for AI-related documentation (never populated or content archived)",
+      "files": []
+    },
+    {
+      "name": "dev",
+      "file_count": 0,
+      "purpose": "Empty subdirectory - intended for development documentation (never populated or content archived)",
+      "files": []
+    },
+    {
+      "name": ".archive",
+      "file_count": 0,
+      "purpose": "Empty archive directory - storage for deprecated documentation (currently empty)",
+      "files": []
+    },
+    {
+      "name": ".updates",
+      "file_count": 0,
+      "purpose": "Empty updates directory - possibly for update notes or changelog items (currently empty)",
+      "files": []
+    }
+  ],
+  "classification_summary": {
+    "essential": 0,
+    "current": 0,
+    "outdated": 4,
+    "redundant": 0,
+    "unclear": 2
+  },
+  "status_summary": {
+    "keep": 0,
+    "archive": 6,
+    "update_needed": 0
+  },
+  "recommendations": {
+    "archive_all": true,
+    "reasoning": "All documentation in this directory is from January 2025 or earlier and describes work that has been completed. The AI suggestion implementation guide is from a different worktree with different architecture. The three planning documents (final-features-design, final-features-implementation, retro-palm-pilot-redesign) are pre-implementation specifications for features confirmed complete in CLAUDE.md (Beta MVP Phases 1-5). The screenshots accompany the outdated worktree implementation. None of this documentation reflects current system state or provides value over the actual implemented codebase.",
+    "consolidation_opportunity": "Consider creating a single IMPLEMENTATION_HISTORY.md in root that summarizes the Beta MVP journey with key dates and decisions, then archive all detailed planning documents.",
+    "empty_directories": "Four empty subdirectories (ai/, dev/, .archive/, .updates/) suggest an abandoned organizational structure. Consider removing empty directories or populating with .gitkeep if structure is intended for future use."
+  }
+}

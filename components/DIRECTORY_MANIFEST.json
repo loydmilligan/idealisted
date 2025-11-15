@@ -1,0 +1,90 @@
+{
+  "manifest_version": "1.0",
+  "directory_path": "components",
+  "generated_at": "2025-11-14T00:00:00Z",
+  "summary": {
+    "total_files": 35,
+    "documentation_files": 0,
+    "code_files": 35,
+    "config_files": 0,
+    "test_files": 0,
+    "asset_files": 0,
+    "subdirectories": 4
+  },
+  "primary_purpose": "React/TypeScript component library for IdeaListed application. Contains modern UI components (navigation, cards, modals), retro-themed UI primitives, screen components, and settings tabs. No documentation files present - component documentation exists in CLAUDE.md at repository root.",
+  "documentation_status": {
+    "has_readme": false,
+    "has_component_docs": false,
+    "documentation_location": "Repository-level CLAUDE.md contains component architecture and usage patterns",
+    "recommendation": "No documentation needed at component level - centralized documentation in CLAUDE.md is appropriate for this codebase size"
+  },
+  "files": [
+    {
+      "filename": "EveningReviewFlow.tsx",
+      "type": "code",
+      "classification": "current",
+      "last_modified": "2025-11-08",
+      "size_bytes": 18450,
+      "purpose": "Evening review workflow component for daily planning",
+      "status": "keep",
+      "update_priority": "none",
+      "update_reason": ""
+    },
+    {
+      "filename": "MorningFinalizeModal.tsx",
+      "type": "code",
+      "classification": "current",
+      "last_modified": "2025-11-08",
+      "size_bytes": 5635,
+      "purpose": "Morning plan finalization modal component",
+      "status": "keep",
+      "update_priority": "none",
+      "update_reason": ""
+    },
+    {
+      "filename": "ProjectDashboard.tsx",
+      "type": "code",
+      "classification": "current",
+      "last_modified": "2025-11-06",
+      "size_bytes": 15719,
+      "purpose": "Project dashboard view component",
+      "status": "keep",
+      "update_priority": "none",
+      "update_reason": ""
+    }
+  ],
+  "subdirectories": [
+    {
+      "name": "modern",
+      "purpose": "Modern UI components including navigation, cards, modals, and settings",
+      "file_count": 16,
+      "has_documentation": false
+    },
+    {
+      "name": "modern/screens",
+      "purpose": "Screen-level components for main app views (Capture, Entities, Inbox)",
+      "file_count": 5,
+      "has_documentation": false
+    },
+    {
+      "name": "modern/settings",
+      "purpose": "Settings tab components (AI, Appearance, Notifications, Tags)",
+      "file_count": 4,
+      "has_documentation": false
+    },
+    {
+      "name": "ui",
+      "purpose": "Retro-themed UI primitive components (buttons, inputs, device frame, theming)",
+      "file_count": 9,
+      "has_documentation": false
+    }
+  ],
+  "notes": [
+    "No documentation files found in components directory or subdirectories",
+    "Component architecture and patterns documented in /CLAUDE.md",
+    "All components are TypeScript React components (.tsx)",
+    "Recently active - most files modified within last 2 weeks (Nov 2025)",
+    "Clear separation: modern/ (app-specific), ui/ (retro theme primitives)",
+    "Index files provide clean exports (modern/index.ts, modern/screens/index.ts)"
+  ]
+}

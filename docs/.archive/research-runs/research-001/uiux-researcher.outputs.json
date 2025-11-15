@@ -1,0 +1,359 @@
+{
+  "ok": true,
+  "run_id": "research-001",
+  "agent": "uiux-researcher",
+  "timestamp": "2025-11-06T00:00:00Z",
+  "notes": "UI/UX research completed for flow lines, particle effects, and visual feedback animations",
+  "research_findings": {
+    "summary": "Comprehensive research on implementing SVG flow lines, animated particles, and visual feedback for the IdeaListed retro-themed application",
+    "recommendations": {
+      "animation_library": {
+        "choice": "Vanilla CSS + RequestAnimationFrame",
+        "rationale": "Project doesn't currently use Framer Motion. For retro aesthetic and performance, native CSS animations with RAF for particle systems is optimal. Avoids adding 50KB+ dependency.",
+        "alternative": "Add Framer Motion only if complex orchestration needed (Phase 3+)"
+      },
+      "implementation_approach": {
+        "phase_2_flow_lines": {
+          "technology": "SVG with CSS animations",
+          "pattern": "Dynamic SVG path generation with stroke-dasharray animation",
+          "performance": "GPU-accelerated, minimal repaints"
+        },
+        "phase_3_particles": {
+          "technology": "Canvas API with RequestAnimationFrame",
+          "pattern": "Particle pool system with object reuse",
+          "performance": "60fps target with particle budget"
+        },
+        "visual_feedback": {
+          "technology": "CSS transitions + keyframe animations",
+          "pattern": "Class-based animation triggers",
+          "performance": "Hardware accelerated transforms"
+        }
+      }
+    },
+    "detailed_recommendations": {
+      "1_svg_flow_lines": {
+        "description": "Animated connection lines between UI elements (inbox to task conversion, AI suggestion flow)",
+        "implementation": {
+          "approach": "Dynamic SVG path generation with animated stroke",
+          "code_pattern": {
+            "svg_structure": "<svg class='flow-lines-overlay'><path d='M x1,y1 Q cx,cy x2,y2' class='flow-line'/></svg>",
+            "path_calculation": "Use getBoundingClientRect() to get element positions, calculate bezier curve control points",
+            "animation_method": "CSS stroke-dashoffset with stroke-dasharray for 'drawing' effect"
+          },
+          "css_implementation": {
+            "base_styles": ".flow-line { stroke: var(--retro-primary); stroke-width: 2; fill: none; stroke-dasharray: 1000; stroke-dashoffset: 1000; animation: drawLine 1s ease-out forwards; filter: drop-shadow(0 0 4px var(--retro-primary)); }",
+            "keyframes": "@keyframes drawLine { to { stroke-dashoffset: 0; } }",
+            "retro_enhancement": "Add scanline effect overlay, pixelated dithering filter for authentic retro feel"
+          },
+          "best_practices": [
+            "Use quadratic bezier curves (Q) for smooth, natural-looking paths",
+            "Position SVG overlay with position: fixed and pointer-events: none",
+            "Calculate path length with getTotalLength() for accurate dasharray values",
+            "Use CSS custom properties for dynamic color theming",
+            "Add will-change: stroke-dashoffset for GPU optimization"
+          ],
+          "retro_aesthetic": {
+            "color": "Use theme variables (--retro-primary, --retro-accent-yellow)",
+            "glow_effect": "filter: drop-shadow() with theme colors for CRT glow",
+            "dashed_style": "Consider stroke-dasharray: '5,3' for retro dotted-line aesthetic",
+            "animation_easing": "Use steps() easing for choppy, digital feel: animation-timing-function: steps(20)"
+          },
+          "accessibility": "@media (prefers-reduced-motion: reduce) { .flow-line { animation: none; stroke-dashoffset: 0; } }"
+        }
+      },
+      "2_particle_effects": {
+        "description": "Particles traveling along SVG paths (data transfer visualization, conversion effects)",
+        "implementation": {
+          "approach": "Canvas-based particle system with path following",
+          "architecture": {
+            "particle_pool": "Preallocate particle objects, reuse to avoid GC pressure",
+            "path_sampling": "Convert SVG path to point array using getPointAtLength()",
+            "animation_loop": "Single requestAnimationFrame loop managing all particles"
+          },
+          "code_pattern": {
+            "particle_class": "class Particle { constructor(path, startTime, duration) {...}; update(timestamp) {...}; draw(ctx) {...} }",
+            "path_to_points": "const points = []; const pathLength = path.getTotalLength(); for(let i=0; i<=1; i+=0.01) { points.push(path.getPointAtLength(i*pathLength)); }",
+            "render_loop": "function animate(timestamp) { ctx.clearRect(...); particles.forEach(p => { p.update(timestamp); p.draw(ctx); }); requestAnimationFrame(animate); }"
+          },
+          "performance_optimization": [
+            "Particle budget: Max 50-100 active particles for 60fps",
+            "Object pooling: Reuse particle instances instead of creating new ones",
+            "Canvas layering: Use separate canvas for particles to avoid redrawing static elements",
+            "Throttle spawning: Limit particle creation rate to prevent frame drops",
+            "Use OffscreenCanvas for worker thread rendering (advanced optimization)"
+          ],
+          "retro_aesthetic": {
+            "particle_style": "Square pixels (ctx.fillRect) or simple circles for retro look",
+            "color_palette": "Use theme accent colors with trail effect",
+            "size_variation": "Small particles (2-4px) for authentic low-res aesthetic",
+            "trail_effect": "Don't clear canvas completely (ctx.fillStyle = 'rgba(0,0,0,0.1)'; ctx.fillRect(...)) for CRT persistence",
+            "speed_variation": "Variable speeds with occasional 'lag' for retro digital feel"
+          },
+          "particle_behaviors": {
+            "spawn_pattern": "Burst spawn (5-10 particles) on interaction event",
+            "movement": "Follow bezier path with slight random offset for organic feel",
+            "lifecycle": "Fade in 20%, travel 60%, fade out 20%",
+            "physics": "Optional: slight gravity (y += 0.1) for falling effect"
+          }
+        }
+      },
+      "3_visual_feedback": {
+        "description": "Immediate user feedback (button press, successful conversion, AI processing)",
+        "implementation": {
+          "glow_pulse": {
+            "use_case": "AI processing indicator, active selection highlight",
+            "css": "@keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 5px var(--retro-primary); } 50% { box-shadow: 0 0 20px var(--retro-primary), 0 0 30px var(--retro-accent-yellow); } }",
+            "application": ".ai-processing { animation: pulse-glow 1.5s ease-in-out infinite; }",
+            "retro_enhancement": "Add scanline animation overlay during pulse"
+          },
+          "success_flash": {
+            "use_case": "Successful conversion, item saved",
+            "css": "@keyframes success-flash { 0% { background-color: transparent; } 50% { background-color: rgba(140, 184, 17, 0.3); } 100% { background-color: transparent; } }",
+            "application": ".success-feedback { animation: success-flash 0.5s ease-out; }",
+            "retro_enhancement": "Use stepped animation: animation-timing-function: steps(5)"
+          },
+          "screen_flash": {
+            "use_case": "Major state transitions, conversion complete",
+            "css": "@keyframes screen-flash { 0% { opacity: 0; background: var(--retro-accent-yellow); } 50% { opacity: 0.8; } 100% { opacity: 0; } }",
+            "implementation": "Create overlay div with position: fixed, trigger animation on event",
+            "retro_enhancement": "Quick double-flash for CRT flicker effect"
+          },
+          "button_press": {
+            "use_case": "Tactile feedback for retro buttons",
+            "existing_pattern": "Project already has :active transforms - enhance with additional feedback",
+            "enhancement": ".retro-button:active::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at center, rgba(255,255,255,0.3), transparent); animation: button-ripple 0.3s ease-out; }",
+            "sound_suggestion": "Consider adding subtle beep sound effect for authentic retro feel"
+          },
+          "shake_error": {
+            "use_case": "Validation errors, failed actions",
+            "css": "@keyframes shake { 0%, 100% { transform: translateX(0); } 10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); } 20%, 40%, 60%, 80% { transform: translateX(4px); } }",
+            "application": ".error-shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97); border-color: var(--palm-red); }",
+            "accessibility": "Ensure color-blind users can perceive error with icon or text"
+          }
+        }
+      },
+      "4_performance_optimization": {
+        "strategies": [
+          {
+            "technique": "GPU Acceleration",
+            "implementation": "Use transform and opacity for animations (not left/top/width/height)",
+            "example": "transform: translateX(100px) will-change: transform; instead of left: 100px;",
+            "benefit": "Offloads work to GPU, avoids layout recalculation"
+          },
+          {
+            "technique": "RequestAnimationFrame Throttling",
+            "implementation": "Limit particle updates to visible elements only",
+            "example": "if (particle.x < 0 || particle.x > canvas.width) return; // Skip offscreen particles",
+            "benefit": "Reduces unnecessary calculations for 60fps stability"
+          },
+          {
+            "technique": "CSS Containment",
+            "implementation": "Use contain: layout style; on animated containers",
+            "example": ".flow-lines-container { contain: layout style; position: fixed; }",
+            "benefit": "Isolates rendering work, prevents cascade reflows"
+          },
+          {
+            "technique": "Animation Debouncing",
+            "implementation": "Prevent multiple simultaneous animations on same element",
+            "example": "if (element.classList.contains('animating')) return; element.classList.add('animating'); setTimeout(() => element.classList.remove('animating'), 1000);",
+            "benefit": "Avoids animation conflicts and jank"
+          },
+          {
+            "technique": "Lazy Animation Loading",
+            "implementation": "Only initialize particle systems when needed",
+            "example": "const particleSystem = useMemo(() => shouldShowParticles ? new ParticleSystem() : null, [shouldShowParticles]);",
+            "benefit": "Reduces memory footprint and initialization cost"
+          }
+        ],
+        "performance_monitoring": {
+          "fps_tracking": "Use performance.now() to measure frame time, log warning if >16.67ms",
+          "memory_monitoring": "Track active particle count, canvas size, object pools",
+          "profiling": "Use Chrome DevTools Performance tab to identify bottlenecks"
+        }
+      },
+      "5_accessibility": {
+        "critical_considerations": [
+          {
+            "concern": "Motion Sensitivity",
+            "solution": "@media (prefers-reduced-motion: reduce) { * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }",
+            "rationale": "Users with vestibular disorders can be harmed by motion"
+          },
+          {
+            "concern": "Screen Reader Announcements",
+            "solution": "Use aria-live regions to announce state changes: <div aria-live='polite' class='sr-only'>Converting to task...</div>",
+            "rationale": "Visual animations must have text equivalents"
+          },
+          {
+            "concern": "Keyboard Navigation",
+            "solution": "Ensure all interactive elements remain focusable during animations, visible focus indicators",
+            "rationale": "Animations shouldn't interfere with keyboard navigation"
+          },
+          {
+            "concern": "Color Contrast",
+            "solution": "Ensure glow/flash effects maintain 4.5:1 contrast ratio for text",
+            "rationale": "WCAG AA compliance for visual feedback"
+          },
+          {
+            "concern": "Timeout Controls",
+            "solution": "Allow users to pause/stop continuous animations",
+            "rationale": "WCAG 2.2.2 - Users should control moving content"
+          }
+        ],
+        "testing_checklist": [
+          "Test with prefers-reduced-motion enabled",
+          "Verify screen reader announcements for state changes",
+          "Ensure keyboard focus visible during animations",
+          "Test with high contrast mode",
+          "Verify animations don't cause seizures (max 3 flashes per second)"
+        ]
+      },
+      "6_retro_aesthetic_enhancements": {
+        "crt_effects": {
+          "scanlines": "Already implemented in project (retro.css line 101-117), apply to animation overlays",
+          "phosphor_glow": "Use multiple drop-shadows for bloom effect: filter: drop-shadow(0 0 2px color) drop-shadow(0 0 8px color);",
+          "color_bleed": "Apply slight blur to glowing elements: filter: blur(0.5px) brightness(1.1);",
+          "interlacing": "Subtle horizontal line pattern for authentic CRT feel"
+        },
+        "digital_artifacts": {
+          "pixelation": "Use image-rendering: pixelated; for canvas elements",
+          "dithering": "Apply noise texture overlay during transitions",
+          "color_depth": "Limit color palette to 16-256 colors for authentic retro feel",
+          "aliasing": "Intentional jagged edges on diagonal lines"
+        },
+        "timing_feel": {
+          "stepped_animations": "Use steps(n) timing function for choppy, digital feel",
+          "lag_simulation": "Occasionally slow down particle movement for 'processing' feel",
+          "instant_feedback": "Some actions should be instant (button press) for responsive feel",
+          "progress_indicators": "Use discrete steps (25%, 50%, 75%, 100%) not smooth progress"
+        },
+        "sound_design": {
+          "suggestion": "Add optional Web Audio API sound effects",
+          "effects": "Beeps for button presses, whoosh for transitions, ding for completion",
+          "retro_synth": "Use square/triangle waves for authentic 80s-90s digital sound",
+          "implementation": "new AudioContext(); oscillator.type = 'square'; oscillator.frequency = 440;"
+        }
+      }
+    },
+    "implementation_priority": {
+      "phase_2_immediate": [
+        "SVG flow lines with stroke-dasharray animation",
+        "Basic glow/pulse feedback for AI processing",
+        "Success flash animation for conversions",
+        "Reduced motion media queries"
+      ],
+      "phase_3_enhanced": [
+        "Canvas particle system for data flow visualization",
+        "Advanced CRT effects (phosphor glow, color bleed)",
+        "Sound effects for interactions",
+        "Complex animation orchestration"
+      ],
+      "phase_4_polish": [
+        "Performance optimization and profiling",
+        "Advanced accessibility features",
+        "Custom easing functions for brand feel",
+        "Animation presets and themes"
+      ]
+    },
+    "code_examples": {
+      "flow_line_component": {
+        "file": "components/ui/FlowLine.tsx",
+        "description": "React component for animated SVG connection lines",
+        "code": "import React, { useEffect, useRef } from 'react';\n\ninterface FlowLineProps {\n  from: HTMLElement | null;\n  to: HTMLElement | null;\n  color?: string;\n  duration?: number;\n  onComplete?: () => void;\n}\n\nexport const FlowLine: React.FC<FlowLineProps> = ({\n  from,\n  to,\n  color = 'var(--retro-primary)',\n  duration = 1000,\n  onComplete\n}) => {\n  const svgRef = useRef<SVGSVGElement>(null);\n  const pathRef = useRef<SVGPathElement>(null);\n\n  useEffect(() => {\n    if (!from || !to || !svgRef.current || !pathRef.current) return;\n\n    const fromRect = from.getBoundingClientRect();\n    const toRect = to.getBoundingClientRect();\n\n    const x1 = fromRect.left + fromRect.width / 2;\n    const y1 = fromRect.top + fromRect.height / 2;\n    const x2 = toRect.left + toRect.width / 2;\n    const y2 = toRect.top + toRect.height / 2;\n\n    // Calculate bezier control point for smooth curve\n    const cx = (x1 + x2) / 2;\n    const cy = Math.min(y1, y2) - 50; // Curve upward\n\n    const pathD = `M ${x1},${y1} Q ${cx},${cy} ${x2},${y2}`;\n    pathRef.current.setAttribute('d', pathD);\n\n    const pathLength = pathRef.current.getTotalLength();\n    pathRef.current.style.strokeDasharray = `${pathLength}`;\n    pathRef.current.style.strokeDashoffset = `${pathLength}`;\n\n    // Trigger animation\n    requestAnimationFrame(() => {\n      if (pathRef.current) {\n        pathRef.current.style.transition = `stroke-dashoffset ${duration}ms ease-out`;\n        pathRef.current.style.strokeDashoffset = '0';\n      }\n    });\n\n    const timer = setTimeout(() => {\n      onComplete?.();\n    }, duration);\n\n    return () => clearTimeout(timer);\n  }, [from, to, duration, onComplete]);\n\n  return (\n    <svg\n      ref={svgRef}\n      className=\"flow-line-overlay\"\n      style={{\n        position: 'fixed',\n        top: 0,\n        left: 0,\n        width: '100%',\n        height: '100%',\n        pointerEvents: 'none',\n        zIndex: 1000\n      }}\n    >\n      <path\n        ref={pathRef}\n        stroke={color}\n        strokeWidth=\"2\"\n        fill=\"none\"\n        filter=\"drop-shadow(0 0 4px currentColor)\"\n        opacity=\"0.8\"\n      />\n    </svg>\n  );\n};"
+      },
+      "particle_system": {
+        "file": "lib/particles.ts",
+        "description": "Canvas-based particle system with path following",
+        "code": "export class Particle {\n  x: number = 0;\n  y: number = 0;\n  progress: number = 0;\n  speed: number;\n  size: number;\n  color: string;\n  alpha: number = 1;\n  path: { x: number; y: number }[];\n  active: boolean = false;\n\n  constructor() {\n    this.speed = 0.02 + Math.random() * 0.02;\n    this.size = 2 + Math.random() * 2;\n    this.color = 'rgba(140, 184, 17, 1)';\n    this.path = [];\n  }\n\n  init(path: { x: number; y: number }[]) {\n    this.path = path;\n    this.progress = 0;\n    this.active = true;\n    this.alpha = 0;\n  }\n\n  update() {\n    if (!this.active || this.path.length === 0) return;\n\n    this.progress += this.speed;\n\n    // Fade in/out\n    if (this.progress < 0.2) {\n      this.alpha = this.progress / 0.2;\n    } else if (this.progress > 0.8) {\n      this.alpha = (1 - this.progress) / 0.2;\n    } else {\n      this.alpha = 1;\n    }\n\n    if (this.progress >= 1) {\n      this.active = false;\n      return;\n    }\n\n    const index = Math.floor(this.progress * (this.path.length - 1));\n    const nextIndex = Math.min(index + 1, this.path.length - 1);\n    const segmentProgress = (this.progress * (this.path.length - 1)) % 1;\n\n    // Interpolate position\n    this.x = this.path[index].x + (this.path[nextIndex].x - this.path[index].x) * segmentProgress;\n    this.y = this.path[index].y + (this.path[nextIndex].y - this.path[index].y) * segmentProgress;\n  }\n\n  draw(ctx: CanvasRenderingContext2D) {\n    if (!this.active || this.alpha <= 0) return;\n\n    ctx.save();\n    ctx.globalAlpha = this.alpha;\n    ctx.fillStyle = this.color;\n    ctx.fillRect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);\n    ctx.restore();\n  }\n}\n\nexport class ParticleSystem {\n  particles: Particle[];\n  canvas: HTMLCanvasElement;\n  ctx: CanvasRenderingContext2D;\n  animationId: number | null = null;\n\n  constructor(canvas: HTMLCanvasElement, poolSize: number = 50) {\n    this.canvas = canvas;\n    this.ctx = canvas.getContext('2d')!;\n    this.particles = Array.from({ length: poolSize }, () => new Particle());\n  }\n\n  spawnParticles(path: { x: number; y: number }[], count: number = 5) {\n    let spawned = 0;\n    for (const particle of this.particles) {\n      if (!particle.active && spawned < count) {\n        particle.init(path);\n        spawned++;\n      }\n      if (spawned >= count) break;\n    }\n  }\n\n  animate = () => {\n    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);\n\n    for (const particle of this.particles) {\n      particle.update();\n      particle.draw(this.ctx);\n    }\n\n    this.animationId = requestAnimationFrame(this.animate);\n  };\n\n  start() {\n    if (!this.animationId) {\n      this.animate();\n    }\n  }\n\n  stop() {\n    if (this.animationId) {\n      cancelAnimationFrame(this.animationId);\n      this.animationId = null;\n    }\n  }\n\n  pathFromSVG(svgPath: SVGPathElement): { x: number; y: number }[] {\n    const points: { x: number; y: number }[] = [];\n    const length = svgPath.getTotalLength();\n    const samples = 100;\n\n    for (let i = 0; i <= samples; i++) {\n      const point = svgPath.getPointAtLength((i / samples) * length);\n      points.push({ x: point.x, y: point.y });\n    }\n\n    return points;\n  }\n}"
+      },
+      "visual_feedback_css": {
+        "file": "styles/animations.css",
+        "description": "CSS animations for visual feedback",
+        "code": "/* Visual Feedback Animations */\n\n/* Pulse Glow - AI Processing */\n@keyframes pulse-glow {\n  0%, 100% {\n    box-shadow: 0 0 5px var(--retro-primary),\n                inset 0 0 5px var(--retro-primary);\n  }\n  50% {\n    box-shadow: 0 0 20px var(--retro-primary),\n                0 0 30px var(--retro-accent-yellow),\n                inset 0 0 10px var(--retro-primary);\n  }\n}\n\n.ai-processing {\n  animation: pulse-glow 1.5s ease-in-out infinite;\n  position: relative;\n}\n\n/* Success Flash */\n@keyframes success-flash {\n  0% { background-color: transparent; }\n  50% { background-color: rgba(140, 184, 17, 0.3); }\n  100% { background-color: transparent; }\n}\n\n.success-feedback {\n  animation: success-flash 0.5s ease-out;\n}\n\n/* Screen Flash Overlay */\n@keyframes screen-flash {\n  0% {\n    opacity: 0;\n    background: var(--retro-accent-yellow);\n  }\n  30% {\n    opacity: 0.8;\n  }\n  100% {\n    opacity: 0;\n  }\n}\n\n.screen-flash-overlay {\n  position: fixed;\n  inset: 0;\n  pointer-events: none;\n  z-index: 9999;\n  animation: screen-flash 0.4s ease-out;\n}\n\n/* Shake Error */\n@keyframes shake {\n  0%, 100% { transform: translateX(0); }\n  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }\n  20%, 40%, 60%, 80% { transform: translateX(4px); }\n}\n\n.error-shake {\n  animation: shake 0.4s cubic-bezier(.36,.07,.19,.97);\n  border-color: var(--palm-red) !important;\n}\n\n/* Retro-style stepped pulse */\n@keyframes retro-pulse {\n  0% { opacity: 1; }\n  50% { opacity: 0.6; }\n  100% { opacity: 1; }\n}\n\n.retro-pulse {\n  animation: retro-pulse 1s steps(5) infinite;\n}\n\n/* CRT Scanline Sweep */\n@keyframes scanline-sweep {\n  0% { transform: translateY(-100%); }\n  100% { transform: translateY(100%); }\n}\n\n.scanline-effect::after {\n  content: '';\n  position: absolute;\n  top: 0;\n  left: 0;\n  right: 0;\n  height: 4px;\n  background: linear-gradient(to bottom,\n    transparent,\n    rgba(255, 255, 255, 0.3),\n    transparent\n  );\n  animation: scanline-sweep 2s linear infinite;\n  pointer-events: none;\n}\n\n/* Reduced Motion */\n@media (prefers-reduced-motion: reduce) {\n  *,\n  *::before,\n  *::after {\n    animation-duration: 0.01ms !important;\n    animation-iteration-count: 1 !important;\n    transition-duration: 0.01ms !important;\n  }\n\n  .flow-line {\n    stroke-dashoffset: 0 !important;\n    animation: none !important;\n  }\n\n  .particle-canvas {\n    display: none !important;\n  }\n}"
+      },
+      "usage_example": {
+        "file": "app/page.tsx",
+        "description": "Example usage in React component",
+        "code": "import { useState, useRef, useEffect } from 'react';\nimport { FlowLine } from '@/components/ui/FlowLine';\nimport { ParticleSystem } from '@/lib/particles';\n\nexport default function HomePage() {\n  const [showFlow, setShowFlow] = useState(false);\n  const sourceRef = useRef<HTMLDivElement>(null);\n  const targetRef = useRef<HTMLDivElement>(null);\n  const canvasRef = useRef<HTMLCanvasElement>(null);\n  const particleSystemRef = useRef<ParticleSystem | null>(null);\n\n  useEffect(() => {\n    if (canvasRef.current && !particleSystemRef.current) {\n      particleSystemRef.current = new ParticleSystem(canvasRef.current);\n      particleSystemRef.current.start();\n    }\n\n    return () => {\n      particleSystemRef.current?.stop();\n    };\n  }, []);\n\n  const handleConversion = async () => {\n    // Show flow line\n    setShowFlow(true);\n\n    // Add success feedback class\n    targetRef.current?.classList.add('success-feedback');\n\n    // Trigger screen flash\n    const flashDiv = document.createElement('div');\n    flashDiv.className = 'screen-flash-overlay';\n    document.body.appendChild(flashDiv);\n    setTimeout(() => flashDiv.remove(), 400);\n\n    // Spawn particles after flow line completes\n    setTimeout(() => {\n      if (particleSystemRef.current && sourceRef.current && targetRef.current) {\n        const path = calculatePathPoints(sourceRef.current, targetRef.current);\n        particleSystemRef.current.spawnParticles(path, 10);\n      }\n    }, 500);\n\n    // Cleanup\n    setTimeout(() => {\n      setShowFlow(false);\n      targetRef.current?.classList.remove('success-feedback');\n    }, 1500);\n  };\n\n  return (\n    <div className=\"relative\">\n      <div ref={sourceRef} className=\"retro-card\">Source Item</div>\n      <div ref={targetRef} className=\"retro-card mt-4\">Target Item</div>\n      \n      <button onClick={handleConversion} className=\"retro-button-primary mt-4\">\n        Convert\n      </button>\n\n      {showFlow && (\n        <FlowLine\n          from={sourceRef.current}\n          to={targetRef.current}\n          onComplete={() => console.log('Flow complete')}\n        />\n      )}\n\n      <canvas\n        ref={canvasRef}\n        className=\"particle-canvas\"\n        style={{\n          position: 'fixed',\n          top: 0,\n          left: 0,\n          width: '100%',\n          height: '100%',\n          pointerEvents: 'none',\n          zIndex: 999\n        }}\n      />\n    </div>\n  );\n}\n\nfunction calculatePathPoints(\n  from: HTMLElement,\n  to: HTMLElement\n): { x: number; y: number }[] {\n  const fromRect = from.getBoundingClientRect();\n  const toRect = to.getBoundingClientRect();\n  const points: { x: number; y: number }[] = [];\n  \n  const x1 = fromRect.left + fromRect.width / 2;\n  const y1 = fromRect.top + fromRect.height / 2;\n  const x2 = toRect.left + toRect.width / 2;\n  const y2 = toRect.top + toRect.height / 2;\n  \n  // Generate bezier curve points\n  const steps = 100;\n  for (let i = 0; i <= steps; i++) {\n    const t = i / steps;\n    const cx = (x1 + x2) / 2;\n    const cy = Math.min(y1, y2) - 50;\n    \n    // Quadratic bezier formula\n    const x = (1 - t) * (1 - t) * x1 + 2 * (1 - t) * t * cx + t * t * x2;\n    const y = (1 - t) * (1 - t) * y1 + 2 * (1 - t) * t * cy + t * t * y2;\n    \n    points.push({ x, y });\n  }\n  \n  return points;\n}"
+      }
+    },
+    "references": {
+      "css_animations": [
+        "MDN Web Docs: CSS Animations - https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Animations",
+        "MDN Web Docs: will-change - https://developer.mozilla.org/en-US/docs/Web/CSS/will-change",
+        "CSS Triggers: Which properties trigger layout/paint/composite - https://csstriggers.com/"
+      ],
+      "svg_animations": [
+        "MDN Web Docs: SVG Path - https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Paths",
+        "Animating SVG stroke-dashoffset - https://css-tricks.com/svg-line-animation-works/",
+        "SVG Path Animation Guide - https://jakearchibald.com/2013/animated-line-drawing-svg/"
+      ],
+      "canvas_particles": [
+        "MDN Web Docs: Canvas API - https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API",
+        "RequestAnimationFrame Guide - https://developer.mozilla.org/en-US/docs/Web/API/window/requestAnimationFrame",
+        "Particle System Tutorial - https://www.html5rocks.com/en/tutorials/canvas/performance/"
+      ],
+      "performance": [
+        "Web.dev: Rendering Performance - https://web.dev/rendering-performance/",
+        "Chrome DevTools Performance Guide - https://developer.chrome.com/docs/devtools/performance/",
+        "FLIP Animation Technique - https://aerotwist.com/blog/flip-your-animations/"
+      ],
+      "accessibility": [
+        "WCAG 2.1: Animation from Interactions - https://www.w3.org/WAI/WCAG21/Understanding/animation-from-interactions.html",
+        "prefers-reduced-motion - https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-reduced-motion",
+        "Accessible Animations - https://www.a11yproject.com/posts/understanding-reduced-motion/"
+      ],
+      "retro_aesthetics": [
+        "CRT Shader Effects - https://www.shadertoy.com/view/XtlSD7",
+        "Retro Gaming Graphics - https://lospec.com/palette-list",
+        "8-bit Audio Synthesis - https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API"
+      ]
+    },
+    "testing_strategy": {
+      "unit_tests": [
+        "Test particle pool allocation and reuse",
+        "Verify path interpolation calculations",
+        "Test animation lifecycle (start, pause, stop, cleanup)"
+      ],
+      "integration_tests": [
+        "Test flow line positioning with dynamic DOM elements",
+        "Verify particle spawning on user interactions",
+        "Test animation coordination across multiple components"
+      ],
+      "performance_tests": [
+        "Measure FPS with various particle counts",
+        "Profile memory usage with long-running animations",
+        "Test on low-end devices and mobile"
+      ],
+      "accessibility_tests": [
+        "Test with prefers-reduced-motion enabled",
+        "Verify screen reader announcements",
+        "Test keyboard navigation during animations",
+        "Validate with WAVE accessibility tool"
+      ],
+      "visual_tests": [
+        "Screenshot comparison for retro aesthetic consistency",
+        "Test across different themes (Classic Green, Monochrome, Dark)",
+        "Verify CRT effects render correctly",
+        "Test on different screen sizes and resolutions"
+      ]
+    }
+  },
+  "next_steps": [
+    "Create FlowLine.tsx component in /components/ui/",
+    "Create ParticleSystem class in /lib/particles.ts",
+    "Add animations.css to /styles/ directory",
+    "Update globals.css to import animations.css",
+    "Implement visual feedback in existing components (AISuggestionPanel, RetroButton)",
+    "Add reduced motion preferences support globally",
+    "Test performance with Chrome DevTools",
+    "Conduct accessibility audit with screen reader"
+  ],
+  "estimated_effort": {
+    "phase_2_flow_lines": "4-6 hours",
+    "phase_3_particles": "8-10 hours",
+    "visual_feedback": "2-3 hours",
+    "accessibility": "2-3 hours",
+    "testing_polish": "4-6 hours",
+    "total": "20-28 hours"
+  }
+}
