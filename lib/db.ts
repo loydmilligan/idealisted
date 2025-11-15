@@ -375,26 +375,62 @@ initializeDatabase()
 export default db
 
 // Phase 4: Tag Usage Tracking Helpers
+/**
+ * Updates tag usage counts when tags are added or removed from items
+ * @param addedTags - Array of tag names that were added to an item
+ * @param removedTags - Array of tag names that were removed from an item
+ * @returns void
+ *
+ * Side effects:
+ * - Creates new tag records for tags that don't exist
+ * - Increments usage_count for added tags
+ * - Decrements usage_count for removed tags (never below 0)
+ * - Updates last_used_at timestamp for added tags
+ * - All operations are atomic within a transaction
+ */
 export function updateTagUsage(addedTags: string[], removedTags: string[]) {
   const now = Date.now()
 
-  // Increment for added tags
-  for (const tag of addedTags) {
-    db.prepare(`
-      INSERT INTO tags (name, usage_count, last_used_at, is_default)
-      VALUES (?, 1, ?, 0)
+  // Validate and sanitize tag names
+  const sanitizeTag = (tag: string): string | null => {
+    if (!tag || typeof tag !== 'string') return null
+    const cleaned = tag.toLowerCase().trim().replace(/\s+/g, '-')
+    if (cleaned.length === 0 || cleaned.length > 50) return null
+    if (!/^[a-z0-9-_]+$/.test(cleaned)) return null
+    return cleaned
+  }
+
+  const validAddedTags = addedTags.map(sanitizeTag).filter(Boolean) as string[]
+  const validRemovedTags = removedTags.map(sanitizeTag).filter(Boolean) as string[]
+
+  // Use transaction for atomic updates
+  const transaction = db.transaction(() => {
+    // Prepare statements outside loop for better performance
+    const insertStmt = db.prepare(`
+      INSERT INTO tags (id, name, color, category, usage_count, last_used_at, is_default, created_at)
+      VALUES (?, ?, '#999999', 'Other', 1, ?, 0, ?)
       ON CONFLICT(name) DO UPDATE SET
         usage_count = usage_count + 1,
         last_used_at = ?
-    `).run(tag, now, now)
-  }
+    `)
 
-  // Decrement for removed tags (don't go below 0)
-  for (const tag of removedTags) {
-    db.prepare(`
+    const updateStmt = db.prepare(`
       UPDATE tags
       SET usage_count = MAX(0, usage_count - 1)
       WHERE name = ?
-    `).run(tag)
-  }
+    `)
+
+    // Increment for added tags
+    for (const tag of validAddedTags) {
+      const id = crypto.randomUUID()
+      insertStmt.run(id, tag, now, now, now)
+    }
+
+    // Decrement for removed tags
+    for (const tag of validRemovedTags) {
+      updateStmt.run(tag)
+    }
+  })
+
+  transaction()
 }

@@ -24,9 +24,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { text, entityType } = body
 
-    if (!text || typeof text !== 'string') {
+    // Validate text parameter
+    if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return NextResponse.json(
-        { success: false, error: 'Text is required' },
+        { success: false, error: 'Text must not be empty' },
+        { status: 400 }
+      )
+    }
+
+    // Validate entityType parameter
+    const validEntityTypes = ['task', 'note', 'project', 'list']
+    if (entityType && !validEntityTypes.includes(entityType)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid entity type. Must be one of: task, note, project, list' },
         { status: 400 }
       )
     }
@@ -117,13 +127,16 @@ Return ONLY a JSON array of tag objects, no other text:
       }
     }
 
+    // Create a Map for O(1) lookups (performance optimization)
+    const existingTagsMap = new Map(existingTags.map(t => [t.name, t]))
+
     // Validate and enrich suggestions
     const enrichedTags = suggestedTags
       .filter(tag => tag.confidence >= 0.60) // Filter low confidence
       .map(tag => {
         // Add usage_count for existing tags
         if (tag.source === 'existing') {
-          const existing = existingTags.find(t => t.name === tag.name)
+          const existing = existingTagsMap.get(tag.name)
           return {
             ...tag,
             usage_count: existing?.usage_count || 0
@@ -146,9 +159,24 @@ Return ONLY a JSON array of tag objects, no other text:
 
   } catch (error) {
     console.error('Error suggesting tags:', error)
+
+    const message = error instanceof Error ? error.message : 'Unknown error'
+
+    // Determine appropriate status code based on error type
+    let status = 500
+    if (message.includes('AI API error:')) {
+      status = 503 // Service Unavailable
+    } else if (message.includes('Failed to parse AI response')) {
+      status = 500 // Internal Server Error
+    }
+
     return NextResponse.json(
-      { success: false, error: 'Failed to suggest tags' },
-      { status: 500 }
+      {
+        success: false,
+        error: 'Failed to suggest tags',
+        details: message
+      },
+      { status }
     )
   }
 }

@@ -237,7 +237,7 @@ export const EntityModal: React.FC<EntityModalProps> = ({
             <div className="mb-4">
               <button
                 onClick={handleSuggestTags}
-                disabled={loadingSuggestions || !initialData?.title}
+                disabled={loadingSuggestions || !initialData?.title?.trim()}
                 className="retro-btn retro-btn-secondary"
                 style={{
                   width: '160px',
