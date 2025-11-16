@@ -68,16 +68,17 @@ export function AISuggestionPanel({
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'todo': return <RetroIcon type="task" size="sm" />
-      case 'note': return <RetroIcon type="note" size="sm" />
-      case 'task': return <RetroIcon type="task" size="sm" />
-      case 'project': return <RetroIcon type="project" size="sm" />
-      default: return <RetroIcon type="idea" size="sm" />
+      case 'todo': return '✓'
+      case 'note': return '📝'
+      case 'task': return '✓'
+      case 'project': return '📁'
+      case 'list': return '📋'
+      default: return '💡'
     }
   }
 
   const getTypeLabel = (type: string) => {
-    return type.toUpperCase()
+    return type.charAt(0).toUpperCase() + type.slice(1)
   }
 
   return (
@@ -90,9 +91,6 @@ export function AISuggestionPanel({
             <span className="text-xs font-bold uppercase tracking-wide">
               AI SUGGESTION
             </span>
-            <span className="text-xs opacity-70">
-              {Math.round(suggestion.confidence * 100)}% confidence
-            </span>
           </div>
           <RetroButton
             onClick={onDismiss}
@@ -104,6 +102,35 @@ export function AISuggestionPanel({
           </RetroButton>
         </div>
 
+        {/* Confidence Bar */}
+        <div className="mb-3">
+          <div className="flex items-center justify-between text-xs mb-1">
+            <span className="text-retro-text-secondary uppercase">Confidence</span>
+            <span className="font-mono font-semibold">{Math.round(suggestion.confidence * 100)}%</span>
+          </div>
+          <div
+            className="h-2 border border-retro-border overflow-hidden"
+            style={{ background: 'var(--retro-screen-dark)' }}
+          >
+            <div
+              className="h-full transition-all duration-300"
+              style={{
+                width: `${suggestion.confidence * 100}%`,
+                background: suggestion.confidence >= 0.7
+                  ? 'var(--retro-primary)'
+                  : suggestion.confidence >= 0.5
+                  ? '#F59E0B'
+                  : '#EF4444'
+              }}
+            />
+          </div>
+          {suggestion.confidence < 0.5 && (
+            <p className="text-xs mt-1" style={{ color: '#EF4444' }}>
+              ⚠️ Low confidence - review carefully
+            </p>
+          )}
+        </div>
+
         {/* Processed Text */}
         <div className="space-y-1">
           <p className="text-xs font-bold uppercase tracking-wide">Suggested Text:</p>
@@ -113,46 +140,138 @@ export function AISuggestionPanel({
         </div>
 
         {/* Tags */}
-        {suggestion.tags.length > 0 && (
-          <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-wide">Tags:</p>
-            <div className="flex flex-wrap gap-1">
-              {suggestion.tags.map((tag, index) => (
-                <span 
-                  key={index}
-                  className="text-xs bg-retro-primary text-retro-status-text px-2 py-1 rounded border border-retro-border"
+        <div className="mb-4">
+          <div className="text-xs font-semibold mb-2 text-retro-text-secondary uppercase">Tags</div>
+          {suggestion.tags && suggestion.tags.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {suggestion.tags.map((tag, i) => (
+                <span
+                  key={i}
+                  className="px-2 py-1 text-xs rounded"
+                  style={{
+                    background: 'var(--retro-primary)',
+                    color: 'var(--retro-bg)',
+                  }}
                 >
                   #{tag}
                 </span>
               ))}
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="text-xs text-retro-text-secondary italic">
+              No tags suggested
+            </p>
+          )}
+        </div>
 
         {/* Additional Fields */}
-        <div className="space-y-1">
-          <p className="text-xs font-bold uppercase tracking-wide">Details:</p>
-          <div className="text-xs space-y-1">
-            {suggestion.additional_fields.priority && (
-              <p>• Priority: {suggestion.additional_fields.priority}/3</p>
-            )}
-            {suggestion.additional_fields.due_date && (
-              <p>• Due: {suggestion.additional_fields.due_date}</p>
-            )}
-            {suggestion.additional_fields.category && (
-              <p>• Category: {suggestion.additional_fields.category}</p>
-            )}
-            {suggestion.additional_fields.estimated_time && (
-              <p>• Est. Time: {suggestion.additional_fields.estimated_time}h</p>
-            )}
-            {suggestion.additional_fields.deadline && (
-              <p>• Deadline: {suggestion.additional_fields.deadline}</p>
-            )}
-            {suggestion.additional_fields.status && (
-              <p>• Status: {suggestion.additional_fields.status}</p>
-            )}
+        {suggestion.additional_fields && Object.keys(suggestion.additional_fields).length > 0 && (
+          <div className="mb-4">
+            <div className="text-xs font-semibold mb-2 text-retro-text-secondary uppercase">Extracted Details</div>
+            <div className="retro-card p-3 space-y-2">
+              {suggestion.additional_fields.priority && (
+                <div className="flex items-center gap-2">
+                  <span className="text-retro-text-secondary text-xs w-24">Priority:</span>
+                  <span className="font-semibold text-sm">
+                    {'⭐'.repeat(suggestion.additional_fields.priority)}
+                    <span className="text-retro-text-secondary ml-1">
+                      ({suggestion.additional_fields.priority}/5)
+                    </span>
+                  </span>
+                </div>
+              )}
+
+              {suggestion.additional_fields.due_date && (
+                <div className="flex items-center gap-2">
+                  <span className="text-retro-text-secondary text-xs w-24">Due Date:</span>
+                  <span className="font-semibold text-sm">
+                    📅 {(() => {
+                      const date = new Date(suggestion.additional_fields.due_date)
+                      return isNaN(date.getTime())
+                        ? String(suggestion.additional_fields.due_date)
+                        : date.toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })
+                    })()}
+                  </span>
+                </div>
+              )}
+
+              {suggestion.additional_fields.deadline && (
+                <div className="flex items-center gap-2">
+                  <span className="text-retro-text-secondary text-xs w-24">Deadline:</span>
+                  <span className="font-semibold text-sm">
+                    📅 {(() => {
+                      const date = new Date(suggestion.additional_fields.deadline)
+                      return isNaN(date.getTime())
+                        ? String(suggestion.additional_fields.deadline)
+                        : date.toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })
+                    })()}
+                  </span>
+                </div>
+              )}
+
+              {suggestion.additional_fields.estimated_time && (
+                <div className="flex items-center gap-2">
+                  <span className="text-retro-text-secondary text-xs w-24">Est. Time:</span>
+                  <span className="font-semibold text-sm">
+                    ⏱️ {suggestion.additional_fields.estimated_time} hour{suggestion.additional_fields.estimated_time > 1 ? 's' : ''}
+                  </span>
+                </div>
+              )}
+
+              {suggestion.additional_fields.status && (
+                <div className="flex items-center gap-2">
+                  <span className="text-retro-text-secondary text-xs w-24">Status:</span>
+                  <span className="font-semibold text-sm capitalize">
+                    {suggestion.additional_fields.status === 'pending' ? '⏳' :
+                     suggestion.additional_fields.status === 'in-progress' ? '▶️' :
+                     suggestion.additional_fields.status === 'completed' ? '✅' : ''}
+                    {' '}{suggestion.additional_fields.status.replace('-', ' ')}
+                  </span>
+                </div>
+              )}
+
+              {suggestion.additional_fields.category && (
+                <div className="flex items-center gap-2">
+                  <span className="text-retro-text-secondary text-xs w-24">Category:</span>
+                  <span className="font-semibold text-sm capitalize">
+                    📂 {suggestion.additional_fields.category}
+                  </span>
+                </div>
+              )}
+
+              {suggestion.additional_fields.list_name && (
+                <div className="flex items-center gap-2">
+                  <span className="text-retro-text-secondary text-xs w-24">List Name:</span>
+                  <span className="font-semibold text-sm">
+                    📝 {suggestion.additional_fields.list_name}
+                  </span>
+                </div>
+              )}
+
+              {suggestion.additional_fields.list_items && suggestion.additional_fields.list_items.length > 0 && (
+                <div className="flex items-start gap-2">
+                  <span className="text-retro-text-secondary text-xs w-24">Items:</span>
+                  <ul className="text-sm space-y-1 flex-1">
+                    {suggestion.additional_fields.list_items.map((item: string, i: number) => (
+                      <li key={i} className="flex items-start gap-1">
+                        <span className="text-retro-text-secondary">•</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Reasoning */}
         <div className="space-y-1">
@@ -168,14 +287,15 @@ export function AISuggestionPanel({
               onClick={() => onApplySuggestion(suggestion.suggested_type)}
               variant="primary"
               size="sm"
-              className="flex items-center gap-1"
+              className="flex items-center justify-center gap-1"
             >
-              {getTypeIcon(suggestion.suggested_type)}
-              {getTypeLabel(suggestion.suggested_type)}
+              <span className="flex items-center justify-center gap-1">
+                {getTypeIcon(suggestion.suggested_type)} {getTypeLabel(suggestion.suggested_type)}
+              </span>
             </RetroButton>
-            
+
             {/* Other conversion options */}
-            {(['todo', 'note', 'task', 'project'] as const)
+            {(['todo', 'note', 'task', 'project', 'list'] as const)
               .filter(type => type !== suggestion.suggested_type)
               .map(type => (
                 <RetroButton
@@ -183,10 +303,11 @@ export function AISuggestionPanel({
                   onClick={() => onApplySuggestion(type)}
                   variant="secondary"
                   size="sm"
-                  className="flex items-center gap-1"
+                  className="flex items-center justify-center gap-1"
                 >
-                  {getTypeIcon(type)}
-                  {getTypeLabel(type)}
+                  <span className="flex items-center justify-center gap-1">
+                    {getTypeIcon(type)} {getTypeLabel(type)}
+                  </span>
                 </RetroButton>
               ))}
           </div>
