@@ -29,7 +29,7 @@ interface RecentItem {
 
 interface CaptureScreenProps {
   onCapture: (text: string, entityType?: Exclude<EntityType, 'idea'> | null, subtype?: string) => void
-  onAICapture?: (text: string, action: 'sort' | 'convert' | 'full') => void
+  onAICapture?: (text: string) => void
   recentItems?: RecentItem[]
   className?: string
   // Phase 3: AI Suggestion Preview
@@ -51,7 +51,6 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
 }) => {
   const [inputText, setInputText] = useState('')
   const [showNoteMenu, setShowNoteMenu] = useState(false)
-  const [showAIMenu, setShowAIMenu] = useState(false)
   const [aiEnabled, setAiEnabled] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -87,11 +86,11 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
     textareaRef.current?.focus()
   }
 
-  const handleAIAction = (action: 'sort' | 'convert' | 'full') => {
+  const handleAIAction = () => {
     if (!inputText.trim()) return
 
     if (onAICapture) {
-      onAICapture(inputText, action)
+      onAICapture(inputText)
       setInputText('')
       textareaRef.current?.focus()
     }
@@ -106,7 +105,6 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
     label: string
     hasDropdown?: boolean
   }> = [
-    { type: null, label: '✓ Unsorted' },
     { type: 'task', label: 'Task' },
     { type: 'note', label: 'Note ▾', hasDropdown: true },
     { type: 'project', label: 'Project' },
@@ -115,55 +113,104 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
 
   return (
     <div className={`flex flex-col h-full pb-20 ${className}`}>
-      {/* Input Container */}
+      {/* Input Container with inline buttons */}
       <div className="px-4 mb-4" style={{ paddingTop: '16px' }}>
-        <div style={{ position: 'relative' }}>
-          <textarea
-            ref={textareaRef}
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            placeholder="Type your idea..."
-            className="retro-textarea"
-            style={{
-              minHeight: '96px',
-              maxHeight: '40vh',
-              paddingRight: isSupported ? '48px' : undefined,
-            }}
-          />
-          {/* Voice Input Button - only show in supported browsers */}
-          {isSupported && (
-            <button
-              onClick={handleVoiceInput}
-              disabled={isListening}
-              className="retro-btn retro-btn-secondary"
-              aria-label="Voice input"
-              title={isListening ? "Listening..." : "Voice input"}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <textarea
+              ref={textareaRef}
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder="Type your idea..."
+              className="retro-textarea"
               style={{
-                position: 'absolute',
-                right: '8px',
-                top: '8px',
-                width: '32px',
-                height: '32px',
+                minHeight: '96px',
+                maxHeight: '40vh',
+                paddingRight: isSupported ? '48px' : undefined,
+              }}
+            />
+            {/* Voice Input Button - only show in supported browsers */}
+            {isSupported && (
+              <button
+                onClick={handleVoiceInput}
+                disabled={isListening}
+                className="retro-btn retro-btn-secondary"
+                aria-label="Voice input"
+                title={isListening ? "Listening..." : "Voice input"}
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  top: '8px',
+                  width: '32px',
+                  height: '32px',
+                  padding: '4px',
+                  fontSize: '16px',
+                  minWidth: 'unset',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {isListening ? '🔴' : '🎤'}
+              </button>
+            )}
+          </div>
+
+          {/* Right-side action buttons */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {/* Unsorted button */}
+            <button
+              onClick={() => handleCapture(null)}
+              disabled={!inputText.trim()}
+              className="retro-btn retro-btn-primary"
+              aria-label="Save as unsorted"
+              title="Save as unsorted"
+              style={{
+                width: '40px',
+                height: '40px',
                 padding: '4px',
-                fontSize: '16px',
+                fontSize: '18px',
                 minWidth: 'unset',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              {isListening ? '🔴' : '🎤'}
+              ✓
             </button>
-          )}
+
+            {/* AI button - only show if AI is enabled */}
+            {aiEnabled && (
+              <button
+                onClick={handleAIAction}
+                disabled={!inputText.trim()}
+                className="retro-btn retro-btn-secondary"
+                aria-label="AI analyze"
+                title="AI analyze"
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  padding: '4px',
+                  fontSize: '18px',
+                  minWidth: 'unset',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                🤖
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Action Buttons Row */}
+      {/* Entity Type Buttons Row */}
       <div className="px-4 mb-6">
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          {entityButtons.map((btn, index) => {
+          {entityButtons.map((btn) => {
             // Add entity color accent for entity type buttons
-            const accentClass = btn.type && index > 0 ? `retro-btn-accent-${btn.type}` : ''
+            const accentClass = btn.type ? `retro-btn-accent-${btn.type}` : ''
             return (
               <button
                 key={btn.label}
@@ -175,23 +222,12 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
                   }
                 }}
                 disabled={!inputText.trim()}
-                className={`retro-btn ${index === 0 ? 'retro-btn-primary' : 'retro-btn-secondary'} ${accentClass} whitespace-nowrap flex-shrink-0`}
+                className={`retro-btn retro-btn-secondary ${accentClass} whitespace-nowrap flex-shrink-0`}
               >
                 {btn.label}
               </button>
             )
           })}
-
-          {/* AI Button - only show if AI is enabled */}
-          {aiEnabled && (
-            <button
-              onClick={() => setShowAIMenu(!showAIMenu)}
-              disabled={!inputText.trim()}
-              className="retro-btn retro-btn-secondary whitespace-nowrap flex-shrink-0"
-            >
-              AI ▾
-            </button>
-          )}
         </div>
 
         {/* Note Template Dropdown */}
@@ -232,43 +268,6 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
                   {template.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* AI Action Dropdown */}
-        {showAIMenu && (
-          <div className="relative mt-2">
-            <div className="absolute z-10 w-40" style={{
-              background: 'var(--palm-screen-light)',
-              border: '1px solid var(--palm-border)',
-              boxShadow: '2px 2px 0 rgba(0,0,0,0.2)'
-            }}>
-              {['Sort', 'Convert', 'Full'].map((action, idx) => (
-                <button
-                  key={action}
-                  onClick={() => {
-                    handleAIAction(action.toLowerCase() as 'sort' | 'convert' | 'full')
-                    setShowAIMenu(false)
-                  }}
-                  className="w-full px-4 text-left"
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '12px',
-                    textTransform: 'uppercase',
-                    height: '40px',
-                    background: 'transparent',
-                    border: 'none',
-                    borderTop: idx > 0 ? '1px solid var(--palm-border)' : 'none',
-                    color: 'var(--palm-text-dark)',
-                    cursor: 'pointer',
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--palm-screen-base)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  {action}
                 </button>
               ))}
             </div>

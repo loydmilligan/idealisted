@@ -230,7 +230,7 @@ function HomePageContent() {
   }
 
   // Phase 3: Preview-First AI Capture
-  const handleAICapture = async (text: string, action: 'sort' | 'convert' | 'full') => {
+  const handleAICapture = async (text: string) => {
     // Validate input
     if (!text || text.trim().length === 0) {
       console.warn('[AI Capture] Empty text provided, ignoring')
