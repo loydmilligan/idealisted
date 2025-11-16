@@ -9,6 +9,7 @@ import { AISuggestion } from '@/types'
 interface AISuggestionPanelProps {
   suggestion: AISuggestion | null
   isLoading: boolean
+  isCreating?: boolean
   onApplySuggestion: (type: 'todo' | 'note' | 'task' | 'project' | 'list') => void
   onDismiss: () => void
 }
@@ -16,6 +17,7 @@ interface AISuggestionPanelProps {
 export function AISuggestionPanel({
   suggestion,
   isLoading,
+  isCreating = false,
   onApplySuggestion,
   onDismiss
 }: AISuggestionPanelProps) {
@@ -96,6 +98,7 @@ export function AISuggestionPanel({
             onClick={onDismiss}
             variant="danger"
             size="sm"
+            disabled={isCreating}
             title="Dismiss suggestion"
           >
             ✕
@@ -287,6 +290,7 @@ export function AISuggestionPanel({
               onClick={() => onApplySuggestion(suggestion.suggested_type)}
               variant="primary"
               size="sm"
+              disabled={isCreating}
               className="flex items-center justify-center gap-1"
             >
               <span className="flex items-center justify-center gap-1">
@@ -303,6 +307,7 @@ export function AISuggestionPanel({
                   onClick={() => onApplySuggestion(type)}
                   variant="secondary"
                   size="sm"
+                  disabled={isCreating}
                   className="flex items-center justify-center gap-1"
                 >
                   <span className="flex items-center justify-center gap-1">

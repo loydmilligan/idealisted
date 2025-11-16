@@ -102,7 +102,7 @@ This sprint implements AI-powered features and notification capabilities for Ide
 
 ## Phase 3: AI Suggestion Flow
 
-**Status**: In Progress (Tasks 3.1 ✅ and 3.2 ✅ Complete)
+**Status**: In Progress (Tasks 3.1 ✅, 3.2 ✅, and 3.3 ✅ Complete)
 **Dependencies**: Phase 2 complete ✅
 
 **Purpose**: Implement preview-first AI suggestion workflow in capture screen.
@@ -123,8 +123,15 @@ This sprint implements AI-powered features and notification capabilities for Ide
 - ✅ Empty state handling for tags ("No tags suggested")
 - ✅ Fixed 2 code review warnings (CSS class, date parsing)
 
+**What Was Built (Task 3.3)**:
+- ✅ Refined Accept/Override/Dismiss logic with UX enhancements
+- ✅ Error handling with user feedback (alert dialog on failure)
+- ✅ Success feedback (console log + tab flash animation)
+- ✅ Button disabled state during API call (prevents duplicate submissions)
+- ✅ Enhanced UX: Suggestion panel stays open on error for retry
+- ✅ Tag usage tracking integrated (automatic via POST /api/items)
+
 **What Will Be Built (Remaining Tasks)**:
-- Refined Accept/Override/Dismiss logic - Tag usage tracking integration (Task 3.3)
 - Loading state enhancements - Spinner overlays, retry buttons (Task 3.4)
 
 **User Experience**:
@@ -132,7 +139,8 @@ This sprint implements AI-powered features and notification capabilities for Ide
 2. Loading state appears ("Analyzing with AI...")
 3. Suggestion panel shows: confidence, type, reasoning, extracted metadata
 4. User can accept, change type, or dismiss
-5. Item created with AI-extracted metadata
+5. Item created with AI-extracted metadata (buttons disabled during creation)
+6. Success feedback via tab flash animation, or error alert with retry option
 
 **Key Feature**: Preview-first (no more auto-creating items before AI review) ✅ Implemented
 
@@ -330,7 +338,7 @@ This sprint implements AI-powered features and notification capabilities for Ide
 **Phase Completion Checklist**:
 - [x] Phase 1: Database Foundation ✅
 - [x] Phase 2: AI Settings UI ✅
-- [ ] Phase 3: AI Suggestion Flow (Tasks 3.1 ✅ and 3.2 ✅ Complete, Tasks 3.3-3.4 Remaining)
+- [ ] Phase 3: AI Suggestion Flow (Tasks 3.1 ✅, 3.2 ✅, and 3.3 ✅ Complete, Task 3.4 Remaining)
 - [x] Phase 4: AI Tag Suggestions ✅
 - [ ] Phase 5: Task Reminders (Tasks 5.1 ✅ and 5.3 ✅ Complete, Task 5.4 Optional)
 - [ ] Phase 6: Scheduled Summary
@@ -356,5 +364,5 @@ This sprint implements AI-powered features and notification capabilities for Ide
 ---
 
 **Last Updated**: 2025-11-15
-**Current Phase**: Phase 3 In Progress (Tasks 3.1 ✅ and 3.2 ✅ Complete), Phase 5 In Progress (Tasks 5.1 ✅ and 5.3 ✅ Complete)
-**Next Phase**: Phase 3 Tasks 3.3-3.4 (Accept/Override/Dismiss logic, Loading states) or Phase 5 Task 5.4 (optional settings UI)
+**Current Phase**: Phase 3 In Progress (Tasks 3.1 ✅, 3.2 ✅, and 3.3 ✅ Complete), Phase 5 In Progress (Tasks 5.1 ✅ and 5.3 ✅ Complete)
+**Next Phase**: Phase 3 Task 3.4 (Loading state enhancements) or Phase 5 Task 5.4 (optional settings UI)

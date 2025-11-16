@@ -65,6 +65,7 @@ function HomePageContent() {
   const [aiSuggestion, setAiSuggestion] = useState<AISuggestion | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [capturedText, setCapturedText] = useState('')
+  const [isCreatingItem, setIsCreatingItem] = useState(false)
 
   // Load items on mount
   useEffect(() => {
@@ -276,7 +277,17 @@ function HomePageContent() {
 
   // Handle user accepting AI suggestion
   const handleAcceptSuggestion = async (overrideType?: Exclude<EntityType, 'idea'>) => {
-    if (!aiSuggestion || !capturedText) return
+    if (!aiSuggestion) {
+      console.warn('[Accept Suggestion] No suggestion to accept')
+      return
+    }
+
+    if (isCreatingItem) {
+      console.warn('[Accept Suggestion] Already creating item, ignoring duplicate click')
+      return
+    }
+
+    setIsCreatingItem(true)
 
     try {
       const entityType = overrideType || aiSuggestion.suggested_type
@@ -375,12 +386,23 @@ function HomePageContent() {
         // Flash appropriate tab
         tabNavRef.current?.triggerFlash('ready', entityType)
 
+        // Show success feedback
+        console.log(`[Accept Suggestion] ${entityType.charAt(0).toUpperCase() + entityType.slice(1)} created successfully`)
+
         // Clear AI state
         setAiSuggestion(null)
         setCapturedText('')
       }
     } catch (error) {
-      console.error('Failed to create item from suggestion:', error)
+      console.error('[Accept Suggestion] Error creating item:', error)
+
+      // Show error feedback to user
+      alert('Failed to create item. Please try again or use manual entry.')
+
+      // Keep suggestion panel open so user can retry
+      // Don't clear aiSuggestion or capturedText
+    } finally {
+      setIsCreatingItem(false)
     }
   }
 
@@ -719,6 +741,7 @@ function HomePageContent() {
             }))}
             aiSuggestion={aiSuggestion}
             isAnalyzing={isAnalyzing}
+            isCreatingItem={isCreatingItem}
             onAcceptSuggestion={handleAcceptSuggestion}
             onDismissSuggestion={handleDismissSuggestion}
           />

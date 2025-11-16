@@ -35,6 +35,7 @@ interface CaptureScreenProps {
   // Phase 3: AI Suggestion Preview
   aiSuggestion?: AISuggestion | null
   isAnalyzing?: boolean
+  isCreatingItem?: boolean
   onAcceptSuggestion?: (overrideType?: Exclude<EntityType, 'idea'>) => void
   onDismissSuggestion?: () => void
 }
@@ -46,6 +47,7 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
   className = '',
   aiSuggestion,
   isAnalyzing,
+  isCreatingItem,
   onAcceptSuggestion,
   onDismissSuggestion,
 }) => {
@@ -281,6 +283,7 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
           <AISuggestionPanel
             suggestion={aiSuggestion}
             isLoading={isAnalyzing || false}
+            isCreating={isCreatingItem}
             onApplySuggestion={(type) => {
               onAcceptSuggestion?.(type as Exclude<EntityType, 'idea'>)
             }}
