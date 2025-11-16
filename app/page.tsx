@@ -66,6 +66,7 @@ function HomePageContent() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [capturedText, setCapturedText] = useState('')
   const [isCreatingItem, setIsCreatingItem] = useState(false)
+  const [creationError, setCreationError] = useState<string | null>(null)
 
   // Load items on mount
   useEffect(() => {
@@ -389,6 +390,9 @@ function HomePageContent() {
         // Show success feedback
         console.log(`[Accept Suggestion] ${entityType.charAt(0).toUpperCase() + entityType.slice(1)} created successfully`)
 
+        // Clear error state
+        setCreationError(null)
+
         // Clear AI state
         setAiSuggestion(null)
         setCapturedText('')
@@ -396,8 +400,8 @@ function HomePageContent() {
     } catch (error) {
       console.error('[Accept Suggestion] Error creating item:', error)
 
-      // Show error feedback to user
-      alert('Failed to create item. Please try again or use manual entry.')
+      // Set error message for in-UI display
+      setCreationError('Failed to create item. Please try again or use manual entry.')
 
       // Keep suggestion panel open so user can retry
       // Don't clear aiSuggestion or capturedText
@@ -742,6 +746,7 @@ function HomePageContent() {
             aiSuggestion={aiSuggestion}
             isAnalyzing={isAnalyzing}
             isCreatingItem={isCreatingItem}
+            creationError={creationError}
             onAcceptSuggestion={handleAcceptSuggestion}
             onDismissSuggestion={handleDismissSuggestion}
           />

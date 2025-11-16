@@ -36,6 +36,7 @@ interface CaptureScreenProps {
   aiSuggestion?: AISuggestion | null
   isAnalyzing?: boolean
   isCreatingItem?: boolean
+  creationError?: string | null
   onAcceptSuggestion?: (overrideType?: Exclude<EntityType, 'idea'>) => void
   onDismissSuggestion?: () => void
 }
@@ -48,6 +49,7 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
   aiSuggestion,
   isAnalyzing,
   isCreatingItem,
+  creationError,
   onAcceptSuggestion,
   onDismissSuggestion,
 }) => {
@@ -163,7 +165,7 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
             {/* Unsorted button */}
             <button
               onClick={() => handleCapture(null)}
-              disabled={!inputText.trim()}
+              disabled={!inputText.trim() || isAnalyzing || isCreatingItem}
               className="retro-btn retro-btn-primary"
               aria-label="Save as unsorted"
               title="Save as unsorted"
@@ -185,10 +187,10 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
             {aiEnabled && (
               <button
                 onClick={handleAIAction}
-                disabled={!inputText.trim()}
+                disabled={!inputText.trim() || isAnalyzing || isCreatingItem}
                 className="retro-btn retro-btn-secondary"
                 aria-label="AI analyze"
-                title="AI analyze"
+                title={isAnalyzing ? "Analyzing..." : "AI analyze"}
                 style={{
                   width: '40px',
                   height: '40px',
@@ -200,7 +202,7 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
                   justifyContent: 'center',
                 }}
               >
-                🤖
+                {isAnalyzing ? '⏳' : '🤖'}
               </button>
             )}
           </div>
@@ -223,7 +225,7 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
                     handleCapture(btn.type)
                   }
                 }}
-                disabled={!inputText.trim()}
+                disabled={!inputText.trim() || isAnalyzing || isCreatingItem}
                 className={`retro-btn retro-btn-secondary ${accentClass} whitespace-nowrap flex-shrink-0`}
               >
                 {btn.label}
@@ -284,6 +286,7 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
             suggestion={aiSuggestion}
             isLoading={isAnalyzing || false}
             isCreating={isCreatingItem}
+            error={creationError}
             onApplySuggestion={(type) => {
               onAcceptSuggestion?.(type as Exclude<EntityType, 'idea'>)
             }}

@@ -10,6 +10,7 @@ interface AISuggestionPanelProps {
   suggestion: AISuggestion | null
   isLoading: boolean
   isCreating?: boolean
+  error?: string | null
   onApplySuggestion: (type: 'todo' | 'note' | 'task' | 'project' | 'list') => void
   onDismiss: () => void
 }
@@ -18,6 +19,7 @@ export function AISuggestionPanel({
   suggestion,
   isLoading,
   isCreating = false,
+  error = null,
   onApplySuggestion,
   onDismiss
 }: AISuggestionPanelProps) {
@@ -55,9 +57,12 @@ export function AISuggestionPanel({
     return (
       <RetroCard className="palm-ai-suggestion">
         <div className="flex items-center justify-center py-4">
-          <div className="text-center text-xs opacity-70">
-            <RetroIcon type="ai" size="md" />
-            <p className="mt-2">🤖 AI is analyzing...</p>
+          <div className="text-center text-xs">
+            <div className="animate-pulse mb-2">
+              <RetroIcon type="ai" size="md" />
+            </div>
+            <p className="font-semibold mb-1">🤖 AI is analyzing...</p>
+            <p className="text-xs opacity-70">Extracting metadata and suggestions</p>
           </div>
         </div>
       </RetroCard>
@@ -104,6 +109,19 @@ export function AISuggestionPanel({
             ✕
           </RetroButton>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-3 p-3 border-2 border-red-500 bg-red-50 rounded">
+            <div className="flex items-start gap-2">
+              <span className="text-red-500 text-lg">⚠️</span>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-red-700 mb-1">Error</p>
+                <p className="text-xs text-red-600">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Confidence Bar */}
         <div className="mb-3">
