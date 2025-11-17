@@ -9,6 +9,8 @@ declare global {
   var __daily_review_is_running: boolean | undefined
   var __reminder_check_cron_task: any | undefined
   var __reminder_check_is_running: boolean | undefined
+  var __daily_summary_cron_task: any | undefined
+  var __daily_summary_is_running: boolean | undefined
 }
 
 class SchedulerService {
@@ -42,17 +44,38 @@ class SchedulerService {
     })
 
     console.log('[Scheduler] Task reminder check cron started (every minute)')
+
+    // Daily Summary Check (Phase 6 - Task 6.2)
+    if (global.__daily_summary_cron_task) {
+      global.__daily_summary_cron_task.stop()
+      global.__daily_summary_cron_task = undefined
+    }
+
+    global.__daily_summary_cron_task = cron.schedule('* * * * *', async () => {
+      await this.checkAndSendDailySummary()
+    })
+
+    console.log('[Scheduler] Daily summary check cron started (every minute)')
   }
 
   /**
    * Stop the scheduler
    */
   stop() {
+    // Stop all CRON tasks
     if (global.__daily_review_cron_task) {
       global.__daily_review_cron_task.stop()
       global.__daily_review_cron_task = undefined
-      console.log('[Scheduler] Stopped')
     }
+    if (global.__reminder_check_cron_task) {
+      global.__reminder_check_cron_task.stop()
+      global.__reminder_check_cron_task = undefined
+    }
+    if (global.__daily_summary_cron_task) {
+      global.__daily_summary_cron_task.stop()
+      global.__daily_summary_cron_task = undefined
+    }
+    console.log('[Scheduler] All CRON tasks stopped')
   }
 
   /**
@@ -238,6 +261,111 @@ class SchedulerService {
       console.error('[Reminder Check] Fatal error:', error)
     } finally {
       global.__reminder_check_is_running = false
+    }
+  }
+
+  /**
+   * Check if it's time to send daily summary and send it
+   * Phase 6 - Task 6.2: CRON scheduled summary jobs
+   */
+  private async checkAndSendDailySummary() {
+    // Prevent concurrent executions
+    if (global.__daily_summary_is_running) return
+
+    try {
+      global.__daily_summary_is_running = true
+
+      // Load daily summary feature settings
+      const { db } = await import('./db')
+      const featureSetting = db.prepare('SELECT enabled FROM ai_feature_settings WHERE feature_name = ?').get('daily_summary') as any
+
+      if (!featureSetting || !featureSetting.enabled) {
+        // Daily summary feature is disabled
+        return
+      }
+
+      // Check if ntfy is configured and enabled
+      const ntfySetting = db.prepare('SELECT value FROM settings WHERE key = ?').get('ntfy_config') as any
+
+      if (!ntfySetting) {
+        return
+      }
+
+      const ntfyConfig = JSON.parse(ntfySetting.value)
+
+      if (!ntfyConfig.enabled) {
+        return
+      }
+
+      // Get current time in HH:mm format
+      const now = new Date()
+      const currentTime = format(now, 'HH:mm')
+
+      // Check if it's one of the configured summary times (9am, 12pm, 6pm)
+      const summaryTimes = ['09:00', '12:00', '18:00']
+
+      if (!summaryTimes.includes(currentTime)) {
+        return
+      }
+
+      // Check if summary was already sent at this hour today
+      const currentHour = now.getHours()
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+
+      const lastSummary = db.prepare(`
+        SELECT created_at FROM daily_summaries
+        WHERE created_at >= ?
+        ORDER BY created_at DESC
+        LIMIT 1
+      `).get(todayStart.getTime()) as { created_at: number } | undefined
+
+      if (lastSummary) {
+        const lastSummaryDate = new Date(lastSummary.created_at)
+        if (lastSummaryDate.getHours() === currentHour) {
+          console.log('[Scheduler] Daily summary already sent at this hour')
+          return
+        }
+      }
+
+      // All conditions met - generate and send the summary!
+      console.log('[Scheduler] Generating daily summary...')
+
+      const { generateDailySummary, formatSummaryMessage } = await import('./summary')
+      const summary = generateDailySummary()
+
+      // Don't send if no activity
+      if (!summary.hasActivity) {
+        console.log('[Scheduler] No activity today - skipping summary')
+        return
+      }
+
+      // Format the summary message
+      const message = formatSummaryMessage(summary)
+
+      // Send notification
+      const notificationResult = await ntfyService.sendNotification(
+        '📊 Daily Summary',
+        message,
+        [],
+        'default'
+      )
+
+      if (notificationResult.success) {
+        // Record that we sent the summary
+        db.prepare(`
+          INSERT INTO daily_summaries (date, data, created_at)
+          VALUES (?, ?, ?)
+        `).run(summary.date, JSON.stringify(summary), Date.now())
+
+        console.log('[Scheduler] Daily summary sent successfully')
+      } else {
+        console.error('[Scheduler] Failed to send summary notification:', notificationResult.error)
+      }
+    } catch (error) {
+      console.error('[Scheduler] Error in daily summary check:', error)
+    } finally {
+      global.__daily_summary_is_running = false
     }
   }
 }
