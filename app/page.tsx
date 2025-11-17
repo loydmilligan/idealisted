@@ -20,6 +20,8 @@ import { ReadyInboxScreen } from '@/components/modern/screens/ReadyInboxScreen'
 import { EntitiesScreen } from '@/components/modern/screens/EntitiesScreen'
 import { EntityModal, FormField } from '@/components/modern/EntityModal'
 import { SettingsModal } from '@/components/modern/SettingsModal'
+import { WelcomeModal } from '@/components/modern/WelcomeModal'
+import { TourExample } from '@/components/ui/TourExample'
 import { TagInput } from '@/components/modern/TagInput'
 import { EntityType } from '@/lib/entity-colors'
 import { ItemWithRelations, AISuggestion } from '@/types'
@@ -61,6 +63,10 @@ function HomePageContent() {
   // Settings modal state
   const [settingsOpen, setSettingsOpen] = useState(false)
 
+  // Welcome modal and tour state
+  const [welcomeOpen, setWelcomeOpen] = useState(false)
+  const [tourOpen, setTourOpen] = useState(false)
+
   // AI suggestion state (Phase 3: Preview-First)
   const [aiSuggestion, setAiSuggestion] = useState<AISuggestion | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -72,6 +78,15 @@ function HomePageContent() {
   useEffect(() => {
     fetchItems()
     loadAndApplyTheme()
+
+    // Check first launch and show welcome modal
+    if (typeof window !== 'undefined') {
+      const hasSeenWelcome = localStorage.getItem('idealisted-welcome-shown')
+      if (!hasSeenWelcome) {
+        // Small delay so app loads first
+        setTimeout(() => setWelcomeOpen(true), 500)
+      }
+    }
   }, [])
 
   // Client-side fallback check for daily reviews
@@ -1108,6 +1123,22 @@ function HomePageContent() {
       <SettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+      />
+
+      {/* Welcome Modal */}
+      <WelcomeModal
+        isOpen={welcomeOpen}
+        onClose={() => setWelcomeOpen(false)}
+        onStartTour={() => {
+          setWelcomeOpen(false)
+          setTourOpen(true)
+        }}
+      />
+
+      {/* Onboarding Tour */}
+      <TourExample
+        isOpen={tourOpen}
+        onClose={() => setTourOpen(false)}
       />
         </div>
       </div>

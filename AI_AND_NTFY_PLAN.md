@@ -2235,7 +2235,7 @@ console.log('[Scheduler] Daily summary check cron started (every minute)')
 
 ## Phase 7: Onboarding Wizard
 
-**Status**: In Progress (Task 7.1 Complete ✅)
+**Status**: In Progress (Tasks 7.1 ✅ and 7.2 ✅ Complete)
 **Dependencies**: All features complete (demonstrates full app)
 
 **Purpose**: Interactive walkthrough for first-time users.
@@ -2261,6 +2261,722 @@ console.log('[Scheduler] Daily summary check cron started (every minute)')
 - TourTooltip.tsx - Step content display
 - OnboardingWizard.tsx - State management
 - tour-steps.tsx - Step definitions
+
+---
+
+## Phase 7 Task 7.2: Create Welcome Modal - Complete ✅
+
+**Implementation Summary**:
+
+This task created a first-launch welcome modal that greets new users and offers to start the onboarding tour.
+
+**Files Created**:
+1. `components/modern/WelcomeModal.tsx` (237 lines) - First-launch greeting modal with retro styling
+
+**Files Modified**:
+2. `app/page.tsx` - Added welcome modal and tour integration (lines 67-68, 82-89, 1128-1142)
+
+**Core Features Implemented**:
+
+**WelcomeModal Component**:
+- Centered modal with retro styling (not bottom sheet - confirmation-style interaction)
+- Backdrop overlay (z-index 1002) with modal content (z-index 1003)
+- Two action buttons: "Take Tour" (primary) and "Skip for now" (secondary)
+- "Don't show this again" checkbox with localStorage persistence
+- Close button (X) in header for dismissing modal
+- Escape key support and backdrop click to dismiss
+- Body scroll prevention while modal is open
+- Framer-motion scale + fade animations (0.2s duration)
+- SSR-safe with `typeof window !== 'undefined'` guards
+
+**LocalStorage Implementation**:
+- Storage key: `'idealisted-welcome-shown'`
+- First-launch detection with 500ms delay for smooth UX (prevents flickering)
+- Preference saved when "Don't show again" checked OR "Take Tour" clicked
+- Prevents modal from showing on subsequent visits when preference saved
+
+**Integration with app/page.tsx**:
+- Added state management for welcome modal and tour (lines 67-68)
+- Implemented first-launch detection in useEffect (lines 82-89)
+- Mounted WelcomeModal component with proper callbacks (lines 1128-1136)
+- Mounted TourExample component for tour functionality (lines 1138-1142)
+- Proper callback wiring: "Take Tour" closes welcome and opens tour
+
+**User Flow**:
+1. First visit: Modal appears after 500ms (allows app UI to load first)
+2. User chooses "Take Tour" → starts onboarding tour (TourExample)
+3. User chooses "Skip for now" → closes modal and saves preference
+4. "Don't show again" checkbox → saves preference to localStorage
+5. Subsequent visits: Modal doesn't appear if preference saved
+
+**Design Decisions**:
+- Centered modal (not bottom sheet) for welcome/confirmation-style interaction
+- LocalStorage (not database) for fast, client-side preference storage
+- 500ms delay allows app UI to load first (better UX, prevents jarring appearance)
+- Scale animation (not slide) for centered modal feel (more natural for confirmation dialogs)
+- Follows MorningFinalizeModal and SettingsModal patterns for consistency
+
+**Verification**:
+- ✅ TypeScript compilation clean
+- ✅ Webpack/Next.js build successful
+- ✅ Server running without errors
+- ✅ Modal shows on first launch (after 500ms)
+- ✅ Buttons work correctly (Take Tour starts tour, Skip closes modal)
+- ✅ Preference saves to localStorage correctly
+- ✅ Escape key closes modal
+- ✅ Backdrop click closes modal
+- ✅ Body scroll prevented while open
+- ✅ Retro styling matches existing modals
+- ✅ Animation smooth (scale + fade, 0.2s duration)
+- ✅ SSR-safe implementation (window checks)
+- ✅ No console errors or warnings
+
+**Files Modified** (absolute paths):
+- `/home/mmariani/Projects/idealisted/components/modern/WelcomeModal.tsx` (created)
+- `/home/mmariani/Projects/idealisted/app/page.tsx` (modified)
+
+---
+
+## Phase 7 Task 7.2: Context Manifest (Original Documentation)
+
+### How This Currently Works: Modal Patterns and First-Launch Detection
+
+**Modal Architecture in the Application**
+
+The application has three distinct modal patterns that provide good reference for implementing the Welcome Modal:
+
+**1. Entity Modal Pattern (Bottom Sheet Style) - components/modern/EntityModal.tsx**
+
+When a user creates or edits an entity (task, note, project, list), the EntityModal component demonstrates the full modal lifecycle:
+
+The modal uses framer-motion's `AnimatePresence` with a two-layer approach (lines 167-178):
+- Layer 1: `motion.div` with className "retro-overlay" creates a full-screen backdrop that fades in (opacity 0→1, 0.2s duration)
+- Layer 2: `motion.div` with className "retro-bottom-sheet" slides up from bottom using spring physics (y: '100%'→0, damping: 25, stiffness: 200)
+
+The backdrop has `onClick={onClose}` allowing users to dismiss by clicking outside the modal. The modal content itself uses `onClick={(e) => e.stopPropagation()}` to prevent click-through.
+
+Body scroll is prevented while modal is open using this pattern (lines 99-116):
+```tsx
+useEffect(() => {
+  const handleEscape = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && isOpen) {
+      onClose()
+    }
+  }
+
+  if (isOpen) {
+    document.addEventListener('keydown', handleEscape)
+    document.body.style.overflow = 'hidden'
+  }
+
+  return () => {
+    document.removeEventListener('keydown', handleEscape)
+    document.body.style.overflow = ''
+  }
+}, [isOpen, onClose])
+```
+
+Button layout uses dual-save pattern with flex layout (lines 318-334):
+- Primary action button: "SAVE" or "CONVERT"
+- Secondary action button: "SAVE & GO TO FILES"
+- Buttons use `.retro-btn` and `.retro-btn-primary`/`.retro-btn-secondary` classes
+- Container uses flex layout: `<div className="flex gap-3">`
+
+**2. Settings Modal Pattern (Centered Dialog Style) - components/modern/SettingsModal.tsx**
+
+Different from EntityModal, SettingsModal shows a centered dialog (not bottom sheet). Key differences:
+
+Opens WITHOUT framer-motion animations - just a simple conditional render with `if (!isOpen) return null` (line 20).
+
+Layout structure (lines 22-70):
+```tsx
+<div className="retro-overlay" onClick={onClose}>
+  <div className="retro-settings-modal" onClick={(e) => e.stopPropagation()}>
+    {/* Header with close button */}
+    <div className="retro-settings-header">
+      <h2>SETTINGS</h2>
+      <button className="retro-close-btn" onClick={onClose}>
+        <X size={20} />
+      </button>
+    </div>
+
+    {/* Tabs */}
+    <div className="retro-settings-tabs">
+      <button className={`retro-tab ${activeTab === 'ai' ? 'active' : ''}`}>
+        AI
+      </button>
+      {/* More tabs */}
+    </div>
+
+    {/* Content */}
+    <div className="retro-settings-content">
+      {activeTab === 'ai' && <AISettingsTab />}
+    </div>
+  </div>
+</div>
+```
+
+The `.retro-settings-modal` class (styles/retro.css:700-714) provides:
+- `position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%)`
+- `width: 90%; max-width: 600px; max-height: 80vh`
+- `background: var(--palm-bg-primary)`
+- `border: 3px solid var(--palm-border-dark)`
+- `box-shadow: 4px 4px 0 var(--palm-border-dark)` (retro drop shadow effect)
+- `z-index: 1001` (sits above entity modals which are z-index: 1000)
+
+Close button uses lucide-react X icon with `.retro-close-btn` class (lines 28-30, CSS at 734-743).
+
+**3. Confirmation Modal Pattern - components/MorningFinalizeModal.tsx**
+
+Shows a two-button confirmation pattern that's perfect reference for Welcome Modal:
+
+Uses RetroCard component wrapper instead of raw divs (line 56):
+```tsx
+<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+  <RetroCard className="w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+```
+
+Header with close button (lines 58-69):
+```tsx
+<div className="flex items-center justify-between p-4 border-b-2 border-[var(--retro-primary)]">
+  <h2 className="text-lg font-bold uppercase tracking-wide">
+    Finalize Today's Plan
+  </h2>
+  <RetroButton onClick={onClose} variant="secondary" size="sm">
+    <X className="w-4 h-4" />
+  </RetroButton>
+</div>
+```
+
+Footer with action buttons (lines 141-156):
+```tsx
+<div className="p-4 border-t-2 border-[var(--retro-primary)] flex gap-2 justify-end">
+  <RetroButton onClick={onClose} variant="secondary">
+    Cancel
+  </RetroButton>
+  <RetroButton onClick={handleFinalize} variant="primary" disabled={isLoading}>
+    {isLoading ? 'Finalizing...' : 'Finalize Plan'}
+  </RetroButton>
+</div>
+```
+
+**Checkbox Pattern for "Don't Show Again"**
+
+The application has extensive checkbox usage across settings tabs. Reference pattern from components/modern/settings/AppearanceTab.tsx (lines 108-116):
+
+```tsx
+<label className="retro-checkbox-label">
+  <input
+    type="checkbox"
+    className="retro-checkbox"
+    checked={config.showTimestamps}
+    onChange={(e) => setConfig({ ...config, showTimestamps: e.target.checked })}
+  />
+  Show timestamps
+</label>
+```
+
+The `.retro-checkbox` class (retro.css:844-848):
+- `width: 16px; height: 16px`
+- `margin-right: 8px`
+
+The `.retro-checkbox-label` class (retro.css:850-858):
+- `display: flex; align-items: center`
+- `font-family: var(--font-sans); font-size: 13px`
+- `color: var(--palm-text-primary)`
+- `margin-bottom: 8px`
+- `cursor: pointer`
+
+More complex example with disabled state from NotificationsTab.tsx (lines 479-487):
+```tsx
+<label className="retro-checkbox-label">
+  <input
+    type="checkbox"
+    className="retro-checkbox"
+    checked={reminderConfig.enabled}
+    onChange={(e) => setReminderConfig({ ...reminderConfig, enabled: e.target.checked })}
+  />
+  Enable task reminders
+</label>
+<p style={{
+  fontSize: '11px',
+  color: 'var(--retro-text-secondary)',
+  marginTop: '4px',
+  marginLeft: '24px',
+  marginBottom: '16px'
+}}>
+  Automatically send notifications for tasks with due dates
+</p>
+```
+
+**First-Launch Detection and Preference Storage**
+
+Currently there is NO existing first-launch detection mechanism in the codebase. Search results show:
+- No localStorage usage for onboarding/tour state (only lib/themes.ts uses localStorage for theme preference)
+- No database columns for tour completion
+- No "welcome_shown" or "tour_completed" flags anywhere
+
+The existing localStorage pattern from lib/themes.ts (lines 89-96) shows:
+```typescript
+export function applyTheme(theme: RetroTheme) {
+  const root = document.documentElement
+
+  Object.entries(theme.colors).forEach(([key, value]) => {
+    root.style.setProperty(`--retro-${key}`, value)
+  })
+
+  // Store theme preference
+  localStorage.setItem('retro-theme', theme.id)
+}
+
+export function getStoredTheme(): string {
+  return typeof window !== 'undefined'
+    ? localStorage.getItem('retro-theme') || 'classic-green'
+    : 'classic-green'
+}
+```
+
+This demonstrates the pattern:
+1. Check `typeof window !== 'undefined'` before accessing localStorage (SSR safety)
+2. Use `localStorage.getItem(key)` with fallback value via `|| defaultValue`
+3. Use `localStorage.setItem(key, value)` to persist
+
+The settings table (lib/db.ts:429-435) stores configuration as JSON strings:
+```sql
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+)
+```
+
+Settings are accessed via /api/settings endpoint (PUT/GET). Example from AppearanceTab.tsx (lines 21-32, 35-57):
+```tsx
+// Load
+const loadSettings = async () => {
+  try {
+    const response = await fetch('/api/settings')
+    const data = await response.json()
+    if (data.settings?.appearance_config) {
+      setConfig(data.settings.appearance_config)
+    }
+  } catch (error) {
+    console.error('Failed to load settings:', error)
+  } finally {
+    setLoading(false)
+  }
+}
+
+// Save
+const handleSave = async () => {
+  setSaving(true)
+  setMessage('')
+  try {
+    const response = await fetch('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ appearance_config: config }),
+    })
+
+    if (response.ok) {
+      document.documentElement.setAttribute('data-theme', config.theme)
+      setMessage('✓ Settings saved successfully')
+    } else {
+      setMessage('✗ Failed to save settings')
+    }
+  } catch (error) {
+    setMessage('✗ Error saving settings')
+  } finally {
+    setSaving(false)
+    setTimeout(() => setMessage(''), 3000)
+  }
+}
+```
+
+**For Welcome Modal: Recommendation**
+
+Use localStorage for first-launch detection (fast, client-side, no API call needed):
+- Key: `'idealisted-welcome-shown'`
+- Value: `'true'` after modal shown OR user checks "Don't show again"
+- Check on app mount in app/page.tsx
+
+Optionally sync to database settings table for cross-device persistence (key: `'onboarding_state'`, value: `JSON.stringify({ welcomeShown: true, tourCompleted: false })`), but this is NOT required for Task 7.2.
+
+**Integration with TourExample Component**
+
+The Welcome Modal needs to trigger the tour when user clicks "Take Tour". The TourExample component (components/ui/TourExample.tsx) shows the integration pattern:
+
+TourExample expects these props (lines 30-34):
+```tsx
+interface TourExampleProps {
+  isOpen: boolean
+  onClose: () => void
+  steps?: TourStep[]
+}
+```
+
+The parent component (app/page.tsx will be) manages tour state (example pattern lines 12-20):
+```tsx
+function MyApp() {
+  const [showTour, setShowTour] = useState(false)
+
+  return (
+    <>
+      <button onClick={() => setShowTour(true)}>Start Tour</button>
+      <TourExample isOpen={showTour} onClose={() => setShowTour(false)} />
+    </>
+  )
+}
+```
+
+TourExample handles:
+- Rendering TourSpotlight (overlay with cutout around target element)
+- Rendering TourTooltip (step content with Next/Prev/Skip buttons)
+- Finding target elements via data-tour-id attributes or CSS selectors
+- Scrolling to elements if not visible
+- Preventing body scroll when active (lines 113-123)
+- Step navigation (currentStepIndex state management)
+
+The tour does NOT auto-start on mount - it's controlled externally via `isOpen` prop. This is perfect for Welcome Modal integration:
+
+```tsx
+// In WelcomeModal.tsx
+const handleTakeTour = () => {
+  // Close welcome modal
+  onClose()
+  // Start tour via callback
+  onStartTour()
+}
+```
+
+**App Integration Point**
+
+The main app page is app/page.tsx. Current structure (lines 41-117):
+
+```tsx
+function HomePageContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState<TabId>('capture')
+
+  // Modal states
+  const [modalOpen, setModalOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
+  // Load items on mount
+  useEffect(() => {
+    fetchItems()
+    loadAndApplyTheme()
+  }, [])
+
+  // ... rest of component
+
+  return (
+    <div className="retro-device-frame">
+      {/* Main UI */}
+
+      {/* Settings Modal at end */}
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
+    </div>
+  )
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <HomePageContent />
+    </Suspense>
+  )
+}
+```
+
+Welcome Modal should be added similarly to SettingsModal - declared in HomePageContent at the same level (after line 1111), with state managed at top level:
+
+```tsx
+const [welcomeOpen, setWelcomeOpen] = useState(false)
+const [tourOpen, setTourOpen] = useState(false)
+
+useEffect(() => {
+  // Check first launch
+  const welcomeShown = typeof window !== 'undefined'
+    ? localStorage.getItem('idealisted-welcome-shown')
+    : null
+
+  if (!welcomeShown) {
+    setWelcomeOpen(true)
+  }
+}, [])
+```
+
+### Technical Reference Details
+
+#### Component File Structure
+
+**Create: components/modern/WelcomeModal.tsx**
+
+Dependencies to import:
+```tsx
+'use client'
+
+import React, { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'  // Already in package.json v12.23.24
+import { X } from 'lucide-react'  // Already used in SettingsModal
+```
+
+#### Modal Styling Classes
+
+From retro.css, use these existing classes:
+
+**Overlay**: `.retro-overlay`
+- Fixed full-screen backdrop
+- `background: var(--palm-overlay)` (rgba(45, 58, 45, 0.85))
+- `z-index: 900`
+
+**Modal Container**: `.retro-settings-modal` (or create similar centered class)
+- Centered dialog: `position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%)`
+- `width: 90%; max-width: 600px`
+- `background: var(--palm-bg-primary)`
+- `border: 3px solid var(--palm-border-dark)`
+- `box-shadow: 4px 4px 0 var(--palm-border-dark)`
+- `z-index: 1001`
+
+**Header**: `.retro-settings-header`
+- `display: flex; justify-content: space-between; align-items: center`
+- `padding: 12px 16px`
+- `background: var(--palm-screen-dark)`
+- `color: var(--palm-bg-primary)`
+- `border-bottom: 2px solid var(--palm-border-dark)`
+
+**Close Button**: `.retro-close-btn`
+- `background: none; border: none`
+- `color: var(--palm-bg-primary)`
+- `cursor: pointer; padding: 4px`
+- `display: flex; align-items: center; justify-content: center`
+
+**Content Area**: `.retro-settings-content`
+- `flex: 1; overflow-y: auto; padding: 16px`
+
+**Checkbox**: `.retro-checkbox-label` + `.retro-checkbox`
+```tsx
+<label className="retro-checkbox-label">
+  <input type="checkbox" className="retro-checkbox" checked={dontShowAgain} onChange={...} />
+  Don't show this again
+</label>
+```
+
+**Buttons**: `.retro-btn`, `.retro-btn-primary`, `.retro-btn-secondary`
+- Primary: "Take Tour" - beveled 3D effect
+- Secondary: "Skip for now" - flat border
+- Layout: `<div className="flex gap-3 justify-end">`
+
+#### LocalStorage Implementation
+
+```typescript
+// Check on mount (in app/page.tsx)
+const welcomeShown = typeof window !== 'undefined'
+  ? localStorage.getItem('idealisted-welcome-shown')
+  : null
+
+if (!welcomeShown) {
+  setWelcomeOpen(true)
+}
+
+// Mark as shown (in WelcomeModal.tsx)
+const handleClose = () => {
+  if (dontShowAgain) {
+    localStorage.setItem('idealisted-welcome-shown', 'true')
+  }
+  onClose()
+}
+
+const handleSkip = () => {
+  localStorage.setItem('idealisted-welcome-shown', 'true')
+  onClose()
+}
+
+const handleTakeTour = () => {
+  localStorage.setItem('idealisted-welcome-shown', 'true')
+  onClose()
+  onStartTour()  // Callback to parent
+}
+```
+
+#### Animation Configuration
+
+Use framer-motion pattern matching EntityModal:
+
+```tsx
+<AnimatePresence mode="wait">
+  {isOpen && (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        onClick={handleBackdropClick}
+        className="retro-overlay"
+      />
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className="retro-settings-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Modal content */}
+      </motion.div>
+    </>
+  )}
+</AnimatePresence>
+```
+
+Note: Use scale animation instead of slide for centered modals (more natural feel).
+
+#### Component Interface
+
+```tsx
+interface WelcomeModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onStartTour: () => void  // Callback to trigger TourExample
+}
+
+export const WelcomeModal: React.FC<WelcomeModalProps> = ({
+  isOpen,
+  onClose,
+  onStartTour
+}) => {
+  const [dontShowAgain, setDontShowAgain] = useState(false)
+
+  // Prevent body scroll when open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isOpen])
+
+  const handleBackdropClick = () => {
+    // Only close on backdrop click if user didn't check "Don't show again"
+    // OR handle same as Skip button
+    handleSkip()
+  }
+
+  const handleSkip = () => {
+    localStorage.setItem('idealisted-welcome-shown', 'true')
+    onClose()
+  }
+
+  const handleTakeTour = () => {
+    localStorage.setItem('idealisted-welcome-shown', 'true')
+    onClose()
+    onStartTour()
+  }
+
+  return (
+    <AnimatePresence mode="wait">
+      {/* Implementation */}
+    </AnimatePresence>
+  )
+}
+```
+
+#### Integration in app/page.tsx
+
+Add state and handlers:
+```tsx
+// After line 62 (after settingsOpen state)
+const [welcomeOpen, setWelcomeOpen] = useState(false)
+const [tourOpen, setTourOpen] = useState(false)
+
+// In first useEffect (after line 75, after loadAndApplyTheme())
+useEffect(() => {
+  fetchItems()
+  loadAndApplyTheme()
+
+  // Check first launch
+  const welcomeShown = typeof window !== 'undefined'
+    ? localStorage.getItem('idealisted-welcome-shown')
+    : null
+
+  if (!welcomeShown) {
+    // Small delay so app loads first
+    setTimeout(() => setWelcomeOpen(true), 500)
+  }
+}, [])
+```
+
+Add modals before closing </div> (after SettingsModal at line 1111):
+```tsx
+{/* Welcome Modal */}
+<WelcomeModal
+  isOpen={welcomeOpen}
+  onClose={() => setWelcomeOpen(false)}
+  onStartTour={() => setTourOpen(true)}
+/>
+
+{/* Tour (will be implemented in Task 7.3) */}
+<TourExample
+  isOpen={tourOpen}
+  onClose={() => setTourOpen(false)}
+/>
+```
+
+#### Content Recommendations
+
+Welcome message should be friendly and concise:
+
+**Title**: "WELCOME TO IDEALISTED"
+
+**Body** (2-3 sentences):
+"IdeaListed helps you capture, organize, and act on your ideas using a retro Palm Pilot interface.
+
+Take the quick tour to learn the key features, or jump right in and start capturing ideas.
+
+You can always restart the tour from Settings."
+
+**Checkbox**: "Don't show this again"
+
+**Buttons**:
+- Primary: "TAKE TOUR" (start onboarding)
+- Secondary: "SKIP FOR NOW" (close and mark as shown)
+
+#### Testing Checklist
+
+After implementation, test:
+
+□ Modal appears on first app launch
+□ Modal does NOT appear on subsequent launches (localStorage check)
+□ "Take Tour" button closes modal and starts tour
+□ "Skip for now" button closes modal and marks as shown
+□ "Don't show again" checkbox persists preference
+□ Backdrop click closes modal (same as Skip)
+□ Escape key closes modal
+□ Body scroll prevented when modal open
+□ Modal animations smooth (fade + scale)
+□ Retro styling matches app aesthetic
+□ Clear localStorage to reset: `localStorage.removeItem('idealisted-welcome-shown')`
+
+#### Potential Challenges
+
+1. **SSR Safety**: Always check `typeof window !== 'undefined'` before localStorage access
+2. **Race Condition**: Use setTimeout to delay welcome modal so app loads first (avoid flickering)
+3. **Modal Stacking**: WelcomeModal z-index should match SettingsModal (1001) so it sits above everything
+4. **Tour Transition**: Ensure smooth handoff from WelcomeModal close to TourExample open (close WelcomeModal first, then open tour)
+5. **Dev Testing**: Provide way to reset welcome state (clear localStorage in browser DevTools)
 
 ---
 
@@ -2907,7 +3623,7 @@ This task establishes the foundational spotlight/tooltip system that subsequent 
 - [x] Phase 4: AI Tag Suggestions ✅
 - [ ] Phase 5: Task Reminders (Tasks 5.1 ✅ and 5.3 ✅ Complete, Task 5.4 Optional)
 - [x] Phase 6: Scheduled Summary ✅ (All Tasks Complete: 6.2 ✅, 6.3 ✅, 6.4 ✅)
-- [ ] Phase 7: Onboarding Wizard (Task 7.1 Complete ✅ - Spotlight/Tooltip System)
+- [ ] Phase 7: Onboarding Wizard (Tasks 7.1 ✅ and 7.2 ✅ Complete - Spotlight/Tooltip System + Welcome Modal)
 
 **Overall Sprint Goals**:
 - AI features optional and user-controlled
@@ -2929,5 +3645,5 @@ This task establishes the foundational spotlight/tooltip system that subsequent 
 ---
 
 **Last Updated**: 2025-11-17
-**Current Phase**: Phase 7 In Progress (Task 7.1 Complete ✅ - Spotlight/Tooltip System)
-**Next Phase**: Phase 7 Task 7.2 (OnboardingWizard Component) OR Phase 5 Task 5.4 (Settings UI - Optional)
+**Current Phase**: Phase 7 In Progress (Tasks 7.1 ✅ and 7.2 ✅ Complete - Spotlight/Tooltip System + Welcome Modal)
+**Next Phase**: Phase 7 Task 7.3 (OnboardingWizard Component - Tour State Management) OR Phase 5 Task 5.4 (Settings UI - Optional)
