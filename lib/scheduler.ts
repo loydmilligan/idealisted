@@ -343,12 +343,56 @@ class SchedulerService {
       // Format the summary message
       const message = formatSummaryMessage(summary)
 
-      // Send notification
+      // Determine time of day label for notification title
+      const hourOfDay = now.getHours()
+      let timeLabel = 'Morning'
+      if (hourOfDay >= 12 && hourOfDay < 18) timeLabel = 'Midday'
+      if (hourOfDay >= 18) timeLabel = 'Evening'
+
+      // Determine priority based on urgency
+      // Use 'high' priority if tasks are due today to draw attention
+      // Otherwise use 'default' for normal notification sound
+      let priority: 'urgent' | 'high' | 'default' | 'low' = 'default'
+      if (summary.tasksDueToday > 0) {
+        priority = 'high'
+      }
+
+      // Build action buttons based on summary content
+      // Max 2 buttons to avoid cluttered mobile UI
+      const actions: Array<{
+        action: string
+        label: string
+        url?: string
+        clear?: boolean
+      }> = []
+
+      const baseURL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
+      // Add "View Tasks" button if there are tasks due (today or soon)
+      if (summary.tasksDueToday > 0 || summary.tasksDueSoon > 0) {
+        actions.push({
+          action: 'view',
+          label: 'View Tasks',
+          url: `${baseURL}/?tab=files&type=task`
+        })
+      }
+
+      // Add "View Inbox" button if there are ideas to review
+      // Show if ideas were captured or if there are unconverted ideas
+      if (summary.ideasCaptured > 0 || summary.ideasConverted < summary.ideasCaptured) {
+        actions.push({
+          action: 'view',
+          label: 'View Inbox',
+          url: `${baseURL}/?tab=ready`
+        })
+      }
+
+      // Send enhanced notification with contextual metadata
       const notificationResult = await ntfyService.sendNotification(
-        '📊 Daily Summary',
+        `📊 ${timeLabel} Summary`,
         message,
-        [],
-        'default'
+        actions,
+        priority
       )
 
       if (notificationResult.success) {

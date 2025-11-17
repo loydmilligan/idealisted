@@ -2,7 +2,7 @@
 
 **Sprint**: Post-Beta AI & NTFY Integration
 **Started**: 2025-01-14
-**Status**: Phase 1 Complete ✅, Phase 2 Complete ✅, Phase 3 Complete ✅, Phase 4 Complete ✅, Phase 5 Tasks 5.1 ✅ and 5.3 ✅ Complete, Phase 6 Task 6.2 ✅ Complete
+**Status**: Phase 1 Complete ✅, Phase 2 Complete ✅, Phase 3 Complete ✅, Phase 4 Complete ✅, Phase 5 Tasks 5.1 ✅ and 5.3 ✅ Complete, Phase 6 Complete ✅ (Tasks 6.2 ✅ and 6.3 ✅)
 
 ---
 
@@ -271,7 +271,7 @@ This sprint implements AI-powered features and notification capabilities for Ide
 
 ## Phase 6: Scheduled Summary
 
-**Status**: In Progress (Task 6.2 ✅ Complete)
+**Status**: Phase 6 Complete ✅ (Tasks 6.2 ✅ and 6.3 ✅)
 **Dependencies**: Phase 1 complete (ai_feature_settings with daily_summary)
 
 **Purpose**: Periodic digest notifications of user activity.
@@ -290,8 +290,21 @@ This sprint implements AI-powered features and notification capabilities for Ide
 - ✅ Fixed stop() method to stop all three CRON tasks
 - ✅ Bug fix: Changed database query from feature_id to feature_name (line 271)
 
+**What Was Built (Task 6.3)**:
+- ✅ Enhanced notification format with three improvements:
+  1. **Time-of-Day Label**: Dynamic title based on hour (Morning/Midday/Evening Summary)
+  2. **Dynamic Priority**: Set to 'high' if tasks are due today, otherwise 'default'
+  3. **Contextual Action Buttons**: Up to 2 buttons based on summary content:
+     - "View Tasks" button if tasks due today or soon
+     - "View Inbox" button if ideas were captured or unconverted ideas exist
+- ✅ Mobile-friendly UI (max 2 buttons to avoid clutter)
+- ✅ Variable name collision fix (used `hourOfDay` to avoid conflict with `currentHour`)
+- ✅ Follows existing NTFY notification patterns
+- ✅ Code review: 10/10 score with greenlight
+- ✅ Implementation location: lib/scheduler.ts lines 346-396
+
 **What Will Be Built (Remaining Tasks)**:
-- Settings UI for summary preferences - Task 6.3
+- Settings UI for summary preferences - Task 6.4 (optional)
 
 **Summary Includes**:
 - Ideas captured today
@@ -304,6 +317,570 @@ This sprint implements AI-powered features and notification capabilities for Ide
 - Don't send if no activity ✅
 - Hour-based deduplication (allows 9am, 12pm, 6pm summaries) ✅
 - Respects AI feature flags and NTFY settings ✅
+
+---
+
+## Context Manifest for Task 6.3: NTFY Summary Notification Format
+
+### What This Task Is About
+
+Task 6.2 successfully implemented the daily summary CRON job that generates summaries and sends them via NTFY notifications. However, the current notification format is **basic** - it uses a simple title ("📊 Daily Summary") and passes the formatted message with **no action buttons**, **default priority**, and **default tags**.
+
+Task 6.3's purpose is to **review and enhance** the notification format to make it more **actionable** and **user-friendly** on mobile devices. This means considering:
+1. Whether to add action buttons (e.g., "View Inbox", "Start Planning")
+2. Whether to adjust the notification priority based on urgency (e.g., tasks due today = higher priority)
+3. Whether to customize NTFY tags/icons for better visual identity
+4. Whether the message format itself is optimal for mobile readability
+
+**Important Context**: Task 6.2 already sends summaries successfully. This task is about **polish and UX enhancement**, not fixing broken functionality.
+
+---
+
+### How The Current Notification System Works
+
+**The NTFY Protocol** (`lib/notify.ts`):
+
+IdeaListed uses ntfy.sh for push notifications. The NTFY protocol is **HTTP-based** and uses **headers for metadata**, with the **message body as plain text**. Understanding this architecture is critical for Task 6.3.
+
+The `sendNotification()` method (lines 65-125 in `lib/notify.ts`) is the core notification dispatcher:
+
+```typescript
+async sendNotification(
+  title: string,
+  message: string,
+  actions?: Array<{
+    action: string
+    label: string
+    url?: string
+    clear?: boolean
+  }>,
+  priority: NtfyConfig['priority'] = 'default'
+)
+```
+
+**How it works step-by-step**:
+
+1. **Configuration Loading** (line 77): Calls `await this.loadConfig()` which queries the `settings` table for `key='ntfy_config'` and parses the JSON. The config includes:
+   - `enabled` (boolean) - master toggle
+   - `server` (string) - NTFY server URL (e.g., "https://ntfy.sh")
+   - `topic` (string) - channel name for notifications
+   - `username/password` (optional) - for authenticated topics
+   - `priority` (enum) - default priority level
+
+2. **Enabled Check** (lines 80-82): Returns `{ success: false, error: 'Ntfy notifications disabled' }` if not enabled. This is a defensive pattern used throughout.
+
+3. **Header Preparation** (lines 86-94): NTFY uses HTTP headers for all metadata:
+   - `Title`: Notification title (sanitized, max 100 chars)
+   - `Priority`: One of 'default', 'low', 'high', 'urgent' (affects sound/vibration on mobile)
+   - `Tags`: Comma-separated emoji/icon identifiers (e.g., 'brain,lightbulb')
+   - `Actions`: JSON array of action button definitions (if provided)
+
+4. **Header Sanitization** (lines 86-88): The `sanitizeHeader()` helper removes newlines and limits length because HTTP headers can't contain newlines. This is important for message formatting.
+
+5. **Basic Authentication** (lines 102-105): If username/password are configured, adds `Authorization: Basic {base64}` header.
+
+6. **HTTP POST Request** (lines 111-115): Sends to `{server}/{topic}` with:
+   - Method: POST
+   - Headers: All metadata (title, priority, tags, actions)
+   - Body: Plain text message (sanitized to remove excessive newlines)
+
+7. **Response Handling** (line 117): Returns `{ success: true, id: response.data.id }` or `{ success: false, error: message }` on failure.
+
+**Action Buttons Pattern**:
+
+The `actions` parameter is an array of objects with this structure:
+```typescript
+{
+  action: string,     // Action type ('view', 'http', 'broadcast', etc.)
+  label: string,      // Button text shown to user
+  url?: string,       // URL to open (for 'view' action)
+  clear?: boolean     // Whether to dismiss notification after action
+}
+```
+
+Looking at existing implementations:
+
+**Task Reminders** (`notifyTaskDue()` at lines 174-193):
+```typescript
+[
+  {
+    action: 'complete',
+    label: 'Mark Complete',
+    url: `${baseURL}/api/todos/complete`,
+    clear: true
+  },
+  {
+    action: 'snooze',
+    label: 'Snooze',
+    clear: true
+  }
+]
+```
+
+**Daily Review** (`checkAndSendDailyReview()` in scheduler.ts at lines 151-157):
+```typescript
+[
+  {
+    action: 'view',
+    label: 'View Review',
+    url: `${baseURL}/review/${reviewData.date}`
+  }
+]
+```
+
+**Priority Levels**:
+- `'urgent'` - Used for task reminders (line 191 in notify.ts)
+- `'high'` - Used for AI suggestions (line 155)
+- `'default'` - Used for daily review (line 158) and daily summaries (line 351 in scheduler.ts)
+- `'low'` - Used for idea capture notifications (line 206)
+
+**Priority affects**:
+- Notification sound/vibration intensity on mobile
+- Visual prominence in notification drawer
+- Delivery priority (urgent may bypass quiet hours)
+
+**Tags Pattern** (line 93 in notify.ts):
+
+All notifications currently use `'brain,lightbulb'` as the tag string. NTFY interprets these as emoji icons:
+- `brain` → 🧠 icon
+- `lightbulb` → 💡 icon
+
+Other available tags include: `calendar`, `clock`, `chart`, `warning`, `checkmark`, etc. (see NTFY docs for full list)
+
+**Current Daily Summary Notification** (scheduler.ts lines 347-352):
+
+```typescript
+const notificationResult = await ntfyService.sendNotification(
+  '📊 Daily Summary',      // Title
+  message,                  // Formatted message from formatSummaryMessage()
+  [],                       // NO action buttons
+  'default'                 // Default priority
+)
+```
+
+This is the **minimal implementation**. Task 6.3 is about deciding if this needs enhancement.
+
+---
+
+### How The Summary Message Formatting Works
+
+**Summary Generation Service** (`lib/summary.ts`):
+
+The `formatSummaryMessage()` function (lines 107-151) takes a `DailySummaryData` object and returns a **multi-line plain text string** optimized for NTFY display.
+
+**Input Structure** (`DailySummaryData` interface, lines 3-11):
+```typescript
+{
+  date: string               // YYYY-MM-DD format
+  ideasCaptured: number      // Count from today
+  ideasConverted: number     // Ideas sorted today
+  tasksCompleted: number     // Tasks marked done today
+  tasksDueToday: number      // Tasks due today (not completed)
+  tasksDueSoon: number       // Tasks due in next 3 days
+  hasActivity: boolean       // True if any of first 4 metrics > 0
+}
+```
+
+**Output Format** (example with actual data):
+
+```
+📊 Daily Summary for Friday, Jan 17
+
+✨ Today's Activity:
+  💡 3 ideas captured
+  ✅ 2 ideas converted
+  🎯 5 tasks completed
+
+⏰ Upcoming:
+  📅 1 task due today
+  🔜 4 tasks due in next 3 days
+```
+
+**Formatting Logic Breakdown**:
+
+1. **No Activity Case** (lines 108-110): Returns single-line message "No activity today. Time to capture some ideas!" - BUT this should never be sent because the scheduler skips sending when `hasActivity` is false (scheduler.ts lines 338-341).
+
+2. **Header Line** (line 115): Uses `formatDate()` helper (lines 158-169) to convert YYYY-MM-DD to human-readable format like "Friday, Jan 17". Uses UTC to avoid timezone issues.
+
+3. **Activity Section** (lines 119-135):
+   - Only shown if ANY activity metric > 0
+   - Section header: "✨ Today's Activity:"
+   - Each metric on its own line with 2-space indent
+   - Emoji prefix for visual hierarchy (💡 for ideas, ✅ for converted, 🎯 for completed)
+   - Proper pluralization (e.g., "1 idea" vs "2 ideas")
+   - Blank line after section
+
+4. **Upcoming Section** (lines 138-147):
+   - Only shown if tasks due today OR tasks due soon > 0
+   - Section header: "⏰ Upcoming:"
+   - Same formatting pattern as activity section
+   - 📅 emoji for "due today"
+   - 🔜 emoji for "due soon"
+
+5. **Message Assembly** (lines 112, 150): Uses `lines.join('\n')` to create multi-line string.
+
+**Message Sanitization** (notify.ts lines 108-109):
+
+Before sending, the NTFY service sanitizes the message body:
+```typescript
+const sanitizedMessage = message.replace(/\n{3,}/g, '\n\n').trim()
+```
+
+This collapses 3+ consecutive newlines to 2, preventing excessive whitespace that could make mobile notifications look broken.
+
+**Mobile Readability Considerations**:
+
+The current format is designed for mobile with:
+- **Short lines**: No line exceeds ~40 characters
+- **Visual hierarchy**: Emoji prefixes make sections scannable
+- **Whitespace**: Blank lines separate sections
+- **Conciseness**: No verbose text, just metrics
+
+**Potential Issues**:
+
+1. **No context switching**: User reads the summary but has no quick action to act on it (no buttons)
+2. **Generic title**: "📊 Daily Summary" doesn't indicate urgency (e.g., if tasks due today)
+3. **Time ambiguity**: Title doesn't show which summary time this is (9am, 12pm, or 6pm)
+4. **No priority differentiation**: All summaries use 'default' priority even if tasks are urgent
+
+---
+
+### How The Scheduler Sends Summaries
+
+**CRON Job Implementation** (`lib/scheduler.ts` lines 271-370):
+
+The `checkAndSendDailySummary()` method runs **every minute** (cron schedule `'* * * * *'`). Here's the complete flow:
+
+1. **Mutex Lock** (lines 273, 276): Checks `global.__daily_summary_is_running` to prevent concurrent executions. This is critical because the job runs every 60 seconds but could take longer than 60s to complete.
+
+2. **Feature Flag Check** (lines 279-285): Queries `ai_feature_settings` table for `feature_name='daily_summary'` and checks if `enabled=1`. If disabled, returns silently (no log spam).
+
+3. **NTFY Configuration Check** (lines 287-298): Loads `ntfy_config` from settings and verifies `enabled=true`. Returns silently if disabled.
+
+4. **Time Matching** (lines 300-309):
+   - Gets current time in HH:mm format using `date-fns` `format()` function
+   - Checks if current time matches one of the hardcoded summary times: `['09:00', '12:00', '18:00']`
+   - Returns if not a summary time
+   - **Why run every minute instead of scheduling at specific times?** More reliable, handles server restarts better, and simpler logic
+
+5. **Deduplication Check** (lines 311-329):
+   - Gets current hour (0-23) from Date object
+   - Queries `daily_summaries` table for most recent summary sent today (created_at >= start of day)
+   - If found, checks if it was sent in the same hour as current time
+   - Returns if already sent at this hour
+   - **Why hour-based instead of time-based?** Allows multiple summaries per day (9am, 12pm, 6pm) while preventing duplicates at each time slot
+
+6. **Summary Generation** (lines 332-335):
+   - Dynamic import: `await import('./summary')` (lazy loading, only when needed)
+   - Calls `generateDailySummary()` with no arguments (defaults to today)
+   - Returns `DailySummaryData` object with metrics
+
+7. **Activity Check** (lines 338-341):
+   - Checks `summary.hasActivity` boolean
+   - Returns with log message if false: "[Scheduler] No activity today - skipping summary"
+   - **Critical UX decision**: Don't spam users with "no activity" notifications
+
+8. **Message Formatting** (line 344):
+   - Calls `formatSummaryMessage(summary)`
+   - Returns multi-line plain text string
+
+9. **Notification Sending** (lines 347-352):
+   - Calls `ntfyService.sendNotification()` with:
+     - Title: `'📊 Daily Summary'` (hardcoded)
+     - Message: formatted message
+     - Actions: `[]` (empty array - **THIS IS WHAT TASK 6.3 ADDRESSES**)
+     - Priority: `'default'` (hardcoded - **TASK 6.3 COULD MAKE THIS DYNAMIC**)
+
+10. **Success Recording** (lines 354-359):
+    - If notification succeeds, inserts record into `daily_summaries` table:
+      - `date`: YYYY-MM-DD string from summary
+      - `data`: JSON.stringify(summary) - full summary object for future reference
+      - `created_at`: Date.now() - timestamp in milliseconds
+    - Logs success: "[Scheduler] Daily summary sent successfully"
+
+11. **Error Handling** (lines 362-363, 365-369):
+    - If notification fails, logs error but doesn't throw
+    - Outer try/catch handles unexpected errors
+    - `finally` block always releases mutex lock
+
+**Database Table** (from sqlite3 output):
+
+```sql
+CREATE TABLE daily_summaries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  date TEXT NOT NULL,
+  data TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX idx_daily_summaries_date ON daily_summaries(date);
+CREATE INDEX idx_daily_summaries_created_at ON daily_summaries(created_at);
+```
+
+The `data` column stores the full `DailySummaryData` JSON for:
+- Future UI display of summary history (not yet implemented)
+- Debugging why a summary was sent
+- Analytics (not yet implemented)
+
+**Comparison With Task Reminder Notifications** (for consistency):
+
+Task reminders (`notifyTaskDue()` at notify.ts lines 174-193):
+- **Title**: "⏰ Task Due Soon" (emoji + urgency indication)
+- **Message**: `"{taskText}" is due at {dueTime}` (quoted text + specific time)
+- **Actions**: 2 buttons (Mark Complete, Snooze)
+- **Priority**: `'urgent'` (highest level)
+
+Daily summaries currently:
+- **Title**: "📊 Daily Summary" (emoji but no urgency/time indication)
+- **Message**: Multi-line formatted metrics
+- **Actions**: None (empty array)
+- **Priority**: `'default'` (medium level)
+
+**Key Difference**: Task reminders are **actionable** (you can mark complete from notification), while summaries are **informational** (just read and dismiss).
+
+---
+
+### What Task 6.3 Should Consider
+
+**The Core Question**: Does the current notification format meet user needs, or should it be enhanced?
+
+**Option 1: Keep Current Format (Minimal)**
+
+Arguments for minimal approach:
+- Summary is **informational**, not actionable (unlike task reminders which need "Mark Complete")
+- Users will naturally open the app to act on tasks/ideas, not from notification
+- Simpler is better - fewer buttons = less cluttered notification
+- Current format is already mobile-optimized with emoji and short lines
+
+If keeping minimal, document that this was a deliberate design decision and close Task 6.3 as "reviewed and approved current format".
+
+**Option 2: Add Action Buttons**
+
+Potential action buttons to consider:
+
+**Button 1: "View Inbox"**
+```typescript
+{
+  action: 'view',
+  label: 'View Inbox',
+  url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/inbox`
+}
+```
+- Takes user to Ready tab (inbox) where unsorted items live
+- Useful if summary shows ideas captured/converted
+- Pattern: Same as Daily Review's "View Review" button
+
+**Button 2: "View Tasks"** or **"View Files"**
+```typescript
+{
+  action: 'view',
+  label: 'View Tasks',
+  url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/files?type=task`
+}
+```
+- Takes user directly to Files tab filtered to tasks
+- Useful if summary shows tasks due today
+- URL pattern: Files tab supports `?type=task` query parameter
+
+**Button 3: "Start Planning"**
+```typescript
+{
+  action: 'view',
+  label: 'Start Planning',
+  url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/capture`
+}
+```
+- Takes user to capture screen to start new planning
+- Generic action, always relevant
+
+**Button Constraints**:
+- Mobile screens are small - max 2-3 buttons recommended
+- Each button takes vertical space in notification
+- More buttons = more decision paralysis
+
+**Option 3: Dynamic Priority Based on Urgency**
+
+Current implementation always uses `'default'` priority. Could make it dynamic:
+
+```typescript
+// Determine priority based on urgency
+let priority: NtfyConfig['priority'] = 'default'
+if (summary.tasksDueToday > 0) {
+  priority = 'high'  // Tasks due today = more urgent
+}
+
+const notificationResult = await ntfyService.sendNotification(
+  '📊 Daily Summary',
+  message,
+  actions,
+  priority
+)
+```
+
+**Effect**:
+- `'high'` priority = louder notification sound, more prominent in drawer
+- Draws user's attention when there are tasks due today
+- Still not as urgent as task reminders (`'urgent'` priority)
+
+**Option 4: Enhanced Title with Time Indicator**
+
+Current title: `'📊 Daily Summary'` (generic)
+
+Potential enhancements:
+
+**Include summary time**:
+```typescript
+const now = new Date()
+const currentHour = now.getHours()
+let timeLabel = 'Morning'
+if (currentHour >= 12 && currentHour < 18) timeLabel = 'Midday'
+if (currentHour >= 18) timeLabel = 'Evening'
+
+const title = `📊 ${timeLabel} Summary`
+// Results in: "📊 Morning Summary", "📊 Midday Summary", "📊 Evening Summary"
+```
+
+**Include urgency indicator**:
+```typescript
+const title = summary.tasksDueToday > 0
+  ? `📊 Daily Summary - ${summary.tasksDueToday} task(s) due!`
+  : '📊 Daily Summary'
+```
+
+**Trade-off**: Longer titles may get truncated on mobile (NTFY sanitizes to max 100 chars)
+
+**Option 5: Custom NTFY Tags/Icons**
+
+Current tags: `'brain,lightbulb'` (hardcoded in notify.ts line 93)
+
+Could customize for summaries:
+```typescript
+headers['Tags'] = 'chart,calendar'  // 📊 + 📅 icons
+```
+
+Or make dynamic:
+```typescript
+const tags = summary.tasksDueToday > 0
+  ? 'chart,warning'  // 📊 + ⚠️ if tasks due
+  : 'chart,calendar' // 📊 + 📅 normal
+```
+
+**Effect**: Changes icon shown in notification drawer. Minor visual polish.
+
+---
+
+### Technical Reference Details
+
+**Files Involved**:
+- `/home/mmariani/Projects/idealisted/lib/scheduler.ts` (lines 347-352) - Where notification is sent
+- `/home/mmariani/Projects/idealisted/lib/summary.ts` (lines 107-151) - Message formatting
+- `/home/mmariani/Projects/idealisted/lib/notify.ts` (lines 65-125) - NTFY service core
+
+**Key Functions**:
+- `schedulerService.checkAndSendDailySummary()` - CRON job that sends summaries
+- `ntfyService.sendNotification(title, message, actions, priority)` - Core notification sender
+- `formatSummaryMessage(summary)` - Formats DailySummaryData into plain text
+
+**Data Structures**:
+- `DailySummaryData` (lib/summary.ts lines 3-11) - Summary metrics object
+- `NtfyConfig` (types/index.ts lines 214-221) - NTFY configuration type
+- Action button format: `{ action: string, label: string, url?: string, clear?: boolean }`
+
+**Environment Variables**:
+- `NEXT_PUBLIC_APP_URL` - Base URL for action button URLs (defaults to http://localhost:3000)
+
+**NTFY Protocol Capabilities** (from existing implementations):
+- **Priorities**: 'urgent', 'high', 'default', 'low' (affects sound/vibration)
+- **Tags**: Comma-separated emoji identifiers (e.g., 'brain,lightbulb,warning,chart')
+- **Actions**: JSON array, supports 'view' action with URL, 'clear' to dismiss
+- **Title**: Max 100 characters (sanitized)
+- **Message**: Plain text, newlines preserved (excessive newlines collapsed)
+
+**Current Notification Call** (scheduler.ts lines 347-352):
+```typescript
+await ntfyService.sendNotification(
+  '📊 Daily Summary',  // title
+  message,              // formatted message from formatSummaryMessage()
+  [],                   // actions (EMPTY - Task 6.3 addresses this)
+  'default'             // priority (HARDCODED - Task 6.3 could make dynamic)
+)
+```
+
+**Example Enhanced Implementation** (Option 2 + 3 + 4 combined):
+
+```typescript
+// Determine time of day label
+const currentHour = now.getHours()
+let timeLabel = 'Morning'
+if (currentHour >= 12 && currentHour < 18) timeLabel = 'Midday'
+if (currentHour >= 18) timeLabel = 'Evening'
+
+// Determine priority based on urgency
+let priority: NtfyConfig['priority'] = 'default'
+if (summary.tasksDueToday > 0) priority = 'high'
+
+// Build action buttons
+const actions = []
+if (summary.tasksDueToday > 0 || summary.tasksDueSoon > 0) {
+  actions.push({
+    action: 'view',
+    label: 'View Tasks',
+    url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/files?type=task`
+  })
+}
+if (summary.ideasCaptured > 0 || summary.ideasConverted > 0) {
+  actions.push({
+    action: 'view',
+    label: 'View Inbox',
+    url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/inbox`
+  })
+}
+
+// Send notification
+const notificationResult = await ntfyService.sendNotification(
+  `📊 ${timeLabel} Summary`,
+  message,
+  actions,
+  priority
+)
+```
+
+**Testing Checklist for Task 6.3**:
+- [ ] Review current notification format on actual mobile device (not just logs)
+- [ ] Decide if action buttons add value or clutter
+- [ ] Determine if priority should be dynamic based on urgency
+- [ ] Consider if title should include time-of-day indicator
+- [ ] Test with multiple button combinations (1 button, 2 buttons, 3 buttons)
+- [ ] Verify action button URLs work correctly
+- [ ] Ensure notification remains readable on small screens
+- [ ] Check that enhanced format doesn't break NTFY protocol limits
+- [ ] Document decision (keep minimal OR enhance with rationale)
+
+**Implementation Location**:
+
+All changes will be in `/home/mmariani/Projects/idealisted/lib/scheduler.ts` at lines 332-352. The `formatSummaryMessage()` function in `lib/summary.ts` should NOT change - it's already well-designed for plain text messages.
+
+**No New Dependencies Required**: All necessary functions and types already exist.
+
+**Success Criteria**:
+- Notification format is **clear and actionable** (or documented as intentionally minimal)
+- Action buttons (if added) use correct URL patterns and work on mobile
+- Priority level (if dynamic) correctly reflects urgency
+- Title (if enhanced) provides useful context without truncation
+- Implementation follows existing patterns (see task reminders and daily review)
+- Code is documented with comments explaining design decisions
+
+---
+
+**Recommendation for Implementation**:
+
+Start by **testing the current format** on an actual mobile device to see if it needs enhancement. If it looks good and serves user needs, document that decision and mark task complete. If enhancement is needed, implement a **conservative approach**:
+
+1. **Add 1-2 action buttons** (not 3+) based on summary content
+2. **Make priority dynamic** (high if tasks due today, otherwise default)
+3. **Keep title simple** (maybe add time-of-day label, but not urgency metrics)
+4. **Keep NTFY tags as-is** (brain,lightbulb) unless there's a specific reason to change
+
+The goal is **subtle enhancement**, not radical redesign. The current format is already good - just needs polish.
 
 ---
 
@@ -837,7 +1414,7 @@ console.log('[Scheduler] Daily summary check cron started (every minute)')
 - [x] Phase 3: AI Suggestion Flow ✅
 - [x] Phase 4: AI Tag Suggestions ✅
 - [ ] Phase 5: Task Reminders (Tasks 5.1 ✅ and 5.3 ✅ Complete, Task 5.4 Optional)
-- [ ] Phase 6: Scheduled Summary (Task 6.2 ✅ Complete, Task 6.3 Remaining)
+- [x] Phase 6: Scheduled Summary ✅ (Tasks 6.2 ✅ and 6.3 ✅ Complete, Task 6.4 Optional)
 - [ ] Phase 7: Onboarding Wizard
 
 **Overall Sprint Goals**:
@@ -860,5 +1437,5 @@ console.log('[Scheduler] Daily summary check cron started (every minute)')
 ---
 
 **Last Updated**: 2025-11-17
-**Current Phase**: Phase 6 In Progress (Task 6.2 ✅ Complete)
-**Next Phase**: Phase 6 Task 6.3 (Settings UI for summary preferences)
+**Current Phase**: Phase 6 Complete ✅ (Tasks 6.2 ✅ and 6.3 ✅)
+**Next Phase**: Phase 5 Task 5.4 (Settings UI for reminder preferences) OR Phase 6 Task 6.4 (Settings UI for summary preferences) - Both Optional
