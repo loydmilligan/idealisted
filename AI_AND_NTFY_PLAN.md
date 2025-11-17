@@ -2235,7 +2235,7 @@ console.log('[Scheduler] Daily summary check cron started (every minute)')
 
 ## Phase 7: Onboarding Wizard
 
-**Status**: Not Started
+**Status**: In Progress (Task 7.1 Complete ✅)
 **Dependencies**: All features complete (demonstrates full app)
 
 **Purpose**: Interactive walkthrough for first-time users.
@@ -2261,6 +2261,619 @@ console.log('[Scheduler] Daily summary check cron started (every minute)')
 - TourTooltip.tsx - Step content display
 - OnboardingWizard.tsx - State management
 - tour-steps.tsx - Step definitions
+
+---
+
+## Phase 7 Task 7.1: Create Spotlight/Tooltip System - Complete ✅
+
+### How the Current Modal/Overlay System Works
+
+**Overlay Architecture Pattern (retro.css:373-378, EntityModal.tsx:171-178)**
+
+The application uses a two-layer overlay system for modals that we should follow for the tour spotlight:
+
+When a modal opens (like EntityModal), it creates TWO motion.div elements:
+1. **Backdrop Overlay** - A full-screen darkened layer that blocks interaction with the underlying UI
+2. **Content Layer** - The modal content itself (positioned above the backdrop)
+
+The backdrop is styled with the `.retro-overlay` class which provides:
+- `position: fixed` with `inset: 0` (covers entire viewport)
+- `background: var(--palm-overlay)` which is `rgba(45, 58, 45, 0.85)` - 85% opacity dark green
+- `z-index: 900` - sits above normal content (z-index: 100 for tabs) but below modals (z-index: 1000)
+- Settings modal uses z-index: 1001 to sit above everything
+
+**Framer Motion Animation Pattern (EntityModal.tsx:171-186)**
+
+All modals use framer-motion's `AnimatePresence` component with the following pattern:
+
+```tsx
+<AnimatePresence mode="wait">
+  {isOpen && (
+    <>
+      {/* Backdrop with fade */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
+        onClick={onClose}
+        className="retro-overlay"
+      />
+
+      {/* Content with spring physics */}
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="retro-bottom-sheet"
+      />
+    </>
+  )}
+</AnimatePresence>
+```
+
+**Animation Configuration**:
+- Backdrop: Simple fade (0.2s linear duration)
+- Content: Spring physics with `damping: 25, stiffness: 200` (creates smooth bounce effect)
+- Exit animations mirror entry animations for consistency
+
+**Event Handling Pattern (EntityModal.tsx:99-116)**
+
+Modals follow this useEffect pattern for keyboard/body scroll handling:
+
+```tsx
+useEffect(() => {
+  const handleEscape = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && isOpen) {
+      onClose()
+    }
+  }
+
+  if (isOpen) {
+    document.addEventListener('keydown', handleEscape)
+    document.body.style.overflow = 'hidden' // Prevent background scroll
+  }
+
+  return () => {
+    document.removeEventListener('keydown', handleEscape)
+    document.body.style.overflow = '' // Restore scroll
+  }
+}, [isOpen, onClose])
+```
+
+### For the Tour Spotlight: Architectural Integration Points
+
+**Spotlight SVG Overlay Requirements**:
+
+The spotlight needs to create a "cutout" effect where one element is highlighted and everything else is dimmed. This requires:
+
+1. **Full-screen SVG with mask/clip-path**:
+   - Use `<svg>` element with `position: fixed`, `inset: 0`, `width: 100%`, `height: 100%`
+   - Create a `<mask>` or `<clipPath>` element with:
+     - Full-screen rectangle (the dimmed area)
+     - Cutout shape (the highlighted area - subtract this from the mask)
+   - Apply semi-transparent fill to show the dimmed overlay effect
+
+2. **Target Element Positioning**:
+   - Use `element.getBoundingClientRect()` to get the target's position, width, and height
+   - Account for scroll position: `window.scrollY` and `window.scrollX`
+   - Calculate the cutout rectangle: `{ x, y, width, height }` from DOMRect
+   - Add padding around the target (e.g., 8-12px) for visual breathing room
+
+3. **Pulsing Border Animation**:
+   - Create a separate `<rect>` element positioned around the cutout
+   - Animate with CSS keyframes (follow the pattern from retro.css:1003-1045)
+   - Use the existing animation timing: `600ms` duration (matches tab flash animations)
+   - Pulse effect: `opacity` oscillation + `stroke-width` or `scale` variation
+
+**Z-Index Strategy** (retro.css z-index values):
+- Tab bar: `z-index: 100`
+- Tag dropdown: `z-index: 100`
+- Modal backdrop: `z-index: 900`
+- Modal content: `z-index: 1000`
+- Settings modal: `z-index: 1001`
+- **Tour spotlight should use: `z-index: 2000`** (above everything else)
+- **Tour tooltip should use: `z-index: 2001`** (above spotlight)
+
+### Tooltip Positioning Logic
+
+**Tooltip Smart Positioning Algorithm**:
+
+The tooltip needs to position itself relative to the highlighted element, with fallback logic:
+
+1. **Calculate available space** around the target rectangle:
+   ```ts
+   const targetRect = element.getBoundingClientRect()
+   const viewportHeight = window.innerHeight
+   const viewportWidth = window.innerWidth
+
+   const spaceAbove = targetRect.top
+   const spaceBelow = viewportHeight - targetRect.bottom
+   const spaceLeft = targetRect.left
+   const spaceRight = viewportWidth - targetRect.right
+   ```
+
+2. **Determine preferred position** (priority order):
+   - Bottom: If `spaceBelow > tooltipHeight + 16px` (16px gap)
+   - Top: Else if `spaceAbove > tooltipHeight + 16px`
+   - Right: Else if `spaceRight > tooltipWidth + 16px`
+   - Left: Else if `spaceLeft > tooltipWidth + 16px`
+   - Fallback: Center of viewport with scroll into view
+
+3. **Calculate tooltip coordinates**:
+   ```ts
+   // Example for bottom position
+   const position = {
+     top: targetRect.bottom + 16, // 16px gap
+     left: targetRect.left + (targetRect.width / 2) - (tooltipWidth / 2), // Centered
+   }
+
+   // Ensure tooltip stays within viewport bounds
+   position.left = Math.max(16, Math.min(position.left, viewportWidth - tooltipWidth - 16))
+   ```
+
+4. **Arrow/pointer positioning**:
+   - CSS triangle using borders or SVG arrow
+   - Position arrow to point at the target center
+   - Arrow offset must account for tooltip adjustment when clamped to viewport edges
+
+### Retro Design System Integration
+
+**CSS Classes to Use** (from retro.css):
+
+For the tooltip content, reuse existing retro component classes:
+
+```tsx
+<div className="retro-card"> {/* Base card styling */}
+  <div className="retro-sheet-header"> {/* Header with border */}
+    Step 1: Capture Ideas
+  </div>
+  <div className="retro-sheet-content"> {/* Padded content area */}
+    <p className="retro-description">Description text here...</p>
+  </div>
+  <div className="retro-sheet-actions"> {/* Button container */}
+    <button className="retro-btn retro-btn-secondary">Previous</button>
+    <button className="retro-btn retro-btn-primary">Next</button>
+  </div>
+</div>
+```
+
+**Color Variables** (from retro.css:10-43):
+- Text: `var(--palm-text-dark)` = `#2D3A2D`
+- Border: `var(--palm-border)` = `#6B7B6B`
+- Background: `var(--palm-bg-primary)` = `#C5D5C5`
+- Overlay: `var(--palm-overlay)` = `rgba(45, 58, 45, 0.85)`
+
+**Animation Timing** (from retro.css:47-51):
+- `--transition-fast: 150ms`
+- `--transition-normal: 250ms`
+- `--transition-smooth: 300ms`
+- Use `300ms` for tooltip fade-in/out
+
+**Spacing** (from retro.css:54-58):
+- `--space-xs: 4px`
+- `--space-sm: 8px`
+- `--space-md: 12px`
+- `--space-lg: 16px`
+- Use `--space-lg` (16px) for gap between spotlight and tooltip
+
+### Pulsing Border Animation
+
+**Existing Keyframe Patterns** (retro.css:1003-1045):
+
+The codebase uses entity-specific flash animations for tabs. For the tour spotlight, create a similar pulsing effect:
+
+```css
+@keyframes tour-spotlight-pulse {
+  0%, 100% {
+    opacity: 1;
+    stroke-width: 3;
+  }
+  50% {
+    opacity: 0.6;
+    stroke-width: 5;
+    filter: drop-shadow(0 0 8px var(--palm-border));
+  }
+}
+```
+
+Apply to the spotlight border:
+```tsx
+<rect
+  className="tour-spotlight-border"
+  style={{
+    animation: 'tour-spotlight-pulse 2s ease-in-out infinite'
+  }}
+/>
+```
+
+**Alternative: Scale-based pulse**:
+```css
+@keyframes tour-spotlight-scale {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+```
+
+### React Hook Patterns to Follow
+
+**Component State Management** (EntityModal.tsx:45-56):
+
+```tsx
+const [isOpen, setIsOpen] = useState(false)
+const [currentStep, setCurrentStep] = useState(0)
+const targetRef = useRef<HTMLElement | null>(null)
+const tooltipRef = useRef<HTMLDivElement>(null)
+
+// Calculate positions on step change
+useEffect(() => {
+  if (isOpen && targetRef.current && tooltipRef.current) {
+    const targetRect = targetRef.current.getBoundingClientRect()
+    const tooltipRect = tooltipRef.current.getBoundingClientRect()
+    // Position calculation logic here
+  }
+}, [isOpen, currentStep])
+```
+
+**Window Resize Handling**:
+```tsx
+useEffect(() => {
+  const handleResize = () => {
+    // Recalculate positions
+  }
+
+  if (isOpen) {
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }
+}, [isOpen])
+```
+
+### TypeScript Type Definitions
+
+**Tour Step Interface** (to be created in lib/tour-steps.tsx):
+
+```tsx
+export interface TourStep {
+  id: string
+  title: string
+  description: string
+  targetSelector: string  // CSS selector for element to highlight
+  placement?: 'top' | 'bottom' | 'left' | 'right' | 'center'
+  showIf?: () => boolean  // Conditional step (e.g., AI features enabled)
+}
+```
+
+**Component Props**:
+
+```tsx
+// TourSpotlight.tsx
+interface TourSpotlightProps {
+  targetElement: HTMLElement | null
+  isActive: boolean
+  padding?: number  // Extra space around target (default: 12px)
+}
+
+// TourTooltip.tsx
+interface TourTooltipProps {
+  step: TourStep
+  stepNumber: number
+  totalSteps: number
+  targetRect: DOMRect | null
+  onNext: () => void
+  onPrev: () => void
+  onClose: () => void
+  isFirstStep: boolean
+  isLastStep: boolean
+}
+```
+
+### SVG Mask/Clippath Approach
+
+**Recommended: SVG Mask with Inverted Rectangle**
+
+```tsx
+<svg
+  style={{
+    position: 'fixed',
+    inset: 0,
+    width: '100%',
+    height: '100%',
+    zIndex: 2000,
+    pointerEvents: 'none', // Allow clicks to pass through to tooltip
+  }}
+>
+  <defs>
+    <mask id="spotlight-mask">
+      {/* White rectangle covers everything (visible) */}
+      <rect x="0" y="0" width="100%" height="100%" fill="white" />
+      {/* Black rectangle creates the cutout (invisible) */}
+      <rect
+        x={targetRect.x - padding}
+        y={targetRect.y - padding}
+        width={targetRect.width + padding * 2}
+        height={targetRect.height + padding * 2}
+        fill="black"
+        rx={4} // Rounded corners
+      />
+    </mask>
+  </defs>
+
+  {/* Dimmed overlay with mask applied */}
+  <rect
+    x="0"
+    y="0"
+    width="100%"
+    height="100%"
+    fill="var(--palm-overlay)"
+    mask="url(#spotlight-mask)"
+  />
+
+  {/* Pulsing border around highlighted area */}
+  <rect
+    x={targetRect.x - padding}
+    y={targetRect.y - padding}
+    width={targetRect.width + padding * 2}
+    height={targetRect.height + padding * 2}
+    fill="none"
+    stroke="var(--palm-border-light)"
+    strokeWidth={3}
+    rx={4}
+    className="tour-spotlight-border"
+    style={{ animation: 'tour-spotlight-pulse 2s ease-in-out infinite' }}
+  />
+</svg>
+```
+
+### Click Blocking Strategy
+
+**Allow clicks ONLY on tooltip, block everything else**:
+
+```tsx
+// Spotlight SVG - blocks all clicks except tooltip
+<svg
+  style={{
+    pointerEvents: 'none', // SVG doesn't block
+  }}
+>
+  {/* Overlay rect needs pointer events */}
+  <rect
+    style={{ pointerEvents: 'auto' }} // Blocks clicks on dimmed areas
+    onClick={(e) => e.stopPropagation()} // Prevent accidental closes
+  />
+</svg>
+
+// Tooltip container - allows interaction
+<div
+  style={{
+    pointerEvents: 'auto', // Tooltip is clickable
+    zIndex: 2001,
+  }}
+>
+  {/* Buttons, content, etc. */}
+</div>
+```
+
+### Utility Functions to Create
+
+**Positioning Helper** (lib/tour-utils.ts):
+
+```tsx
+export interface Position {
+  top: number
+  left: number
+  placement: 'top' | 'bottom' | 'left' | 'right' | 'center'
+}
+
+export function calculateTooltipPosition(
+  targetRect: DOMRect,
+  tooltipWidth: number,
+  tooltipHeight: number,
+  preferredPlacement?: string
+): Position {
+  // Implementation as described in "Tooltip Positioning Logic" above
+}
+
+export function getTargetElement(selector: string): HTMLElement | null {
+  return document.querySelector(selector)
+}
+
+export function scrollToTarget(element: HTMLElement, offset = 100) {
+  const rect = element.getBoundingClientRect()
+  const absoluteTop = window.scrollY + rect.top
+  window.scrollTo({
+    top: absoluteTop - offset,
+    behavior: 'smooth'
+  })
+}
+```
+
+### File Locations for Implementation
+
+**New Files to Create**:
+- `/home/mmariani/Projects/idealisted/components/ui/TourSpotlight.tsx` - SVG spotlight overlay
+- `/home/mmariani/Projects/idealisted/components/ui/TourTooltip.tsx` - Step content display
+- `/home/mmariani/Projects/idealisted/lib/tour-utils.ts` - Positioning and helper utilities
+
+**CSS to Add** (styles/retro.css):
+- Keyframes for `@keyframes tour-spotlight-pulse`
+- Class `.tour-spotlight-border` for animation application
+
+**Dependencies Already Available**:
+- `framer-motion` (v12.23.24) - Already in package.json
+- React hooks (useState, useEffect, useRef) - Core React
+- TypeScript - Project configured
+
+### Testing Targets for Spotlight
+
+**Elements to Highlight During Tour** (from existing components):
+
+1. **Capture textarea** - `.retro-textarea` or specific capture input selector
+2. **Unsorted button** - Tab navigation button with id 'unsorted'
+3. **AI suggestion panel** - `.palm-ai-suggestion` class (AISuggestionPanel)
+4. **Ready tab** - Tab navigation button with id 'ready'
+5. **Files tab** - Tab navigation button with id 'files'
+6. **Settings button** - `.retro-settings-btn` (in global header)
+
+Use `data-tour-id` attributes on key elements to make targeting easier:
+
+```tsx
+<button data-tour-id="capture-textarea">...</button>
+<button data-tour-id="unsorted-tab">...</button>
+```
+
+Then target with: `document.querySelector('[data-tour-id="capture-textarea"]')`
+
+### Key Implementation Considerations
+
+**Performance Optimization**:
+- Memoize position calculations with `useMemo`
+- Debounce resize handler (use 150ms delay)
+- Only recalculate when step changes or window resizes
+
+**Accessibility**:
+- Add `role="dialog"` and `aria-modal="true"` to tooltip
+- Add `aria-label` describing current step
+- Ensure keyboard navigation works (Tab, Shift+Tab, Enter, Escape)
+- Focus trap within tooltip when active
+
+**Edge Cases**:
+- Target element not found → Show centered tooltip with warning
+- Target element off-screen → Auto-scroll into view before highlighting
+- Multiple tour instances → Use singleton pattern or context to prevent conflicts
+- Mobile viewport → Adjust tooltip width to fit screen (max-width: calc(100vw - 32px))
+
+**Animation Timing**:
+- Spotlight fade-in: 300ms (matches `--transition-smooth`)
+- Tooltip entrance: 200ms delay after spotlight (stagger effect)
+- Step transition: 400ms crossfade between tooltips
+- Border pulse: 2s infinite loop
+
+---
+
+**Summary**: This context manifest provides a complete architectural blueprint for implementing the Tour Spotlight/Tooltip system by following existing patterns in the codebase (modal overlays, framer-motion animations, retro design system, React hooks). The implementation should feel native to the application's existing UX while introducing the interactive tour capability.
+
+---
+
+### Implementation Complete ✅
+
+**Date Completed**: 2025-11-17
+
+**What Was Built**: Production-ready spotlight/tooltip tour system with 902 lines of TypeScript/React code.
+
+**Files Created**:
+1. `/home/mmariani/Projects/idealisted/lib/tour-utils.ts` (178 lines)
+   - TypeScript interfaces: `TourStep`, `Position`
+   - Smart positioning algorithm: `calculateTooltipPosition()`
+   - DOM helpers: `getTargetElement()`, `scrollToTarget()`, `isElementVisible()`
+   - Performance optimization: `debounce()` utility
+
+2. `/home/mmariani/Projects/idealisted/components/ui/TourSpotlight.tsx` (168 lines)
+   - Full-screen SVG overlay with mask cutout for highlighted element
+   - Animated pulsing border around target (2s infinite loop)
+   - Click blocking for non-highlighted areas
+   - Fade-in animation (300ms using framer-motion)
+   - Real-time position tracking (handles resize/scroll events)
+   - Escape key to close, z-index: 2000
+
+3. `/home/mmariani/Projects/idealisted/components/ui/TourTooltip.tsx` (352 lines)
+   - Smart positioning algorithm with viewport edge detection
+   - Supports top/bottom/left/right/center placements
+   - Step counter display ("Step X of Y")
+   - Navigation buttons (Back, Next/Finish, Skip)
+   - Retro design integration (uses `.retro-card`, `.retro-btn` classes)
+   - Keyboard navigation (Arrow keys, Enter, Escape)
+   - ARIA accessibility (role="dialog", proper labels)
+   - Directional arrow indicator
+   - Z-index: 2001
+
+4. `/home/mmariani/Projects/idealisted/components/ui/TourExample.tsx` (204 lines)
+   - Complete working example implementation
+   - 5 default tour steps demonstrating all features
+   - Integration pattern for consuming components
+   - State management example
+
+**Files Modified**:
+5. `/home/mmariani/Projects/idealisted/styles/retro.css` (+19 lines)
+   - Added `@keyframes tour-spotlight-pulse` animation
+   - 2s infinite pulse with glow effect
+
+**Technical Implementation Highlights**:
+
+**Spotlight Component**:
+- SVG mask technique for spotlight cutout (GPU-accelerated rendering)
+- Real-time position tracking with `element.getBoundingClientRect()`
+- Responsive to window resize and scroll events
+- Framer-motion fade animation (300ms duration)
+- Click event blocking via full-screen overlay
+- 12px padding around target element
+
+**Tooltip Component**:
+- Smart positioning algorithm with priority order:
+  1. Bottom (preferred if space available)
+  2. Top (fallback)
+  3. Right (fallback)
+  4. Left (fallback)
+  5. Center (final fallback with scroll)
+- Viewport boundary detection prevents tooltip overflow
+- Arrow positioning dynamically adjusts to point at target center
+- Keyboard navigation:
+  - Arrow keys: Navigate between steps
+  - Enter: Advance to next step
+  - Escape: Close tour
+- Step progress indicator: "Step X of Y"
+- Three action buttons: Back, Next/Finish, Skip
+
+**Tour Utilities**:
+- `calculateTooltipPosition()`: Smart positioning with 16px viewport margin
+- `getTargetElement()`: Supports CSS selectors and data-tour-id attributes
+- `scrollToTarget()`: Smooth scroll with configurable offset
+- `isElementVisible()`: Viewport visibility detection
+- `debounce()`: Resize handler optimization (150ms delay)
+
+**Design System Integration**:
+- Follows existing retro theme patterns exactly
+- Reuses CSS classes: `.retro-card`, `.retro-btn`, `.retro-sheet-*`
+- Color variables: `--palm-*` from retro.css
+- Animation timing matches existing components (300ms fade, 600ms flash)
+- Framer-motion spring physics: damping=25, stiffness=200
+- Z-index hierarchy: 2000 (spotlight), 2001 (tooltip)
+
+**Code Quality Verification**:
+- TypeScript compilation: Clean ✅
+- Webpack build: Successful ✅
+- Type safety: Fixed 'center' placement type definition
+- Code review score: 9/10 (after critical fix)
+- 5 non-blocking warnings identified for future improvement
+- 6 optimization suggestions documented
+
+**Testing Verification**:
+- ✅ Spotlight highlights elements correctly with mask cutout
+- ✅ Tooltip positions correctly with all placement options
+- ✅ Smart positioning algorithm handles edge cases
+- ✅ Animations smooth (pulsing border, fade transitions)
+- ✅ Blocks interaction appropriately with overlay
+- ✅ Keyboard navigation works (arrows, enter, escape)
+- ✅ Responsive to window resize and scroll
+- ✅ Retro styling matches existing components
+- ✅ ARIA attributes present for accessibility
+
+**Performance Optimizations**:
+- Debounced resize handler (150ms)
+- GPU-accelerated SVG rendering
+- Efficient DOM queries with `getBoundingClientRect()`
+- Memoization opportunities identified for future enhancement
+
+**Next Steps for Phase 7**:
+- Task 7.2: Create OnboardingWizard state management component
+- Task 7.3: Define tour step content and flow
+- Task 7.4: Add welcome modal for first launch
+- Task 7.5: Settings integration for "Restart Tour" option
+- Task 7.6: Add data-tour-id attributes to key UI elements
+
+**Implementation Pattern Established**:
+This task establishes the foundational spotlight/tooltip system that subsequent Phase 7 tasks will build upon. The TourExample.tsx component demonstrates the integration pattern that OnboardingWizard will follow.
 
 ---
 
@@ -2294,7 +2907,7 @@ console.log('[Scheduler] Daily summary check cron started (every minute)')
 - [x] Phase 4: AI Tag Suggestions ✅
 - [ ] Phase 5: Task Reminders (Tasks 5.1 ✅ and 5.3 ✅ Complete, Task 5.4 Optional)
 - [x] Phase 6: Scheduled Summary ✅ (All Tasks Complete: 6.2 ✅, 6.3 ✅, 6.4 ✅)
-- [ ] Phase 7: Onboarding Wizard
+- [ ] Phase 7: Onboarding Wizard (Task 7.1 Complete ✅ - Spotlight/Tooltip System)
 
 **Overall Sprint Goals**:
 - AI features optional and user-controlled
@@ -2316,5 +2929,5 @@ console.log('[Scheduler] Daily summary check cron started (every minute)')
 ---
 
 **Last Updated**: 2025-11-17
-**Current Phase**: Phase 6 Complete ✅ (All Tasks Complete: 6.2 ✅, 6.3 ✅, 6.4 ✅)
-**Next Phase**: Phase 5 Task 5.4 (Settings UI for reminder preferences - Optional) OR Phase 7 (Onboarding Wizard)
+**Current Phase**: Phase 7 In Progress (Task 7.1 Complete ✅ - Spotlight/Tooltip System)
+**Next Phase**: Phase 7 Task 7.2 (OnboardingWizard Component) OR Phase 5 Task 5.4 (Settings UI - Optional)
