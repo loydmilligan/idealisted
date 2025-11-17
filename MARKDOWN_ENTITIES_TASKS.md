@@ -362,6 +362,786 @@ See MARKDOWN_ENTITIES_PLAN.md "Template Examples" section
 
 ---
 
+**Status**: ✅ COMPLETE
+**Completed**: 2025-11-16
+**Implementation**: `/home/mmariani/Projects/idealisted/lib/db.ts` lines 118-215, 409
+**Code Review**: ✅ APPROVED - Perfect specification compliance, INSERT OR IGNORE pattern, verified in database
+**Verification**: 3 templates seeded successfully, all field_config valid JSON, idempotent across restarts
+
+---
+
+## Context Manifest
+
+### How Database Seeding Currently Works
+
+The IdeaListed database initialization system in `/home/mmariani/Projects/idealisted/lib/db.ts` follows a well-established pattern for seeding initial data. This system was built to ensure that default application data exists in the database when the application starts, while preventing duplicate seeding on subsequent runs.
+
+#### The Seeding Architecture
+
+When the application starts, `lib/db.ts` is imported (line 1-17), which immediately triggers the database initialization at line 412 via the call to `initializeDatabase()`. The initialization flow creates all database tables (lines 119-402) and then, crucially, calls seeding functions at lines 407-408:
+
+```typescript
+// Seed default data
+seedDefaultTags()
+seedAIFeatureSettings()
+```
+
+These seeding functions run **after** all tables are created but **before** the application starts serving requests. This ensures that when API routes query the database, the default data already exists.
+
+#### Pattern A: Count-Based Idempotency (seedDefaultTags)
+
+The `seedDefaultTags()` function (lines 20-80) demonstrates the **count-based idempotency pattern**. Here's how it works:
+
+**Step 1: Check if data already exists**
+
+Before attempting any inserts, the function queries the target table to count existing rows:
+
+```typescript
+const existingCount = db.prepare('SELECT COUNT(*) as count FROM tags').get() as { count: number }
+if (existingCount.count > 0) {
+  return // Tags already seeded
+}
+```
+
+This approach assumes that if ANY tags exist, the seeding has already occurred. It's simple and effective for tables where you're seeding a fixed set of records.
+
+**Step 2: Insert all seed data in a transaction**
+
+If the count is zero, the function proceeds to insert all 25 default tags (lines 27-73). It prepares a single INSERT statement outside the loop (line 63-66), then executes it multiple times with different values (lines 69-72). This is more efficient than preparing statements inside the loop.
+
+**Step 3: Handle errors gracefully**
+
+The entire seeding operation is wrapped in a try-catch block (lines 62-79) that logs warnings but doesn't throw errors. This means if seeding fails (perhaps due to database corruption or schema mismatch), the application continues to run rather than crashing at startup. The philosophy here is: default data is helpful but not critical to basic operation.
+
+**Why this pattern?**
+
+This pattern is used when:
+- You're seeding a batch of related records as a unit
+- It's acceptable to have "all or nothing" seeding (either all tags exist or none do)
+- You want simple, fast idempotency checking (single COUNT query)
+- Re-running seeding after partial success is acceptable (COUNT would return >0)
+
+#### Pattern B: INSERT OR IGNORE (seedAIFeatureSettings)
+
+The `seedAIFeatureSettings()` function (lines 82-116) demonstrates a different approach: **SQL-level idempotency** using SQLite's `INSERT OR IGNORE` clause.
+
+**How INSERT OR IGNORE works:**
+
+```typescript
+const insert = db.prepare(`
+  INSERT OR IGNORE INTO ai_feature_settings (feature_name, enabled, description)
+  VALUES (?, ?, ?)
+`)
+
+features.forEach(feature => {
+  insert.run(feature.name, feature.enabled, feature.description)
+})
+```
+
+The `OR IGNORE` clause tells SQLite: "Try to insert this row, but if there's a constraint violation (like a PRIMARY KEY or UNIQUE constraint conflict), silently skip it instead of throwing an error."
+
+Since `ai_feature_settings` has `feature_name TEXT PRIMARY KEY` (line 341), attempting to insert a duplicate feature_name will be ignored. This means the function can run safely every time the app starts:
+
+- First run: All 3 features inserted successfully
+- Second run: All 3 INSERT attempts result in IGNORE (no-op)
+- Third run onwards: Same as second run
+
+**Why this pattern?**
+
+This pattern is preferred when:
+- Each record can be seeded independently (not all-or-nothing)
+- The table has a PRIMARY KEY or UNIQUE constraint that identifies duplicate attempts
+- You want SQLite to handle idempotency (no application-level counting needed)
+- You want individual records to be "self-healing" (if one is deleted, re-running seeds just that one)
+
+**Trade-offs:**
+
+INSERT OR IGNORE is slightly less efficient than the count-based pattern (it attempts 3 INSERT operations every startup vs. 1 SELECT COUNT), but it's more robust for individual record management.
+
+#### Better-sqlite3 Patterns
+
+Both functions use `better-sqlite3`'s synchronous API:
+
+**Prepared Statements:**
+```typescript
+const insert = db.prepare('INSERT INTO table VALUES (?, ?)')
+insert.run(value1, value2) // Execute with parameters
+```
+
+Prepared statements are cached by better-sqlite3 and provide SQL injection protection.
+
+**Querying:**
+```typescript
+const result = db.prepare('SELECT COUNT(*) as count FROM table').get() as { count: number }
+```
+
+The `.get()` method returns a single row (or undefined if no rows). The `.all()` method returns an array of all rows.
+
+**No explicit transactions needed:**
+
+Better-sqlite3 runs all statements in autocommit mode by default. For multi-step operations requiring atomicity, you'd use `db.transaction()`, but simple INSERT operations don't require it.
+
+### What Task 1.2 Needs to Accomplish
+
+This task is about creating a `seedTemplates()` function that inserts 3 system templates into the newly created `templates` table. These templates are the foundation of the markdown entity system - every task and note created going forward will reference one of these templates.
+
+#### The 3 Templates to Seed
+
+**1. Task Template (id: 'task')**
+
+This template defines the structure for all markdown-based tasks. It replaces the legacy tasks system with a richer, more structured format.
+
+**Markdown Template:**
+```markdown
+# {title}
+
+**Status**: Not Started
+**Priority**: Medium
+**Due Date**:
+
+## Description
+
+
+## Subtasks
+- [ ]
+
+
+## Notes
+
+```
+
+**Field Configuration (as JSON object, will be stringified):**
+```json
+{
+  "fields": {
+    "Status": {
+      "type": "select",
+      "options": ["Not Started", "In Progress", "Completed"],
+      "required": true
+    },
+    "Priority": {
+      "type": "select",
+      "options": ["Low", "Medium", "High", "Urgent"],
+      "required": true
+    },
+    "Due Date": {
+      "type": "date",
+      "required": false
+    }
+  },
+  "sections": {
+    "Description": {
+      "type": "textarea",
+      "required": false
+    },
+    "Subtasks": {
+      "type": "checklist",
+      "required": false
+    },
+    "Notes": {
+      "type": "textarea",
+      "required": false
+    }
+  }
+}
+```
+
+**Template Record Fields:**
+- `id`: 'task'
+- `name`: 'Task'
+- `entity_type`: 'task'
+- `subtype`: NULL (tasks don't have subtypes)
+- `markdown_template`: The markdown string above
+- `field_config`: JSON.stringify() the field config object
+- `is_system`: 1 (system template, not user-created)
+- `created_at`: Date.now()
+- `updated_at`: Date.now()
+
+**2. Note-Generic Template (id: 'note-generic')**
+
+This is the default template for simple notes. It has minimal structure - just content and tags.
+
+**Markdown Template:**
+```markdown
+# {title}
+
+## Content
+
+
+## Tags
+
+```
+
+**Field Configuration:**
+```json
+{
+  "sections": {
+    "Content": {
+      "type": "textarea",
+      "required": true
+    },
+    "Tags": {
+      "type": "taglist",
+      "required": false
+    }
+  }
+}
+```
+
+**Template Record Fields:**
+- `id`: 'note-generic'
+- `name`: 'Generic Note'
+- `entity_type`: 'note'
+- `subtype`: 'generic'
+- `markdown_template`: The markdown string above
+- `field_config`: JSON.stringify() the field config object
+- `is_system`: 1
+- `created_at`: Date.now()
+- `updated_at`: Date.now()
+
+**3. Note-YouTube Template (id: 'note-youtube')**
+
+This is a specialized template for taking notes on educational YouTube videos. It includes fields for the video URL, duration, watch status, key concepts, timestamps (for referencing specific video moments), an AI-generated summary section (for future AI integration), and user notes.
+
+**Markdown Template:**
+```markdown
+# {title}
+
+**URL**:
+**Duration**:
+**Status**: Not Watched
+
+## Key Concepts
+
+
+## Timestamps
+
+
+## AI Summary
+
+
+## My Notes
+
+```
+
+**Field Configuration:**
+```json
+{
+  "fields": {
+    "URL": {
+      "type": "url",
+      "required": true,
+      "validation": "youtube"
+    },
+    "Duration": {
+      "type": "text",
+      "required": false
+    },
+    "Status": {
+      "type": "select",
+      "options": ["Not Watched", "In Progress", "Completed"],
+      "required": true
+    }
+  },
+  "sections": {
+    "Key Concepts": {
+      "type": "bulletlist",
+      "required": false
+    },
+    "Timestamps": {
+      "type": "timestamplist",
+      "required": false
+    },
+    "AI Summary": {
+      "type": "textarea",
+      "readonly": true,
+      "required": false
+    },
+    "My Notes": {
+      "type": "textarea",
+      "required": false
+    }
+  }
+}
+```
+
+**Template Record Fields:**
+- `id`: 'note-youtube'
+- `name`: 'YouTube Learning Note'
+- `entity_type`: 'note'
+- `subtype`: 'youtube'
+- `markdown_template`: The markdown string above
+- `field_config`: JSON.stringify() the field config object
+- `is_system`: 1
+- `created_at`: Date.now()
+- `updated_at`: Date.now()
+
+#### Why These Specific Templates?
+
+The user explicitly requested these 3 templates based on their usage patterns:
+
+1. **Task**: Structured todo tracking with priority, status, and due dates
+2. **Generic Note**: Simple note-taking for general information
+3. **YouTube Learning Note**: Specialized for educational content consumption with timestamp references
+
+Future phases may add more templates (meeting notes, book notes, etc.), but these 3 are the MVP foundation.
+
+#### Critical Implementation Details
+
+**JSON Stringification:**
+
+The `field_config` column in the templates table is defined as `TEXT NOT NULL` (line 297 of db.ts). This means we must store the field configuration objects as JSON strings:
+
+```typescript
+const fieldConfig = {
+  fields: { /* ... */ },
+  sections: { /* ... */ }
+}
+
+// When inserting:
+const fieldConfigJson = JSON.stringify(fieldConfig)
+insert.run(id, name, entityType, subtype, markdownTemplate, fieldConfigJson, isSystem, now, now)
+```
+
+Later, when templates are read from the database (in Phase 2+), they'll be parsed back to objects:
+
+```typescript
+const template = db.prepare('SELECT * FROM templates WHERE id = ?').get(templateId)
+template.field_config = JSON.parse(template.field_config)
+```
+
+This pattern is consistent with how other JSON fields are handled in the codebase (see `items.metadata`, `items.tags`, etc. at lines 172-173 and 59-60 in app/api/items/route.ts).
+
+**Newlines and Whitespace in Markdown Templates:**
+
+The markdown templates contain significant whitespace (blank lines between sections). When defining these as template literal strings in TypeScript, preserve the exact formatting:
+
+```typescript
+const taskMarkdown = `# {title}
+
+**Status**: Not Started
+**Priority**: Medium
+**Due Date**:
+
+## Description
+
+
+## Subtasks
+- [ ]
+
+
+## Notes
+`
+```
+
+The blank lines are intentional - they provide visual separation in the rendered markdown and are part of the template structure.
+
+**Placeholder Syntax:**
+
+The `{title}` placeholder in the markdown templates is a convention for the markdown parser (to be built in Phase 2). It indicates where the entity's title should be inserted. For now, we're just storing the templates as-is; the parser will handle placeholder substitution later.
+
+### Choosing the Right Idempotency Pattern
+
+For seeding templates, we have two options:
+
+**Option A: Count-Based (like seedDefaultTags)**
+
+```typescript
+function seedTemplates() {
+  const existingCount = db.prepare('SELECT COUNT(*) as count FROM templates').get() as { count: number }
+  if (existingCount.count > 0) {
+    return // Templates already seeded
+  }
+
+  // Insert all 3 templates...
+}
+```
+
+**Pros:**
+- Fast (single SELECT COUNT vs. 3 INSERT attempts)
+- Matches existing pattern in codebase
+- Clear intent: either seed all or seed none
+
+**Cons:**
+- If someone manually deletes one template, re-running won't restore it
+- Assumes templates are seeded as an atomic unit
+
+**Option B: INSERT OR IGNORE (like seedAIFeatureSettings)**
+
+```typescript
+function seedTemplates() {
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO templates (id, name, entity_type, subtype, markdown_template, field_config, is_system, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+
+  // Attempt to insert task template
+  insert.run('task', 'Task', 'task', null, taskMarkdown, taskFieldConfig, 1, now, now)
+
+  // Attempt to insert note-generic template
+  insert.run('note-generic', 'Generic Note', 'note', 'generic', noteGenericMarkdown, noteGenericFieldConfig, 1, now, now)
+
+  // Attempt to insert note-youtube template
+  insert.run('note-youtube', 'YouTube Learning Note', 'note', 'youtube', noteYoutubeMarkdown, noteYoutubeFieldConfig, 1, now, now)
+}
+```
+
+**Pros:**
+- Self-healing: If one template is deleted, restarting the app re-seeds just that one
+- No upfront COUNT query needed
+- More granular control (each template independent)
+
+**Cons:**
+- Slightly less efficient (3 INSERT attempts every startup vs. 1 SELECT COUNT + early return)
+
+**Recommendation: Use INSERT OR IGNORE (Option B)**
+
+Why? Because templates are **critical system infrastructure**. If a template is accidentally deleted or corrupted, the app won't function correctly. The INSERT OR IGNORE pattern ensures that every app startup validates that all 3 system templates exist, and automatically restores any that are missing. This is worth the tiny performance cost.
+
+Additionally, the `templates` table has `id TEXT PRIMARY KEY` (line 292), which makes INSERT OR IGNORE natural - duplicate `id` values will be silently ignored.
+
+### Implementation Location and Code Structure
+
+**Where to add the function:**
+
+The `seedTemplates()` function should be added in `lib/db.ts` after the existing seeding functions, around line 116-117 (after `seedAIFeatureSettings()` closes).
+
+**Function structure:**
+
+```typescript
+function seedTemplates() {
+  const now = Date.now()
+
+  // Template 1: Task
+  const taskMarkdown = `# {title}
+
+**Status**: Not Started
+**Priority**: Medium
+**Due Date**:
+
+## Description
+
+
+## Subtasks
+- [ ]
+
+
+## Notes
+`
+
+  const taskFieldConfig = JSON.stringify({
+    fields: {
+      Status: { type: "select", options: ["Not Started", "In Progress", "Completed"], required: true },
+      Priority: { type: "select", options: ["Low", "Medium", "High", "Urgent"], required: true },
+      "Due Date": { type: "date", required: false }
+    },
+    sections: {
+      Description: { type: "textarea", required: false },
+      Subtasks: { type: "checklist", required: false },
+      Notes: { type: "textarea", required: false }
+    }
+  })
+
+  // Template 2: Note-Generic
+  const noteGenericMarkdown = `# {title}
+
+## Content
+
+
+## Tags
+`
+
+  const noteGenericFieldConfig = JSON.stringify({
+    sections: {
+      Content: { type: "textarea", required: true },
+      Tags: { type: "taglist", required: false }
+    }
+  })
+
+  // Template 3: Note-YouTube
+  const noteYoutubeMarkdown = `# {title}
+
+**URL**:
+**Duration**:
+**Status**: Not Watched
+
+## Key Concepts
+
+
+## Timestamps
+
+
+## AI Summary
+
+
+## My Notes
+`
+
+  const noteYoutubeFieldConfig = JSON.stringify({
+    fields: {
+      URL: { type: "url", required: true, validation: "youtube" },
+      Duration: { type: "text", required: false },
+      Status: { type: "select", options: ["Not Watched", "In Progress", "Completed"], required: true }
+    },
+    sections: {
+      "Key Concepts": { type: "bulletlist", required: false },
+      Timestamps: { type: "timestamplist", required: false },
+      "AI Summary": { type: "textarea", readonly: true, required: false },
+      "My Notes": { type: "textarea", required: false }
+    }
+  })
+
+  try {
+    const insert = db.prepare(`
+      INSERT OR IGNORE INTO templates (id, name, entity_type, subtype, markdown_template, field_config, is_system, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+
+    insert.run('task', 'Task', 'task', null, taskMarkdown, taskFieldConfig, 1, now, now)
+    insert.run('note-generic', 'Generic Note', 'note', 'generic', noteGenericMarkdown, noteGenericFieldConfig, 1, now, now)
+    insert.run('note-youtube', 'YouTube Learning Note', 'note', 'youtube', noteYoutubeMarkdown, noteYoutubeFieldConfig, 1, now, now)
+
+    console.log('Seeded system templates')
+  } catch (error) {
+    console.warn('Failed to seed templates:', error)
+    // Don't throw - let app continue
+  }
+}
+```
+
+**Where to call the function:**
+
+Add the call in the `initializeDatabase()` function after line 408, alongside the other seeding calls:
+
+```typescript
+// Seed default data
+seedDefaultTags()
+seedAIFeatureSettings()
+seedTemplates() // ADD THIS LINE
+```
+
+This ensures templates are seeded every time the database is initialized, after all tables have been created.
+
+### Data Validation and Error Handling
+
+**Validation concerns:**
+
+1. **Template IDs must be unique**: Handled by PRIMARY KEY constraint + INSERT OR IGNORE
+2. **field_config must be valid JSON**: Ensured by using JSON.stringify() on well-formed objects
+3. **Required fields must not be NULL**: All fields are provided in the INSERT statement
+4. **Timestamps must be valid integers**: Date.now() returns milliseconds since epoch (integer)
+
+**Error handling strategy:**
+
+Following the existing pattern in `seedDefaultTags()` and `seedAIFeatureSettings()`, the function wraps the seeding logic in a try-catch that logs warnings but doesn't throw. This is because:
+
+1. Template seeding is important but shouldn't crash the app at startup
+2. If seeding fails, the error will surface when users try to create entities (API routes will fail to find templates)
+3. Startup time is critical - we don't want to block the server from starting
+
+However, in practice, seeding should never fail if:
+- The templates table was created successfully (Task 1.1)
+- The SQL syntax is correct
+- The JSON.stringify() calls succeed (they will, with well-formed objects)
+
+### Testing and Verification Strategy
+
+After implementing the seeding function, verify it works by:
+
+**1. Check that 3 templates exist:**
+
+```sql
+SELECT COUNT(*) FROM templates;
+-- Expected: 3
+```
+
+**2. Verify template IDs:**
+
+```sql
+SELECT id, name, entity_type, subtype FROM templates ORDER BY id;
+-- Expected:
+-- note-generic | Generic Note | note | generic
+-- note-youtube | YouTube Learning Note | note | youtube
+-- task | Task | task | NULL
+```
+
+**3. Verify field_config is valid JSON:**
+
+```sql
+SELECT id, json_valid(field_config) FROM templates;
+-- Expected: All rows return 1 (valid JSON)
+```
+
+**4. Test idempotency:**
+
+Restart the dev server 2-3 times. Check the console logs for "Seeded system templates" - it should appear each time, but the COUNT(*) should remain 3 (no duplicates).
+
+**5. Inspect a full template:**
+
+```sql
+SELECT * FROM templates WHERE id = 'task';
+```
+
+Verify the markdown_template contains the expected template structure with placeholders and the field_config contains the full configuration object.
+
+### Integration Points and Dependencies
+
+**What depends on this task succeeding:**
+
+- **Phase 2 (Markdown Parser)**: The parser will query templates by ID to know what fields/sections to extract
+- **Phase 3 (Task Conversion)**: Task creation will require the 'task' template to exist
+- **Phase 4 (Note Conversion)**: Note creation will require 'note-generic' template
+- **Phase 5 (YouTube Notes)**: YouTube note creation requires 'note-youtube' template
+- **Phase 6 (AI Integration)**: AI will suggest template IDs that must exist in the database
+
+If templates don't exist, all these subsequent phases will fail with database query errors.
+
+**What this task depends on:**
+
+- **Task 1.1 (Database Migration)**: The `templates` table must exist before seeding
+- Specifically, the CREATE TABLE statement at lines 289-302 of lib/db.ts must have run successfully
+
+**No external dependencies:**
+
+- No new npm packages required
+- No API changes needed
+- No TypeScript type definitions needed yet (those come in Task 1.3)
+
+### Files and Code Locations Reference
+
+**Primary file:** `/home/mmariani/Projects/idealisted/lib/db.ts`
+
+**Key line numbers:**
+- Lines 20-80: `seedDefaultTags()` - reference pattern for count-based idempotency
+- Lines 82-116: `seedAIFeatureSettings()` - reference pattern for INSERT OR IGNORE
+- Lines 289-302: `templates` table creation (from Task 1.1)
+- Line 408: Where seeding functions are called in `initializeDatabase()`
+- Line 116-117: Where to insert the new `seedTemplates()` function
+
+**Reference documents:**
+- `/home/mmariani/Projects/idealisted/MARKDOWN_ENTITIES_PLAN.md` lines 343-436: Full template specifications
+- `/home/mmariani/Projects/idealisted/MARKDOWN_ENTITIES_TASKS.md` lines 24-47: Task 1.1 context (database migration)
+
+**Related files (for context, not modified in this task):**
+- `/home/mmariani/Projects/idealisted/types/index.ts` - Will need Template type in Task 1.3
+- `/home/mmariani/Projects/idealisted/app/api/items/route.ts` - Shows JSON field handling pattern
+
+### Technical Reference: Complete Implementation
+
+**Function to add at line 117 of lib/db.ts:**
+
+```typescript
+function seedTemplates() {
+  const now = Date.now()
+
+  // Template 1: Task
+  const taskMarkdown = `# {title}
+
+**Status**: Not Started
+**Priority**: Medium
+**Due Date**:
+
+## Description
+
+
+## Subtasks
+- [ ]
+
+
+## Notes
+`
+
+  const taskFieldConfig = JSON.stringify({
+    fields: {
+      Status: { type: "select", options: ["Not Started", "In Progress", "Completed"], required: true },
+      Priority: { type: "select", options: ["Low", "Medium", "High", "Urgent"], required: true },
+      "Due Date": { type: "date", required: false }
+    },
+    sections: {
+      Description: { type: "textarea", required: false },
+      Subtasks: { type: "checklist", required: false },
+      Notes: { type: "textarea", required: false }
+    }
+  })
+
+  // Template 2: Note-Generic
+  const noteGenericMarkdown = `# {title}
+
+## Content
+
+
+## Tags
+`
+
+  const noteGenericFieldConfig = JSON.stringify({
+    sections: {
+      Content: { type: "textarea", required: true },
+      Tags: { type: "taglist", required: false }
+    }
+  })
+
+  // Template 3: Note-YouTube
+  const noteYoutubeMarkdown = `# {title}
+
+**URL**:
+**Duration**:
+**Status**: Not Watched
+
+## Key Concepts
+
+
+## Timestamps
+
+
+## AI Summary
+
+
+## My Notes
+`
+
+  const noteYoutubeFieldConfig = JSON.stringify({
+    fields: {
+      URL: { type: "url", required: true, validation: "youtube" },
+      Duration: { type: "text", required: false },
+      Status: { type: "select", options: ["Not Watched", "In Progress", "Completed"], required: true }
+    },
+    sections: {
+      "Key Concepts": { type: "bulletlist", required: false },
+      Timestamps: { type: "timestamplist", required: false },
+      "AI Summary": { type: "textarea", readonly: true, required: false },
+      "My Notes": { type: "textarea", required: false }
+    }
+  })
+
+  try {
+    const insert = db.prepare(`
+      INSERT OR IGNORE INTO templates (id, name, entity_type, subtype, markdown_template, field_config, is_system, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+
+    insert.run('task', 'Task', 'task', null, taskMarkdown, taskFieldConfig, 1, now, now)
+    insert.run('note-generic', 'Generic Note', 'note', 'generic', noteGenericMarkdown, noteGenericFieldConfig, 1, now, now)
+    insert.run('note-youtube', 'YouTube Learning Note', 'note', 'youtube', noteYoutubeMarkdown, noteYoutubeFieldConfig, 1, now, now)
+
+    console.log('Seeded system templates')
+  } catch (error) {
+    console.warn('Failed to seed templates:', error)
+    // Don't throw - let app continue
+  }
+}
+```
+
+**Function call to add after line 408:**
+
+```typescript
+// Seed default data
+seedDefaultTags()
+seedAIFeatureSettings()
+seedTemplates() // ADD THIS
+```
+
+---
+
 ### Task 1.3: TypeScript Type Definitions
 **Objective**: Define types for new system
 

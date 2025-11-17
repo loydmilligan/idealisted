@@ -115,6 +115,105 @@ function seedAIFeatureSettings() {
   }
 }
 
+function seedTemplates() {
+  const now = Date.now()
+
+  // Template 1: Task
+  const taskMarkdown = `# {title}
+
+**Status**: Not Started
+**Priority**: Medium
+**Due Date**:
+
+## Description
+
+
+## Subtasks
+- [ ]
+
+
+## Notes
+`
+
+  const taskFieldConfig = JSON.stringify({
+    fields: {
+      Status: { type: "select", options: ["Not Started", "In Progress", "Completed"], required: true },
+      Priority: { type: "select", options: ["Low", "Medium", "High", "Urgent"], required: true },
+      "Due Date": { type: "date", required: false }
+    },
+    sections: {
+      Description: { type: "textarea", required: false },
+      Subtasks: { type: "checklist", required: false },
+      Notes: { type: "textarea", required: false }
+    }
+  })
+
+  // Template 2: Note-Generic
+  const noteGenericMarkdown = `# {title}
+
+## Content
+
+
+## Tags
+`
+
+  const noteGenericFieldConfig = JSON.stringify({
+    sections: {
+      Content: { type: "textarea", required: true },
+      Tags: { type: "taglist", required: false }
+    }
+  })
+
+  // Template 3: Note-YouTube
+  const noteYoutubeMarkdown = `# {title}
+
+**URL**:
+**Duration**:
+**Status**: Not Watched
+
+## Key Concepts
+
+
+## Timestamps
+
+
+## AI Summary
+
+
+## My Notes
+`
+
+  const noteYoutubeFieldConfig = JSON.stringify({
+    fields: {
+      URL: { type: "url", required: true, validation: "youtube" },
+      Duration: { type: "text", required: false },
+      Status: { type: "select", options: ["Not Watched", "In Progress", "Completed"], required: true }
+    },
+    sections: {
+      "Key Concepts": { type: "bulletlist", required: false },
+      Timestamps: { type: "timestamplist", required: false },
+      "AI Summary": { type: "textarea", readonly: true, required: false },
+      "My Notes": { type: "textarea", required: false }
+    }
+  })
+
+  try {
+    const insert = db.prepare(`
+      INSERT OR IGNORE INTO templates (id, name, entity_type, subtype, markdown_template, field_config, is_system, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+
+    insert.run('task', 'Task', 'task', null, taskMarkdown, taskFieldConfig, 1, now, now)
+    insert.run('note-generic', 'Generic Note', 'note', 'generic', noteGenericMarkdown, noteGenericFieldConfig, 1, now, now)
+    insert.run('note-youtube', 'YouTube Learning Note', 'note', 'youtube', noteYoutubeMarkdown, noteYoutubeFieldConfig, 1, now, now)
+
+    console.log('Seeded system templates')
+  } catch (error) {
+    console.warn('Failed to seed templates:', error)
+    // Don't throw - let app continue
+  }
+}
+
 // Initialize tables
 export function initializeDatabase() {
   // Check if we need to migrate by dropping and recreating tables with new schema
@@ -406,6 +505,7 @@ export function initializeDatabase() {
   // Seed default data
   seedDefaultTags()
   seedAIFeatureSettings()
+  seedTemplates()
 }
 
 // Initialize the database
