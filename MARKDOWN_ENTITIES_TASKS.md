@@ -1196,6 +1196,824 @@ interface ParsedEntity {
 
 ---
 
+## Context Manifest
+
+### How the TypeScript Type System Currently Works
+
+The IdeaListed application uses a comprehensive TypeScript type system defined in `/home/mmariani/Projects/idealisted/types/index.ts`. This file serves as the **single source of truth** for all data structures used throughout the application - from database models to API request/response contracts. Understanding the existing patterns is crucial for adding the new markdown entity types in a way that's consistent with the codebase architecture.
+
+#### Type Architecture Overview
+
+The type system follows a **layered architecture** with three distinct type categories:
+
+**Layer 1: Database Row Types (Direct SQLite Mapping)**
+
+These interfaces represent the raw data structures as they exist in SQLite database tables. Every field in these interfaces corresponds 1:1 with a column in the database. Examples:
+
+- `Item` (lines 1-40): Base entity interface matching the `items` table
+- `Task` (lines 81-92): Task-specific fields matching the `tasks` table
+- `Note` (lines 94-102): Note-specific fields matching the `notes` table
+- `Tag` (lines 42-51): Tag metadata matching the `tags` table
+
+**Key Pattern**: Database booleans are typed as `boolean` in TypeScript but stored as `INTEGER` (0 or 1) in SQLite. The conversion happens at the database boundary (see app/api/items/route.ts lines 61-64 for reading, lines 183 for writing).
+
+**Layer 2: Combined/Enriched Types (API Response Models)**
+
+These interfaces extend the base database types with relationships and computed data:
+
+- `ItemWithRelations` (lines 201-215): Extends `Item` with nested entity objects (todo, task, note, list, project)
+- `PlanWithTodos` (lines 217-219): Extends `Plan` with nested todo items
+
+**Purpose**: These types represent data as it flows through the API layer and React components. They're richer than database rows because they include joined data from related tables.
+
+**Layer 3: API Contract Types (Request/Response Payloads)**
+
+These interfaces define the shape of data sent to and received from API endpoints:
+
+- `CreateItemRequest` (lines 222-232): POST /api/items payload structure
+- `UpdateItemRequest` (lines 234-240): PUT /api/items/[id] payload structure
+- `AIRequest` (lines 242-247): AI service request structure
+- `AIResponse` (lines 249-256): AI service response structure
+
+**Pattern**: These use TypeScript utility types like `Omit` to derive request types from database types while excluding auto-generated fields (id, created_at).
+
+#### Critical Pattern: JSON Field Handling
+
+The SQLite database stores complex data structures as **TEXT columns containing JSON strings**. The type system handles this with a two-stage pattern:
+
+**In Database Schema (lib/db.ts)**:
+```sql
+CREATE TABLE items (
+  metadata TEXT,        -- JSON for additional data
+  tags TEXT,           -- JSON array of tags
+  ai_suggestion TEXT   -- Parse + Convert: stored AI suggestion JSON
+)
+```
+
+**In TypeScript Types (types/index.ts)**:
+```typescript
+export interface Item {
+  metadata?: Record<string, any>  // Parsed from JSON string
+  tags?: string[]                 // Parsed from JSON array string
+  ai_suggestion?: AISuggestion    // Parsed from JSON object string
+}
+```
+
+**At the API Boundary (app/api/items/route.ts)**:
+
+When **writing** to the database (line 172-173):
+```typescript
+const metadataJson = body.metadata ? JSON.stringify(body.metadata) : null
+const tagsJson = body.tags ? JSON.stringify(body.tags) : null
+insertItem.run(id, type, text, now, now, metadataJson, tagsJson, ...)
+```
+
+When **reading** from the database (lines 59-64):
+```typescript
+const item: ItemWithRelations = {
+  // ... other fields ...
+  metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
+  tags: row.tags ? JSON.parse(row.tags) : [],
+  ai_suggestion: row.ai_suggestion ? JSON.parse(row.ai_suggestion) : undefined
+}
+```
+
+**This exact pattern must be followed for the new `field_config` column in the templates table.**
+
+#### Existing Entity Type Patterns
+
+Each entity type (Todo, Task, Note, List, Project) follows a consistent structure:
+
+**Common Patterns Across All Entity Types**:
+
+1. **Primary Key + Foreign Key**: Every entity has an `id` (primary key) and `item_id` (foreign key to items table)
+2. **Optional Fields**: Most fields are optional (`?`) because they might not be provided during creation
+3. **Type-Specific Data**: Each entity stores specialized fields (e.g., tasks have `status`, notes have `subtype`)
+
+**Example: Task Interface (lines 81-92)**:
+```typescript
+export interface Task {
+  id: string                        // Primary key
+  item_id: string                   // Foreign key to items table
+  status: 'pending' | 'in-progress' | 'completed'  // Literal union type
+  priority: number                  // Integer 1-5
+  tags?: string[]                   // Optional, parsed from JSON
+  estimated_time?: number           // Optional timestamp
+  project_id?: string               // Optional foreign key to projects
+  due_date?: number                 // Optional timestamp
+  reminder_datetime?: number        // Added in Task 1.3 (reminder feature)
+  last_notified_at?: number         // Added in Task 1.3 (reminder feature)
+}
+```
+
+**Pattern Observations**:
+- Enum-like values use **literal union types** (`'pending' | 'in-progress' | 'completed'`)
+- Timestamps are **number** type (milliseconds since epoch from `Date.now()`)
+- Arrays (tags) are typed as `string[]` even though stored as JSON TEXT
+- Recently added fields (`reminder_datetime`, `last_notified_at`) demonstrate the incremental evolution pattern
+
+**Example: Note Interface (lines 94-102)**:
+```typescript
+export interface Note {
+  id: string
+  item_id: string
+  subtype: 'general' | 'research' | 'video' | 'link' | 'file' | 'contact' | 'meeting'
+  content?: string                  // Optional markdown/text content
+  url?: string                      // Optional URL for link/video notes
+  media_type?: string               // Optional media type identifier
+  frontmatter?: string              // YAML frontmatter as JSON string
+}
+```
+
+**Key Insight**: The `frontmatter` field (line 101) is a **JSON string** in the database but typed as `string` (not parsed). This is different from the `metadata` pattern. The comment explicitly says "YAML frontmatter as JSON string", meaning YAML is converted to JSON, then stringified. This shows there are different strategies for complex data depending on use case.
+
+#### The Item Interface and Entity Type Polymorphism
+
+The `Item` interface (lines 1-40) is the **central polymorphic type** that all entities share. It's designed to support **Parse + Convert workflow** (lines 9-12):
+
+```typescript
+export interface Item {
+  id: string
+  type: 'idea' | 'note' | 'task' | 'project' | 'list'  // Determines entity subtype
+  text: string                                          // Main content/title
+  created_at: number
+  updated_at?: number
+  archived?: boolean
+  tags?: string[]
+  // Parse + Convert workflow fields
+  parsed?: boolean              // Stage 2: Has been categorized
+  entity_type?: 'task' | 'note' | 'list' | 'project'  // Suggested type after parsing
+  ai_suggestion?: AISuggestion  // Stored AI suggestion for later conversion
+  // Embedded entity data (deprecated pattern, kept for backward compatibility)
+  note?: { /* ... */ }          // Lines 13-20: Legacy note embedding
+  task?: { /* ... */ }          // Lines 21-28: Legacy task embedding
+  project?: { /* ... */ }       // Lines 29-34: Legacy project embedding
+  list?: { /* ... */ }          // Lines 35-39: Legacy list embedding
+}
+```
+
+**Critical Pattern**: The `type` field determines which specialized table contains additional data. The embedded entity objects (note, task, project, list) are **legacy patterns** kept for backward compatibility but **new code should NOT use this pattern**. Instead, entity data lives in separate tables (tasks, notes, projects, lists) and is joined via `ItemWithRelations` (lines 201-215).
+
+#### Configuration Type Patterns
+
+The application has several configuration interfaces showing how settings are structured:
+
+**AIConfig (lines 155-164)**: AI service configuration with multiple fields
+```typescript
+export interface AIConfig {
+  enabled: boolean              // Master toggle for AI features
+  openrouterApiKey: string      // API key for OpenRouter
+  freeModel: string             // Default free model identifier
+  paidModel: string             // Paid model identifier
+  usePaidModel: boolean         // Toggle between free/paid
+  systemPrompt: string          // Custom system prompt
+  temperature: number           // AI temperature parameter (0-1)
+  maxTokens: number             // Max response tokens
+}
+```
+
+**Pattern**: Configuration objects use descriptive field names, primitive types, and include comments explaining each field's purpose.
+
+**AIFeatureSetting (lines 166-170)**: Individual feature toggles stored in database
+```typescript
+export interface AIFeatureSetting {
+  feature_name: string          // Primary key in database
+  enabled: number               // SQLite boolean (0 or 1) - NOT boolean type
+  description: string           // Human-readable feature description
+}
+```
+
+**Key Difference**: This type uses `enabled: number` (not `boolean`) because it's read directly from SQLite without transformation. This is an exception to the usual pattern where API layer converts integers to booleans.
+
+**ReminderConfig (lines 188-198)**: Nested configuration structure
+```typescript
+export interface ReminderConfig {
+  enabled: boolean
+  quietHours: {                 // Nested object for grouped settings
+    enabled: boolean
+    start: string               // HH:mm format (e.g., "22:00")
+    end: string                 // HH:mm format (e.g., "08:00")
+  }
+  defaultTiming: 'morning_of' | '1_hour_before' | '1_day_before' | 'custom'
+  customMinutesBefore?: number  // Conditional field based on defaultTiming
+  priorityFilter: number[]      // Array of priority levels (1-5)
+}
+```
+
+**Pattern Insights**:
+- Nested objects allowed for logically grouped settings
+- String formats documented in comments (HH:mm)
+- Literal union types for predefined options
+- Conditional optional fields (`customMinutesBefore` only used if `defaultTiming` is 'custom')
+
+### What Task 1.3 Needs to Accomplish
+
+This task defines the **TypeScript type system for the markdown entity feature**. These types will be used across the entire implementation (Phases 2-8) for type safety, autocomplete, and documentation. The types must align perfectly with:
+
+1. The database schema created in Task 1.1
+2. The template data seeded in Task 1.2
+3. The parser to be built in Phase 2
+4. The API modifications in Phases 3-6
+5. The UI components in Phase 7
+
+#### The Template Interface
+
+This interface represents a row from the `templates` table (lib/db.ts lines 389-401):
+
+**Database Schema Reference**:
+```sql
+CREATE TABLE IF NOT EXISTS templates (
+  id TEXT PRIMARY KEY,              -- 'task', 'note-generic', 'note-youtube'
+  name TEXT NOT NULL,               -- Display name
+  entity_type TEXT NOT NULL,        -- 'task', 'note', 'project', 'list'
+  subtype TEXT,                     -- NULL for task, 'generic'/'youtube' for notes
+  markdown_template TEXT NOT NULL,  -- Template content with {placeholders}
+  field_config TEXT NOT NULL,       -- JSON: field types and validation rules
+  is_system INTEGER DEFAULT 1,      -- 1 = system template, 0 = user template
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+)
+```
+
+**Required TypeScript Interface**:
+```typescript
+export interface Template {
+  id: string                        // Primary key: 'task', 'note-generic', 'note-youtube'
+  name: string                      // Display name: 'Task', 'Generic Note', etc.
+  entity_type: 'task' | 'note' | 'project' | 'list'  // Literal union type
+  subtype: string | null            // NULL for tasks, 'generic'/'youtube' for notes
+  markdown_template: string         // Template with {title} placeholders
+  field_config: FieldConfig         // PARSED from JSON string (important!)
+  is_system: boolean                // Converted from INTEGER (0/1) to boolean
+  created_at: number                // Timestamp in milliseconds
+  updated_at: number                // Timestamp in milliseconds
+}
+```
+
+**Critical Implementation Details**:
+
+1. **field_config Type Transformation**: In the database, this is `TEXT NOT NULL` containing a JSON string. In TypeScript, it's typed as `FieldConfig` (a parsed object). The API layer will need to handle JSON.parse/stringify just like the `metadata` field pattern.
+
+2. **is_system Boolean Conversion**: Database stores INTEGER (1 or 0), TypeScript uses boolean. This follows the same pattern as `Item.archived` (lines 7, 61).
+
+3. **entity_type Constraint**: The literal union type `'task' | 'note' | 'project' | 'list'` matches the database CHECK constraint and provides autocomplete in the IDE.
+
+4. **subtype Flexibility**: Typed as `string | null` (not a union of subtypes) because future templates may add new subtypes dynamically. The database doesn't have a CHECK constraint here either.
+
+#### The FieldConfig Interface
+
+This is the **core configuration structure** that defines how templates work. It's stored as JSON in the database but used as a structured object in TypeScript:
+
+**Structure from Seeded Templates** (lib/db.ts lines 138-149, 160-165, 186-198):
+
+```typescript
+export interface FieldConfig {
+  fields?: Record<string, FieldDef>      // Optional: Not all templates have fields
+  sections?: Record<string, SectionDef>  // Optional: But all templates have sections
+}
+```
+
+**Why Both Optional?**
+- Task template has **both** fields (Status, Priority, Due Date) and sections (Description, Subtasks, Notes)
+- Note-Generic template has **only** sections (Content, Tags) - no fields
+- This flexibility allows simple templates (just content) and complex templates (many fields + sections)
+
+**Record<string, T> Pattern**: This TypeScript utility type means "an object where keys are strings and values are of type T". It's used instead of defining explicit properties because template field names are dynamic (e.g., "Status", "Priority", "Due Date" are keys in the task template's fields object).
+
+#### The FieldDef Interface
+
+Defines **inline fields** (the `**Label**: value` patterns in markdown):
+
+**Based on Seeded Field Configurations**:
+
+Task template fields (lib/db.ts lines 139-143):
+```json
+{
+  "Status": { "type": "select", "options": ["Not Started", "In Progress", "Completed"], "required": true },
+  "Priority": { "type": "select", "options": ["Low", "Medium", "High", "Urgent"], "required": true },
+  "Due Date": { "type": "date", "required": false }
+}
+```
+
+YouTube note fields (lib/db.ts lines 187-191):
+```json
+{
+  "URL": { "type": "url", "required": true, "validation": "youtube" },
+  "Duration": { "type": "text", "required": false },
+  "Status": { "type": "select", "options": ["Not Watched", "In Progress", "Completed"], "required": true }
+}
+```
+
+**Required TypeScript Interface**:
+```typescript
+export interface FieldDef {
+  type: 'text' | 'date' | 'select' | 'url' | 'checkbox'  // Field type determines editor component
+  required: boolean                 // Validation: must be present
+  options?: string[]                // For 'select' type: dropdown options
+  validation?: string               // Special validators: 'youtube', or regex pattern
+  readonly?: boolean                // For future use (AI Summary is readonly)
+}
+```
+
+**Field Type Mapping** (from plan lines 366-376):
+- `text`: Simple text input (Duration)
+- `date`: Date picker (Due Date) - expects YYYY-MM-DD format
+- `select`: Dropdown with predefined options (Status, Priority)
+- `url`: URL input with validation (URL field in YouTube notes)
+- `checkbox`: Boolean field (not used in initial templates but included for future)
+
+**Optional Fields Explained**:
+- `options`: Only present for `select` type fields
+- `validation`: Only present for fields requiring special validation (e.g., YouTube URL must match youtube.com or youtu.be)
+- `readonly`: Only used for AI Summary section in YouTube notes (line 195: `readonly: true`)
+
+#### The SectionDef Interface
+
+Defines **section blocks** (the `## Section Name` patterns in markdown):
+
+**Based on Seeded Section Configurations**:
+
+Task sections (lib/db.ts lines 144-148):
+```json
+{
+  "Description": { "type": "textarea", "required": false },
+  "Subtasks": { "type": "checklist", "required": false },
+  "Notes": { "type": "textarea", "required": false }
+}
+```
+
+YouTube note sections (lib/db.ts lines 192-197):
+```json
+{
+  "Key Concepts": { "type": "bulletlist", "required": false },
+  "Timestamps": { "type": "timestamplist", "required": false },
+  "AI Summary": { "type": "textarea", "readonly": true, "required": false },
+  "My Notes": { "type": "textarea", "required": false }
+}
+```
+
+**Required TypeScript Interface**:
+```typescript
+export interface SectionDef {
+  type: 'textarea' | 'bulletlist' | 'checklist' | 'timestamplist' | 'taglist'
+  required: boolean                 // Validation: must have content
+  readonly?: boolean                // For AI-generated sections
+}
+```
+
+**Section Type Mapping**:
+- `textarea`: Free-form text editor (Description, Notes, AI Summary)
+- `bulletlist`: Unordered list editor (Key Concepts)
+- `checklist`: Checkable list with `- [ ]` markdown syntax (Subtasks)
+- `timestamplist`: Special list for `[HH:MM] Description` entries (Timestamps in YouTube notes)
+- `taglist`: Tag input component (Tags in Generic Note)
+
+**Readonly Sections**: The AI Summary section in YouTube notes is `readonly: true`, meaning users can view it but not edit it (it's populated by AI). This pattern will be used in Phase 6.
+
+#### The ParsedEntity Interface
+
+This interface represents **the output of the markdown parser** (to be built in Phase 2). It's the in-memory representation of a markdown entity after parsing:
+
+**Purpose**: Bridge between raw markdown string and structured data. The parser reads markdown, extracts fields/sections, and returns a ParsedEntity. The renderer takes a ParsedEntity and reconstructs markdown.
+
+**Required Interface**:
+```typescript
+export interface ParsedEntity {
+  title: string                     // Extracted from # {title} heading
+  fields: Record<string, string>    // All **Field**: value pairs
+  sections: Record<string, string>  // All ## Section content blocks
+  raw: string                       // Original markdown (for debugging/reference)
+}
+```
+
+**Example Usage** (from Phase 2 parser pseudocode, plan lines 441-471):
+
+Input markdown:
+```markdown
+# Complete the markdown parser
+
+**Status**: In Progress
+**Priority**: High
+**Due Date**: 2025-11-20
+
+## Description
+Build the parser library for extracting fields from markdown.
+
+## Subtasks
+- [x] Create parser file
+- [ ] Implement field detection
+- [ ] Write tests
+
+## Notes
+Remember to handle edge cases.
+```
+
+Parser output:
+```typescript
+{
+  title: "Complete the markdown parser",
+  fields: {
+    "Status": "In Progress",
+    "Priority": "High",
+    "Due Date": "2025-11-20"
+  },
+  sections: {
+    "Description": "Build the parser library for extracting fields from markdown.",
+    "Subtasks": "- [x] Create parser file\n- [ ] Implement field detection\n- [ ] Write tests",
+    "Notes": "Remember to handle edge cases."
+  },
+  raw: "# Complete the markdown parser\n\n**Status**: In Progress\n..." // Full original markdown
+}
+```
+
+**Why All Values Are Strings**:
+- Fields are stored as strings even if they're dates ("2025-11-20") or selects ("In Progress") because parsing happens at a different layer
+- Sections are strings containing the raw markdown content (preserves formatting like newlines, bullets)
+- Type conversion (string to Date, etc.) happens when saving to the database or rendering in UI components
+
+### Integration with Existing Types
+
+The new markdown types need to integrate seamlessly with the existing type system:
+
+#### Updates Needed to Item Interface
+
+The `Item` interface (lines 1-40) needs to be extended with the new markdown fields:
+
+**Current Item Interface** (relevant excerpt):
+```typescript
+export interface Item {
+  id: string
+  type: 'idea' | 'note' | 'task' | 'project' | 'list'
+  text: string
+  created_at: number
+  updated_at?: number
+  archived?: boolean
+  tags?: string[]
+  parsed?: boolean
+  entity_type?: 'task' | 'note' | 'list' | 'project'
+  ai_suggestion?: AISuggestion
+  // ... embedded entity objects ...
+}
+```
+
+**Required Additions** (add after line 12, before embedded entity objects):
+```typescript
+export interface Item {
+  // ... existing fields ...
+  ai_suggestion?: AISuggestion
+  // Markdown entity support (added in Markdown Entity System implementation)
+  markdown_content?: string         // Markdown content (NULL for legacy entities)
+  template_id?: string              // Template reference (e.g., 'task', 'note-generic')
+  // ... embedded entity objects ...
+}
+```
+
+**Why Optional?**:
+- These fields are NULL for all legacy entities (projects, lists, old tasks/notes)
+- The detection pattern `if (item.markdown_content !== null)` determines whether to use markdown rendering or legacy rendering (plan line 72)
+
+#### Updates to AISuggestion Interface
+
+The AI system will need to suggest templates, so the `AISuggestion` interface (lines 53-69) should be extended:
+
+**Current AISuggestion Interface**:
+```typescript
+export interface AISuggestion {
+  suggested_type: 'note' | 'task' | 'project' | 'list'
+  confidence: number
+  processed_text: string
+  tags: string[]
+  additional_fields: {
+    priority?: number
+    due_date?: string
+    category?: string
+    estimated_time?: number
+    deadline?: string
+    status?: string
+    list_name?: string
+    list_items?: string[]
+  }
+  reasoning: string
+}
+```
+
+**Required Additions** (Phase 6 enhancement, but define type now for forward compatibility):
+```typescript
+export interface AISuggestion {
+  suggested_type: 'note' | 'task' | 'project' | 'list'
+  suggested_template?: string       // NEW: Template ID (e.g., 'note-youtube', 'task')
+  confidence: number
+  processed_text: string
+  tags: string[]
+  additional_fields: {
+    // ... existing fields ...
+    list_items?: string[]
+    markdown_sections?: Record<string, string>  // NEW: Pre-filled section content
+  }
+  reasoning: string
+}
+```
+
+**Purpose**:
+- `suggested_template`: AI detects YouTube URL → suggests 'note-youtube' template
+- `markdown_sections`: AI can pre-populate sections (e.g., extract key concepts from YouTube description)
+
+### Where to Add Types in types/index.ts
+
+The file is organized logically, and new types should follow the existing structure:
+
+**Current File Organization**:
+1. Lines 1-40: Core entity types (Item)
+2. Lines 42-51: Support types (Tag)
+3. Lines 53-69: AI types (AISuggestion)
+4. Lines 71-153: Entity-specific types (Todo, Task, Note, List, Project, Plan, Setting, RecurringRule)
+5. Lines 155-198: Configuration types (AIConfig, AIFeatureSetting, NtfyConfig, AppearanceConfig, ReminderConfig)
+6. Lines 201-219: Combined types (ItemWithRelations, PlanWithTodos)
+7. Lines 222-256: API types (CreateItemRequest, UpdateItemRequest, AIRequest, AIResponse)
+
+**Recommended Placement**:
+
+1. **Template, FieldConfig, FieldDef, SectionDef** → Add after line 153 (after RecurringRule, before AIConfig)
+   - Rationale: These are core data model types, similar to Note/Task/Project
+   - They define table structures like the other entity types
+
+2. **ParsedEntity** → Add after SectionDef (still in the same section)
+   - Rationale: It's tightly coupled to Template/FieldConfig
+
+3. **Item interface updates** → Modify lines 1-40 (add markdown_content and template_id fields)
+   - Rationale: These are columns in the items table
+
+4. **AISuggestion interface updates** → Modify lines 53-69 (add suggested_template and markdown_sections)
+   - Rationale: Enhances existing AI type
+
+**Insertion Point Example**:
+```typescript
+// Line 153: End of RecurringRule interface
+}
+
+// INSERT NEW MARKDOWN TYPES HERE (before AIConfig at line 155)
+export interface Template {
+  // ...
+}
+
+export interface FieldConfig {
+  // ...
+}
+
+// ... etc.
+
+// Line 155: AIConfig starts
+export interface AIConfig {
+```
+
+### JSON Field Handling Pattern for field_config
+
+The `field_config` column follows the same pattern as `metadata` and `tags` in the items table:
+
+**Database Storage** (lib/db.ts line 396):
+```sql
+field_config TEXT NOT NULL,       -- JSON: field types and validation rules
+```
+
+**TypeScript Type** (in Template interface):
+```typescript
+field_config: FieldConfig         // Parsed object, not string
+```
+
+**API Layer Transformation** (to be implemented in Phase 2+):
+
+When **reading** templates from database:
+```typescript
+const template = db.prepare('SELECT * FROM templates WHERE id = ?').get(templateId) as any
+return {
+  ...template,
+  field_config: JSON.parse(template.field_config)  // String → Object
+}
+```
+
+When **writing** templates to database (already done in seedTemplates, lib/db.ts lines 138-149):
+```typescript
+const taskFieldConfig = JSON.stringify({
+  fields: { /* ... */ },
+  sections: { /* ... */ }
+})
+insert.run('task', 'Task', 'task', null, taskMarkdown, taskFieldConfig, 1, now, now)
+```
+
+**Pattern Consistency**: This matches how `Item.metadata`, `Item.tags`, and `Item.ai_suggestion` are handled (see app/api/items/route.ts lines 59-64 for reading, lines 172-173 for writing).
+
+### Type Safety and Validation
+
+TypeScript provides compile-time type safety, but runtime validation is also needed:
+
+**Compile-Time Safety** (what TypeScript provides):
+- Autocomplete for field names
+- Type checking for field values
+- Catching typos and missing properties
+
+**Runtime Validation** (to be implemented in Phase 2):
+- Checking required fields are present
+- Validating date formats (YYYY-MM-DD)
+- Validating select options match allowed values
+- Validating YouTube URLs
+
+**Example Validation Function** (to be built in Phase 2):
+```typescript
+function validateParsedEntity(parsed: ParsedEntity, template: Template): ValidationResult {
+  const errors: string[] = []
+
+  // Check required fields
+  for (const [fieldName, fieldDef] of Object.entries(template.field_config.fields || {})) {
+    if (fieldDef.required && !parsed.fields[fieldName]) {
+      errors.push(`Required field "${fieldName}" is missing`)
+    }
+
+    // Validate field types
+    if (fieldDef.type === 'date' && parsed.fields[fieldName]) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(parsed.fields[fieldName])) {
+        errors.push(`Field "${fieldName}" must be in YYYY-MM-DD format`)
+      }
+    }
+
+    // Validate select options
+    if (fieldDef.type === 'select' && parsed.fields[fieldName]) {
+      if (!fieldDef.options?.includes(parsed.fields[fieldName])) {
+        errors.push(`Field "${fieldName}" must be one of: ${fieldDef.options?.join(', ')}`)
+      }
+    }
+  }
+
+  return { valid: errors.length === 0, errors }
+}
+```
+
+### Files and Code Locations
+
+**Primary File**: `/home/mmariani/Projects/idealisted/types/index.ts`
+
+**Modification Points**:
+- **Line 12** (after `ai_suggestion?: AISuggestion`): Add `markdown_content?: string` and `template_id?: string` to Item interface
+- **Line 68** (after `additional_fields` object): Add `markdown_sections?: Record<string, string>` to additional_fields
+- **Line 53** (after `suggested_type` line): Add `suggested_template?: string` to AISuggestion
+- **Line 154** (after RecurringRule interface closes): Add all new interfaces (Template, FieldConfig, FieldDef, SectionDef, ParsedEntity)
+
+**Reference Files** (for understanding context, not modified in this task):
+- `/home/mmariani/Projects/idealisted/lib/db.ts` lines 389-401: Templates table schema
+- `/home/mmariani/Projects/idealisted/lib/db.ts` lines 118-215: Seeded template data with field_config examples
+- `/home/mmariani/Projects/idealisted/app/api/items/route.ts` lines 59-64, 172-173: JSON field handling pattern
+- `/home/mmariani/Projects/idealisted/MARKDOWN_ENTITIES_PLAN.md` lines 344-436: Template specifications and field config examples
+
+### Dependencies and Prerequisites
+
+**What this task depends on**:
+- Task 1.1 (Database Migration): The templates table must exist and the schema must be known
+- Task 1.2 (Seed Initial Templates): The field_config JSON structure must be defined and seeded
+
+**What depends on this task**:
+- **Phase 2 (Markdown Parser)**: Parser functions use Template and ParsedEntity types
+- **Phase 3-5 (Entity Conversion)**: API routes use Template type for querying templates
+- **Phase 6 (AI Integration)**: Updated AISuggestion type used in AI responses
+- **Phase 7 (UI Components)**: Editor components use FieldDef and SectionDef for rendering
+
+**No external dependencies**:
+- No new npm packages required
+- Pure TypeScript type definitions
+
+### Success Validation
+
+After implementation, verify:
+
+1. **Types compile without errors**:
+   ```bash
+   npm run build
+   # Should complete without TypeScript errors
+   ```
+
+2. **Types are exported and importable**:
+   ```typescript
+   import { Template, FieldConfig, ParsedEntity } from '@/types'
+   // Should autocomplete in IDE
+   ```
+
+3. **Template type matches database schema**:
+   - Every field in Template interface corresponds to a column in templates table
+   - Types align (string, number, boolean match TEXT, INTEGER conversions)
+
+4. **FieldConfig structure matches seeded data**:
+   - Parse the JSON from a seeded template and verify it matches FieldConfig type
+   ```typescript
+   const template = db.prepare('SELECT * FROM templates WHERE id = ?').get('task')
+   const config: FieldConfig = JSON.parse(template.field_config)
+   // Should compile and match structure
+   ```
+
+5. **API patterns are consistent**:
+   - Template interface follows same boolean conversion pattern as Item (is_system)
+   - field_config follows same JSON parsing pattern as metadata/tags
+   - Optional fields use `?` syntax consistently
+
+### Technical Reference: Complete Type Definitions
+
+**Add these interfaces to types/index.ts after line 153**:
+
+```typescript
+// Markdown Entity System Types (added in Markdown Entity System implementation)
+
+export interface Template {
+  id: string
+  name: string
+  entity_type: 'task' | 'note' | 'project' | 'list'
+  subtype: string | null
+  markdown_template: string
+  field_config: FieldConfig
+  is_system: boolean
+  created_at: number
+  updated_at: number
+}
+
+export interface FieldConfig {
+  fields?: Record<string, FieldDef>
+  sections?: Record<string, SectionDef>
+}
+
+export interface FieldDef {
+  type: 'text' | 'date' | 'select' | 'url' | 'checkbox'
+  required: boolean
+  options?: string[]
+  validation?: string
+  readonly?: boolean
+}
+
+export interface SectionDef {
+  type: 'textarea' | 'bulletlist' | 'checklist' | 'timestamplist' | 'taglist'
+  required: boolean
+  readonly?: boolean
+}
+
+export interface ParsedEntity {
+  title: string
+  fields: Record<string, string>
+  sections: Record<string, string>
+  raw: string
+}
+```
+
+**Modify Item interface (around line 12)**:
+
+```typescript
+export interface Item {
+  id: string
+  type: 'idea' | 'note' | 'task' | 'project' | 'list'
+  text: string
+  created_at: number
+  updated_at?: number
+  archived?: boolean
+  tags?: string[]
+  // Parse + Convert workflow fields
+  parsed?: boolean
+  entity_type?: 'task' | 'note' | 'list' | 'project'
+  ai_suggestion?: AISuggestion
+  // Markdown entity support (added in Markdown Entity System implementation)
+  markdown_content?: string
+  template_id?: string
+  // ... rest of interface ...
+}
+```
+
+**Modify AISuggestion interface (around line 53)**:
+
+```typescript
+export interface AISuggestion {
+  suggested_type: 'note' | 'task' | 'project' | 'list'
+  suggested_template?: string  // NEW: Template ID suggestion
+  confidence: number
+  processed_text: string
+  tags: string[]
+  additional_fields: {
+    priority?: number
+    due_date?: string
+    category?: string
+    estimated_time?: number
+    deadline?: string
+    status?: string
+    list_name?: string
+    list_items?: string[]
+    markdown_sections?: Record<string, string>  // NEW: Pre-filled sections
+  }
+  reasoning: string
+}
+```
+
+---
+
+**Status**: ✅ COMPLETE
+**Completed**: 2025-11-16
+**Implementation**: `/home/mmariani/Projects/idealisted/types/index.ts` lines 9-10, 53-90, 92, 105
+**Code Review**: ✅ APPROVED - Added Template, FieldConfig, ParsedEntity interfaces; updated Item and AISuggestion
+**Verification**: TypeScript compilation successful, all types support 3 seeded templates
+
+---
+
 ### Task 1.4: Migration Verification
 **Objective**: Test that migration works correctly
 

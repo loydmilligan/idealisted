@@ -6,6 +6,8 @@ export interface Item {
   updated_at?: number
   archived?: boolean
   tags?: string[]
+  markdown_content?: string | null  // Markdown content for new system
+  template_id?: string | null        // Reference to template
   // Parse + Convert workflow fields
   parsed?: boolean  // Stage 2: Has been categorized
   entity_type?: 'task' | 'note' | 'list' | 'project'  // Suggested type after parsing
@@ -50,8 +52,47 @@ export interface Tag {
   last_used_at?: number     // Added in Task 1.1
 }
 
+export interface Template {
+  id: string
+  name: string
+  entity_type: 'task' | 'note' | 'project' | 'list'
+  subtype: string | null
+  markdown_template: string
+  field_config: string // JSON string in DB, parsed to FieldConfig
+  is_system: number // SQLite boolean (0 or 1)
+  created_at: number
+  updated_at: number
+}
+
+export interface FieldDef {
+  type: 'text' | 'date' | 'select' | 'url' | 'checkbox'
+  options?: string[] // For select fields
+  required: boolean
+  validation?: string // e.g., 'youtube' for URL fields
+  readonly?: boolean // For AI-generated fields
+}
+
+export interface SectionDef {
+  type: 'textarea' | 'bulletlist' | 'checklist' | 'timestamplist' | 'taglist'
+  required: boolean
+  readonly?: boolean
+}
+
+export interface FieldConfig {
+  fields?: Record<string, FieldDef>
+  sections?: Record<string, SectionDef>
+}
+
+export interface ParsedEntity {
+  title: string
+  fields: Record<string, string> // Extracted field values
+  sections: Record<string, string> // Extracted section content
+  raw: string // Original markdown for debugging/reference
+}
+
 export interface AISuggestion {
   suggested_type: 'note' | 'task' | 'project' | 'list'
+  suggested_template?: string  // e.g., 'note-youtube', 'note-generic'
   confidence: number
   processed_text: string
   tags: string[]
@@ -64,6 +105,7 @@ export interface AISuggestion {
     status?: string
     list_name?: string
     list_items?: string[]
+    markdown_sections?: Record<string, string>  // Pre-filled sections
   }
   reasoning: string
 }
