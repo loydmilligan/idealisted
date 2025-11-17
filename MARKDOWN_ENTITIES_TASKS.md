@@ -2078,6 +2078,669 @@ export function getTemplate(templateId: string): Template | null
 
 ---
 
+## Context Manifest
+
+### How Parser Libraries Currently Work in IdeaListed
+
+The IdeaListed codebase follows consistent patterns for library modules located in `/lib/`. These libraries provide reusable functionality across the application with clear separation of concerns. Understanding these patterns is critical for implementing the markdown parser library correctly.
+
+#### Library File Structure Pattern
+
+All library files in `/lib/` follow a similar architectural pattern:
+
+**1. Database Library (`/lib/db.ts`)** - The Foundation Pattern
+
+This is the most critical library as it demonstrates database interaction patterns that the markdown parser will need to follow. The database library structure:
+
+- **Lines 1-17**: Module-level initialization (imports, path setup, database connection)
+  - Creates database connection ONCE at module load time
+  - Exports a singleton `db` instance
+  - Enables WAL mode and foreign keys immediately
+
+- **Lines 20-116**: Helper functions with clear single responsibilities
+  - `seedDefaultTags()` - Demonstrates count-based idempotency pattern
+  - `seedAIFeatureSettings()` - Demonstrates INSERT OR IGNORE pattern
+  - Each function is self-contained with try-catch error handling that logs but doesn't throw
+
+- **Lines 118-215**: Core seeding function for templates (added in Phase 1)
+  - `seedTemplates()` - Seeds the 3 markdown templates (task, note-generic, note-youtube)
+  - Uses INSERT OR IGNORE for idempotent seeding
+  - Stores field_config as JSON stringified TEXT
+
+- **Lines 218-509**: Main initialization function
+  - `initializeDatabase()` - Creates all tables and runs seeders
+  - Called ONCE at module load time (line 512)
+  - Exports helper functions like `updateTagUsage()` at the bottom
+
+**Key Pattern**: Module-level side effects (database initialization) happen on import, while exported functions provide the API.
+
+**2. AI Service Library (`/lib/ai.ts`)** - The Class-Based Pattern
+
+The AI service demonstrates a different pattern - a singleton service class:
+
+- **Lines 1-3**: Type imports from centralized types file
+- **Lines 4-292**: AIService class definition
+  - Constructor initializes from database settings (lines 8-29)
+  - Private methods for internal logic (lines 55-181)
+  - Public API methods for external use (lines 183-291)
+  - Error handling throws meaningful errors with context
+
+- **Line 294**: Export singleton instance `export const aiService = new AIService()`
+- **Line 295**: Also export class for type checking `export default aiService`
+
+**Key Pattern**: Class-based singleton with async initialization, clear public/private separation, and comprehensive error messages.
+
+**3. Theme Library (`/lib/themes.ts`)** - The Pure Functions Pattern
+
+The simplest library pattern - stateless utility functions:
+
+- **Lines 1-19**: TypeScript interface definitions
+- **Lines 21-79**: Data structures (theme presets array)
+- **Lines 81-100**: Pure utility functions
+  - `applyTheme()` - Side effects (DOM manipulation, localStorage)
+  - `getStoredTheme()` - Data retrieval
+  - `getThemeById()` - Data lookup
+
+**Key Pattern**: Export data structures and functions separately, no module-level initialization.
+
+#### Which Pattern for Markdown Parser?
+
+The markdown parser should follow a **hybrid approach**:
+
+**Database Access Pattern** (like `db.ts`):
+- Import `db` from `/lib/db` at the top
+- Query templates table using prepared statements
+- Cache loaded templates in module-level Map for performance
+
+**Pure Function Pattern** (like `themes.ts`):
+- Core parsing functions are stateless transformations
+- Input markdown string → Output ParsedEntity object
+- No side effects in parsing logic
+
+**Error Handling Pattern** (like `ai.ts`):
+- Throw meaningful errors with context
+- Let calling code handle error display
+- Use try-catch for database queries
+
+### Template System Architecture (From Phase 1)
+
+The markdown parser's primary job is to work with templates stored in the database. Here's how templates work:
+
+#### Templates Table Schema
+
+From `/lib/db.ts` lines 388-401, the templates table structure:
+
+```sql
+CREATE TABLE IF NOT EXISTS templates (
+  id TEXT PRIMARY KEY,              -- 'task', 'note-generic', 'note-youtube'
+  name TEXT NOT NULL,               -- 'Task', 'Generic Note', 'YouTube Learning Note'
+  entity_type TEXT NOT NULL,        -- 'task', 'note', 'project', 'list'
+  subtype TEXT,                     -- NULL for task, 'generic'/'youtube' for notes
+  markdown_template TEXT NOT NULL,  -- Full markdown template with {title} placeholder
+  field_config TEXT NOT NULL,       -- JSON string of FieldConfig
+  is_system INTEGER DEFAULT 1,      -- 1 = system template, 0 = user (future)
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+)
+```
+
+**Critical Understanding**: The `field_config` column stores a **JSON string** (not a JSON object) because SQLite only has TEXT type. This must be:
+- Parsed with `JSON.parse()` when retrieved from database
+- The result is a `FieldConfig` object with `fields` and `sections` properties
+
+#### The 3 Seeded Templates
+
+From `/lib/db.ts` lines 118-215, three templates are seeded:
+
+**Template 1: Task (id='task')**
+
+Markdown template:
+```markdown
+# {title}
+
+**Status**: Not Started
+**Priority**: Medium
+**Due Date**:
+
+## Description
+
+
+## Subtasks
+- [ ]
+
+
+## Notes
+```
+
+Field config (as JavaScript object before JSON.stringify):
+```javascript
+{
+  fields: {
+    Status: { type: "select", options: ["Not Started", "In Progress", "Completed"], required: true },
+    Priority: { type: "select", options: ["Low", "Medium", "High", "Urgent"], required: true },
+    "Due Date": { type: "date", required: false }
+  },
+  sections: {
+    Description: { type: "textarea", required: false },
+    Subtasks: { type: "checklist", required: false },
+    Notes: { type: "textarea", required: false }
+  }
+}
+```
+
+**Template 2: Note-Generic (id='note-generic')**
+
+Markdown template:
+```markdown
+# {title}
+
+## Content
+
+
+## Tags
+```
+
+Field config:
+```javascript
+{
+  sections: {
+    Content: { type: "textarea", required: true },
+    Tags: { type: "taglist", required: false }
+  }
+}
+```
+
+Note: This template has NO `fields` property, only `sections`.
+
+**Template 3: Note-YouTube (id='note-youtube')**
+
+Markdown template:
+```markdown
+# {title}
+
+**URL**:
+**Duration**:
+**Status**: Not Watched
+
+## Key Concepts
+
+
+## Timestamps
+
+
+## AI Summary
+
+
+## My Notes
+```
+
+Field config:
+```javascript
+{
+  fields: {
+    URL: { type: "url", required: true, validation: "youtube" },
+    Duration: { type: "text", required: false },
+    Status: { type: "select", options: ["Not Watched", "In Progress", "Completed"], required: true }
+  },
+  sections: {
+    "Key Concepts": { type: "bulletlist", required: false },
+    Timestamps: { type: "timestamplist", required: false },
+    "AI Summary": { type: "textarea", readonly: true, required: false },
+    "My Notes": { type: "textarea", required: false }
+  }
+}
+```
+
+#### Template Detection Patterns (From Plan)
+
+From `MARKDOWN_ENTITIES_PLAN.md` lines 94-99, the parser must recognize these markdown patterns:
+
+**Field Pattern**: `**Label**: value`
+- Regex: `/\*\*([^*]+)\*\*:\s*(.*)$/` on each line
+- Captures the label (between **) and the value (after `: `)
+- Example: `**Status**: In Progress` → field name = "Status", value = "In Progress"
+- Example: `**Due Date**: 2025-11-20` → field name = "Due Date", value = "2025-11-20"
+
+**Section Pattern**: `## SectionName\n...content...`
+- Regex: `/## ([^\n]+)\n([\s\S]*?)(?=\n##|$)/`
+- Captures section name and all content until next `##` or end of file
+- Example:
+  ```markdown
+  ## Description
+  This is the content
+  Multiple lines allowed
+
+  ## Notes
+  More content
+  ```
+  Results in:
+  - sections['Description'] = "This is the content\nMultiple lines allowed"
+  - sections['Notes'] = "More content"
+
+**Title Pattern**: `# {title}` or `# Actual Title`
+- First line starting with `# `
+- The `{title}` is a placeholder in the template
+- In actual markdown, it's replaced with real text: `# My Task Name`
+
+### TypeScript Type System (From Phase 1)
+
+The parser MUST import and use these types from `/types/index.ts`:
+
+#### Template Type (lines 55-65)
+
+```typescript
+export interface Template {
+  id: string                    // 'task', 'note-generic', 'note-youtube'
+  name: string                  // 'Task', 'Generic Note', etc.
+  entity_type: 'task' | 'note' | 'project' | 'list'
+  subtype: string | null        // 'generic', 'youtube', or null
+  markdown_template: string     // Full template markdown
+  field_config: string          // JSON string (must be parsed!)
+  is_system: number             // SQLite boolean: 0 or 1
+  created_at: number            // Unix timestamp
+  updated_at: number            // Unix timestamp
+}
+```
+
+**CRITICAL**: The `field_config` property is a STRING in the database, not an object. You must parse it to get a `FieldConfig` object.
+
+#### FieldConfig Type (lines 81-84)
+
+```typescript
+export interface FieldConfig {
+  fields?: Record<string, FieldDef>      // Optional - note-generic doesn't have fields
+  sections?: Record<string, SectionDef>  // Optional - some templates might not have sections
+}
+```
+
+**Why optional?** The note-generic template only has sections, no fields. Future templates might only have fields, no sections.
+
+#### FieldDef Type (lines 68-73)
+
+```typescript
+export interface FieldDef {
+  type: 'text' | 'date' | 'select' | 'url' | 'checkbox'
+  options?: string[]       // For select fields: ["Low", "Medium", "High"]
+  required: boolean        // Validation flag
+  validation?: string      // e.g., 'youtube' for YouTube URL validation
+  readonly?: boolean       // For AI-generated fields (future)
+}
+```
+
+#### SectionDef Type (lines 75-79)
+
+```typescript
+export interface SectionDef {
+  type: 'textarea' | 'bulletlist' | 'checklist' | 'timestamplist' | 'taglist'
+  required: boolean
+  readonly?: boolean
+}
+```
+
+#### ParsedEntity Type (lines 86-91)
+
+```typescript
+export interface ParsedEntity {
+  title: string                          // Extracted from # heading
+  fields: Record<string, string>         // All **Field**: value pairs
+  sections: Record<string, string>       // All ## Section content
+  raw: string                            // Original markdown (for debugging)
+}
+```
+
+**Key Design Decision**: All values are stored as strings in ParsedEntity. Type conversion (string → Date, string → number) happens at validation time, not parsing time. This keeps parsing simple and pure.
+
+#### ValidationResult Type (MISSING - Must be defined!)
+
+The plan mentions `validateMarkdown(content: string, templateId: string): ValidationResult` but this type doesn't exist yet in `/types/index.ts`. Task 2.1 should define it:
+
+```typescript
+export interface ValidationResult {
+  valid: boolean
+  errors: ValidationError[]
+}
+
+export interface ValidationError {
+  field?: string      // Field name if field error
+  section?: string    // Section name if section error
+  message: string     // Human-readable error
+  code: string        // Error code for programmatic handling
+}
+```
+
+### Parser Architecture Design (From Plan)
+
+From `MARKDOWN_ENTITIES_PLAN.md` lines 86-106, the parser architecture:
+
+#### Core Function Signatures
+
+**1. parseMarkdown(content: string, templateId: string): ParsedEntity**
+
+Purpose: Extract structured data from markdown string
+
+Flow:
+1. Load template from database using `getTemplate(templateId)`
+2. Parse field_config JSON to get FieldConfig object
+3. Extract title from first `# ` line
+4. Extract all fields matching `**Label**: value` pattern
+5. Extract all sections matching `## Section\ncontent` pattern
+6. Return ParsedEntity with title, fields, sections, and raw markdown
+
+Error handling:
+- If template not found: throw Error('Template not found: {templateId}')
+- If markdown invalid: return ParsedEntity with empty fields/sections (permissive parsing)
+- Store original markdown in `raw` field for debugging
+
+**2. renderMarkdown(parsed: ParsedEntity): string**
+
+Purpose: Reconstruct markdown from ParsedEntity
+
+Flow:
+1. Start with title: `# ${parsed.title}\n\n`
+2. Add all fields: `**${fieldName}**: ${fieldValue}\n` for each field
+3. Add blank line between fields and sections
+4. Add all sections: `## ${sectionName}\n${sectionContent}\n\n` for each section
+5. Return complete markdown string
+
+Order: Fields appear before sections (matches template structure)
+
+**3. validateMarkdown(content: string, templateId: string): ValidationResult**
+
+Purpose: Check if markdown meets template requirements
+
+Flow:
+1. Parse markdown using parseMarkdown()
+2. Load template to get field_config
+3. Check required fields exist and are non-empty
+4. Check required sections exist and are non-empty
+5. Validate field types:
+   - date: matches YYYY-MM-DD format
+   - select: value is in options array
+   - url: is valid URL
+   - url with validation='youtube': matches youtube.com or youtu.be
+6. Return ValidationResult with errors array
+
+**4. getTemplate(templateId: string): Template | null**
+
+Purpose: Load template from database
+
+Flow:
+1. Query: `SELECT * FROM templates WHERE id = ?`
+2. If not found: return null
+3. If found: return Template object (field_config is still JSON string!)
+
+Optimization opportunity: Cache templates in module-level Map for performance (future enhancement)
+
+#### Pseudocode Example (From Plan lines 355-386)
+
+The plan provides this pseudocode example showing the expected implementation approach:
+
+```typescript
+function parseMarkdown(content: string, templateId: string): ParsedEntity {
+  const template = getTemplate(templateId)
+  const lines = content.split('\n')
+
+  const parsed: ParsedEntity = {
+    title: extractTitle(lines), // First # heading
+    fields: {},
+    sections: {},
+    raw: content
+  }
+
+  // Extract **Field**: value patterns
+  for (const field of template.field_config.fields) {
+    const regex = new RegExp(`\\*\\*${field}\\*\\*:\\s*(.*)`)
+    const match = content.match(regex)
+    if (match) {
+      parsed.fields[field] = match[1].trim()
+    }
+  }
+
+  // Extract ## Section content
+  for (const section of template.field_config.sections) {
+    const regex = new RegExp(`## ${section}\\n([\\s\\S]*?)(?=\\n##|$)`)
+    const match = content.match(regex)
+    if (match) {
+      parsed.sections[section] = match[1].trim()
+    }
+  }
+
+  return parsed
+}
+```
+
+**Important Notes**:
+1. This pseudocode assumes `template.field_config` is already parsed (it's not - it's a JSON string!)
+2. The regex patterns need escaping for special characters in field/section names
+3. The loop syntax is conceptual - actual implementation needs null checks
+
+### Integration Points with Existing Code
+
+#### Database Access Pattern
+
+The parser will query the database exactly like other API code does. From `/app/api/items/route.ts` lines 15-32, the pattern:
+
+```typescript
+// Import db at top
+import { db } from '@/lib/db'
+
+// Use prepared statements
+const template = db.prepare('SELECT * FROM templates WHERE id = ?').get(templateId) as Template
+
+// Parse JSON fields
+if (template) {
+  const fieldConfig: FieldConfig = JSON.parse(template.field_config)
+}
+```
+
+**CRITICAL**: The `as Template` type assertion tells TypeScript what shape to expect, but at runtime `field_config` is still a string. You MUST parse it.
+
+#### Better-sqlite3 Query Patterns
+
+From `/lib/db.ts` examples:
+
+**Single Row Query** (get):
+```typescript
+const row = db.prepare('SELECT * FROM table WHERE id = ?').get(id)
+// Returns single object or undefined
+```
+
+**Multiple Rows Query** (all):
+```typescript
+const rows = db.prepare('SELECT * FROM table').all()
+// Returns array of objects
+```
+
+**No Async/Await**: better-sqlite3 is synchronous. All queries are blocking but fast.
+
+#### Error Handling Philosophy
+
+From `/lib/ai.ts` lines 55-63:
+
+```typescript
+private getConfig(): AIConfig {
+  if (!this.config) {
+    throw new Error('AI not configured. Please set up your OpenRouter API key.')
+  }
+  if (!this.config.enabled) {
+    throw new Error('AI features are disabled. Enable AI in settings to use this feature.')
+  }
+  return this.config
+}
+```
+
+**Pattern**: Throw descriptive errors that tell users exactly what's wrong and how to fix it. Don't just throw generic errors.
+
+For the parser:
+- Template not found? `throw new Error(\`Template '${templateId}' not found. Available templates: task, note-generic, note-youtube\`)`
+- Invalid field config JSON? `throw new Error(\`Template '${templateId}' has invalid field_config JSON: ${error.message}\`)`
+
+### File Structure for Task 2.1
+
+The initial file should be structured as:
+
+```typescript
+// 1. IMPORTS
+import { db } from '@/lib/db'
+import { Template, FieldConfig, ParsedEntity } from '@/types'
+
+// 2. TYPE DEFINITIONS (ValidationResult - missing from types/index.ts)
+export interface ValidationResult {
+  valid: boolean
+  errors: ValidationError[]
+}
+
+export interface ValidationError {
+  field?: string
+  section?: string
+  message: string
+  code: string
+}
+
+// 3. HELPER FUNCTION - getTemplate
+export function getTemplate(templateId: string): Template | null {
+  // Query database, return Template or null
+  // This is the ONLY function that touches the database
+}
+
+// 4. CORE FUNCTION STUBS - parseMarkdown
+export function parseMarkdown(content: string, templateId: string): ParsedEntity {
+  // TODO: Implement in Task 2.2
+  throw new Error('Not implemented yet')
+}
+
+// 5. CORE FUNCTION STUBS - renderMarkdown
+export function renderMarkdown(parsed: ParsedEntity): string {
+  // TODO: Implement in Task 2.4
+  throw new Error('Not implemented yet')
+}
+
+// 6. CORE FUNCTION STUBS - validateMarkdown
+export function validateMarkdown(content: string, templateId: string): ValidationResult {
+  // TODO: Implement in Task 2.5
+  throw new Error('Not implemented yet')
+}
+```
+
+**Why this order?**
+1. Imports first (standard)
+2. Type definitions (needed by functions)
+3. Helper functions (getTemplate) before core functions (it's a dependency)
+4. Core functions in order of implementation (Tasks 2.2, 2.4, 2.5)
+
+### Task 2.1 Specific Implementation Requirements
+
+**What to implement NOW (Task 2.1)**:
+1. Create the file `/lib/markdown-parser.ts`
+2. Add imports for db, Template, FieldConfig, ParsedEntity
+3. Define ValidationResult and ValidationError types (export them!)
+4. Implement getTemplate() function FULLY (this is the only complete function in Task 2.1)
+5. Create STUB functions for parseMarkdown, renderMarkdown, validateMarkdown
+   - Each stub should throw Error('Not implemented yet')
+   - Include JSDoc comments explaining what they WILL do
+
+**What NOT to implement yet**:
+- Actual parsing logic (Task 2.2, 2.3)
+- Markdown rendering logic (Task 2.4)
+- Validation logic (Task 2.5)
+- Template caching optimization (future enhancement)
+
+### getTemplate() Implementation Details
+
+This is the only function to implement completely in Task 2.1:
+
+```typescript
+/**
+ * Loads a template from the database by ID
+ * @param templateId - Template ID ('task', 'note-generic', 'note-youtube')
+ * @returns Template object with parsed field_config, or null if not found
+ * @throws Error if field_config JSON is invalid
+ */
+export function getTemplate(templateId: string): Template | null {
+  try {
+    const row = db.prepare('SELECT * FROM templates WHERE id = ?').get(templateId)
+
+    if (!row) {
+      return null
+    }
+
+    // Cast to Template type
+    const template = row as Template
+
+    // Validate that field_config can be parsed (don't parse yet, just validate)
+    try {
+      JSON.parse(template.field_config)
+    } catch (error) {
+      throw new Error(`Template '${templateId}' has invalid field_config JSON: ${error.message}`)
+    }
+
+    return template
+  } catch (error) {
+    if (error.message?.includes('invalid field_config')) {
+      throw error // Re-throw our custom error
+    }
+    // Database errors
+    throw new Error(`Failed to load template '${templateId}': ${error.message}`)
+  }
+}
+```
+
+**Why validate but not parse field_config here?**
+- The Template type has `field_config: string` (the database schema)
+- Parsing happens in parseMarkdown/validateMarkdown when needed
+- Keeping it as a string preserves the database structure
+- Validation ensures we fail fast on corrupted data
+
+### Success Criteria Verification
+
+After implementing Task 2.1, verify:
+
+1. **File compiles**: `npm run build` succeeds with no TypeScript errors
+2. **Exports work**: Can import functions in another file:
+   ```typescript
+   import { getTemplate, parseMarkdown } from '@/lib/markdown-parser'
+   ```
+3. **getTemplate works**: Can load all 3 templates:
+   ```typescript
+   const taskTemplate = getTemplate('task')
+   console.log(taskTemplate.name) // 'Task'
+   const config = JSON.parse(taskTemplate.field_config)
+   console.log(config.fields.Status) // { type: 'select', ... }
+   ```
+4. **Stubs throw errors**: Calling unimplemented functions throws:
+   ```typescript
+   parseMarkdown('# Test', 'task') // throws Error('Not implemented yet')
+   ```
+5. **Types exported**: ValidationResult and ValidationError can be imported:
+   ```typescript
+   import { ValidationResult, ValidationError } from '@/lib/markdown-parser'
+   ```
+
+### Dependencies and Prerequisites
+
+**External Dependencies**: None! All required packages already installed:
+- `better-sqlite3` - Already in package.json
+- TypeScript - Already configured
+
+**Internal Dependencies**:
+- Phase 1 must be complete (templates table exists with 3 seeded templates)
+- `/types/index.ts` must have Template, FieldConfig, ParsedEntity types (already added in Phase 1 Task 1.3)
+
+**No Breaking Changes**: This task creates a new file - it doesn't modify any existing code, so zero risk of breaking current functionality.
+
+### What Task 2.2 Will Add
+
+Next task (Field Detection) will replace the parseMarkdown stub with real implementation that:
+1. Calls getTemplate() to load template
+2. Parses field_config JSON to FieldConfig
+3. Uses regex to find `**Label**: value` patterns
+4. Populates parsed.fields object
+5. Returns ParsedEntity
+
+But for now (Task 2.1), we just need the structure in place.
+
+---
+
 ### Task 2.2: Implement Field Detection
 **Objective**: Parse **Field**: value patterns from markdown
 
@@ -2101,6 +2764,630 @@ Should extract: `{ Status: "In Progress", Due Date: "2025-11-20" }`
 - Can extract all field types
 - Handles edge cases (missing value, special chars)
 - Unit tests pass
+
+---
+
+## Context Manifest for Task 2.2: Field Detection
+
+### How the Markdown Parser System Works
+
+The markdown parsing system converts structured markdown content (using specific patterns defined by templates) into a ParsedEntity object with three main components:
+
+1. **title**: Extracted from the first H1 heading (`# Title`)
+2. **fields**: Key-value pairs from `**FieldName**: value` patterns
+3. **sections**: Multi-line content blocks from `## SectionName` blocks
+
+Task 2.2 focuses specifically on implementing the **field detection** portion of the parseMarkdown() function, which extracts `**FieldName**: value` patterns and populates the `fields` object.
+
+#### Current State of markdown-parser.ts
+
+The file `/home/mmariani/Projects/idealisted/lib/markdown-parser.ts` was created in Task 2.1 and currently contains:
+
+**Fully Implemented (lines 20-49)**:
+```typescript
+getTemplate(templateId: string): Template | null
+```
+- Loads template from database using prepared statement
+- Validates that field_config JSON is parseable (but keeps as string)
+- Returns Template object or null if not found
+- Throws errors with clear messages for database failures or invalid JSON
+
+**Stub Functions (need implementation)**:
+- `parseMarkdown()` at line 66: Currently throws "Not yet implemented - Task 2.2"
+- `renderMarkdown()` at line 86: Stub for future Task 2.4
+- `validateMarkdown()` at line 106: Stub for future Task 2.5
+
+The parseMarkdown() stub includes comprehensive JSDoc (lines 51-65) explaining what it WILL do when implemented.
+
+#### How Templates Define Fields
+
+Templates are stored in the `templates` table (seeded in Task 1.2 via `/home/mmariani/Projects/idealisted/lib/db.ts` lines 118-215). Each template contains:
+
+- `markdown_template`: The markdown structure with placeholders
+- `field_config`: A JSON string that when parsed becomes a FieldConfig object
+
+The FieldConfig object has this structure (from `/home/mmariani/Projects/idealisted/types/index.ts` lines 81-84):
+
+```typescript
+export interface FieldConfig {
+  fields?: Record<string, FieldDef>     // Optional - some templates have no fields
+  sections?: Record<string, SectionDef>  // Optional - task 2.3 will handle this
+}
+```
+
+Three templates are currently seeded in the database:
+
+**1. Task Template** (db.ts lines 138-149):
+```json
+{
+  "fields": {
+    "Status": { "type": "select", "options": ["Not Started", "In Progress", "Completed"], "required": true },
+    "Priority": { "type": "select", "options": ["Low", "Medium", "High", "Urgent"], "required": true },
+    "Due Date": { "type": "date", "required": false }
+  },
+  "sections": {
+    "Description": { "type": "textarea", "required": false },
+    "Subtasks": { "type": "checklist", "required": false },
+    "Notes": { "type": "textarea", "required": false }
+  }
+}
+```
+
+The corresponding markdown template (lines 122-136):
+```markdown
+# {title}
+
+**Status**: Not Started
+**Priority**: Medium
+**Due Date**:
+
+## Description
+
+
+## Subtasks
+- [ ]
+
+
+## Notes
+```
+
+**2. Note-Generic Template** (db.ts lines 160-165):
+```json
+{
+  "sections": {
+    "Content": { "type": "textarea", "required": true },
+    "Tags": { "type": "taglist", "required": false }
+  }
+}
+```
+
+**CRITICAL**: This template has NO `fields` property - only `sections`. The parseMarkdown implementation must handle this case gracefully.
+
+**3. Note-YouTube Template** (db.ts lines 186-198):
+```json
+{
+  "fields": {
+    "URL": { "type": "url", "required": true, "validation": "youtube" },
+    "Duration": { "type": "text", "required": false },
+    "Status": { "type": "select", "options": ["Not Watched", "In Progress", "Completed"], "required": true }
+  },
+  "sections": {
+    "Key Concepts": { "type": "bulletlist", "required": false },
+    "Timestamps": { "type": "timestamplist", "required": false },
+    "AI Summary": { "type": "textarea", "readonly": true, "required": false },
+    "My Notes": { "type": "textarea", "required": false }
+  }
+}
+```
+
+Corresponding markdown (lines 168-184):
+```markdown
+# {title}
+
+**URL**:
+**Duration**:
+**Status**: Not Watched
+
+## Key Concepts
+
+
+## Timestamps
+
+
+## AI Summary
+
+
+## My Notes
+```
+
+#### Field Detection Pattern Specification
+
+From MARKDOWN_ENTITIES_PLAN.md (lines 438-471), the pseudocode shows the intended approach:
+
+```typescript
+// Extract **Field**: value patterns
+for (const field of template.field_config.fields) {
+  const regex = new RegExp(`\\*\\*${field}\\*\\*:\\s*(.*)`)
+  const match = content.match(regex)
+  if (match) {
+    parsed.fields[field] = match[1].trim()
+  }
+}
+```
+
+**Pattern Breakdown:**
+- `\\*\\*` - Two escaped asterisks (markdown bold syntax)
+- `${field}` - The field name from template config (e.g., "Status", "Priority", "Due Date")
+- `\\*\\*` - Two more escaped asterisks (close bold)
+- `:` - Literal colon separator
+- `\\s*` - Zero or more whitespace characters
+- `(.*)` - Capture group: any characters to end of line
+
+**Examples:**
+- `**Status**: In Progress` → captures `"In Progress"`
+- `**Due Date**: 2025-11-20` → captures `"2025-11-20"`
+- `**Priority**:` → captures empty string `""`
+- `**URL**: https://youtube.com/watch?v=abc` → captures full URL
+
+### Implementation Requirements for Task 2.2
+
+The parseMarkdown() function must be implemented with this complete logic:
+
+**1. Load and validate template**:
+```typescript
+const template = getTemplate(templateId)
+if (!template) {
+  throw new Error(`Template '${templateId}' not found`)
+}
+```
+
+**2. Parse field_config JSON**:
+```typescript
+let fieldConfig: FieldConfig
+try {
+  fieldConfig = JSON.parse(template.field_config)
+} catch (error) {
+  const errorMessage = error instanceof Error ? error.message : String(error)
+  throw new Error(`Failed to parse field_config for template '${templateId}': ${errorMessage}`)
+}
+```
+
+**3. Initialize ParsedEntity with raw content**:
+```typescript
+const parsed: ParsedEntity = {
+  title: '',
+  fields: {},
+  sections: {},
+  raw: content
+}
+```
+
+**4. Extract title from H1 heading**:
+```typescript
+const titleMatch = content.match(/^# (.+)$/m)
+parsed.title = titleMatch ? titleMatch[1].trim() : ''
+```
+
+The regex breakdown:
+- `/^# (.+)$/m` - Multiline mode (`m` flag)
+- `^` - Start of line (in multiline mode, matches after newlines too)
+- `# ` - Literal hash and space
+- `(.+)` - Capture one or more characters (the title text)
+- `$` - End of line
+- `m` flag makes `^` and `$` match line boundaries, not just string boundaries
+
+**5. Extract field values with proper escaping**:
+```typescript
+if (fieldConfig.fields) {
+  for (const fieldName in fieldConfig.fields) {
+    // Escape special regex characters in field name
+    const escapedFieldName = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+    // Match pattern: **FieldName**: value (rest of line)
+    const regex = new RegExp(`\\*\\*${escapedFieldName}\\*\\*:\\s*(.*)`, 'm')
+    const match = content.match(regex)
+
+    if (match) {
+      // Field found - capture value and trim whitespace
+      parsed.fields[fieldName] = match[1].trim()
+    } else {
+      // Field not found in markdown - store empty string
+      parsed.fields[fieldName] = ''
+    }
+  }
+}
+```
+
+**Why escape field names?**
+Field names like "Due Date" are safe, but if a field name contained regex special characters (like `[`, `(`, `.`, etc.), the regex would break. The escape pattern `[.*+?^${}()|[\]\\]` matches any regex metacharacter and prepends `\` to escape it.
+
+**Why check `if (fieldConfig.fields)`?**
+The note-generic template has NO fields property - only sections. Without this check, the code would throw a TypeError trying to iterate undefined.
+
+**Why store empty string instead of undefined?**
+Consistency. The ParsedEntity type defines `fields: Record<string, string>`, which expects string values. Empty string `''` is semantically correct for "field exists but has no value", while `undefined` would indicate "field doesn't exist".
+
+**6. Leave sections empty for now**:
+```typescript
+// TODO (Task 2.3): Extract section content (## Section Name)
+// For now, sections remain empty object {}
+
+return parsed
+```
+
+Task 2.3 will implement section extraction, but for Task 2.2, `parsed.sections` stays as `{}`.
+
+### Type Definitions Reference
+
+From `/home/mmariani/Projects/idealisted/types/index.ts`:
+
+**ParsedEntity** (lines 86-91):
+```typescript
+export interface ParsedEntity {
+  title: string
+  fields: Record<string, string>  // All values are strings
+  sections: Record<string, string>
+  raw: string  // Original markdown preserved for debugging
+}
+```
+
+**FieldConfig** (lines 81-84):
+```typescript
+export interface FieldConfig {
+  fields?: Record<string, FieldDef>   // Optional
+  sections?: Record<string, SectionDef> // Optional
+}
+```
+
+**FieldDef** (lines 67-73):
+```typescript
+export interface FieldDef {
+  type: 'text' | 'date' | 'select' | 'url' | 'checkbox'
+  options?: string[]  // For select fields
+  required: boolean
+  validation?: string // e.g., 'youtube' for URL validation
+  readonly?: boolean  // For AI-generated fields
+}
+```
+
+**Note**: Task 2.2 does NOT validate field types or requirements - it only extracts values as strings. Validation happens in Task 2.5.
+
+### Edge Cases and Error Handling
+
+**Edge Case 1: Template with no fields**
+```markdown
+# Meeting Notes
+
+## Content
+Discussed the quarterly roadmap
+```
+
+Template config: `{ "sections": { "Content": { ... } } }`
+
+Expected behavior:
+- Title: `"Meeting Notes"`
+- Fields: `{}` (empty object - no fields to extract)
+- Sections: `{}` (Task 2.3 not implemented yet)
+
+**Edge Case 2: Empty field values**
+```markdown
+# Task Title
+
+**Status**: In Progress
+**Priority**:
+**Due Date**:
+```
+
+Expected fields:
+```typescript
+{
+  "Status": "In Progress",
+  "Priority": "",
+  "Due Date": ""
+}
+```
+
+The regex `(.*)` captures empty string when there's no text after the colon. After `.trim()`, empty strings stay empty.
+
+**Edge Case 3: Field name with spaces**
+```markdown
+**Due Date**: 2025-11-20
+```
+
+Field name: `"Due Date"` (contains space)
+
+The regex escaping handles this correctly:
+- Original: `"Due Date"`
+- After escape: `"Due\\ Date"` (space doesn't need escaping, but other chars would)
+- Regex matches: `**Due Date**: 2025-11-20`
+
+**Edge Case 4: Field value with special characters**
+```markdown
+**URL**: https://youtube.com/watch?v=abc123&t=45s
+```
+
+The capture group `(.*)` captures ALL characters to end of line, including `&`, `=`, `?`, etc. No escaping needed on the value side.
+
+**Edge Case 5: Missing field in markdown**
+```markdown
+# Task
+
+**Status**: Not Started
+
+## Description
+```
+
+Template expects: `Status`, `Priority`, `Due Date`
+
+Expected fields:
+```typescript
+{
+  "Status": "Not Started",
+  "Priority": "",       // Missing - gets empty string
+  "Due Date": ""        // Missing - gets empty string
+}
+```
+
+The `if (match)` check handles this - when regex doesn't find the field, we explicitly set it to empty string in the else branch.
+
+**Edge Case 6: Extra fields in markdown not in template**
+```markdown
+**Status**: Done
+**Custom Field**: Some value
+**Priority**: High
+```
+
+Template only defines: `Status`, `Priority`
+
+Expected fields:
+```typescript
+{
+  "Status": "Done",
+  "Priority": "High"
+  // "Custom Field" is ignored - not in template config
+}
+```
+
+We only iterate through `fieldConfig.fields`, so extra fields in the markdown are simply not extracted.
+
+**Edge Case 7: Template not found**
+```typescript
+parseMarkdown(content, 'invalid-template-id')
+```
+
+Expected behavior: Throws `Error("Template 'invalid-template-id' not found")`
+
+The `getTemplate()` function returns `null`, which we check and throw a clear error message.
+
+**Edge Case 8: Invalid field_config JSON in database**
+This shouldn't happen (Task 1.2 validated all templates), but defensive programming:
+
+```typescript
+template.field_config = "{ invalid json"
+```
+
+Expected behavior: Throws `Error("Failed to parse field_config for template 'task': Unexpected token i...")`
+
+### Test Cases with Expected Results
+
+**Test 1: Task template with all fields populated**
+```markdown
+# Buy groceries
+
+**Status**: In Progress
+**Priority**: High
+**Due Date**: 2025-11-20
+
+## Description
+Need milk and eggs
+
+## Notes
+Don't forget bananas
+```
+
+Expected ParsedEntity:
+```typescript
+{
+  title: "Buy groceries",
+  fields: {
+    "Status": "In Progress",
+    "Priority": "High",
+    "Due Date": "2025-11-20"
+  },
+  sections: {},  // Task 2.3 not implemented
+  raw: "# Buy groceries\n\n**Status**: In Progress..."
+}
+```
+
+**Test 2: Task template with empty fields**
+```markdown
+# Empty task
+
+**Status**: Not Started
+**Priority**:
+**Due Date**:
+
+## Description
+```
+
+Expected fields:
+```typescript
+{
+  "Status": "Not Started",
+  "Priority": "",
+  "Due Date": ""
+}
+```
+
+**Test 3: YouTube note template**
+```markdown
+# TypeScript Tutorial
+
+**URL**: https://youtube.com/watch?v=abc123
+**Duration**: 45 minutes
+**Status**: In Progress
+
+## Key Concepts
+Types, interfaces, generics
+```
+
+Expected fields:
+```typescript
+{
+  "URL": "https://youtube.com/watch?v=abc123",
+  "Duration": "45 minutes",
+  "Status": "In Progress"
+}
+```
+
+**Test 4: Note-generic template (no fields)**
+```markdown
+# Meeting notes 2025-11-16
+
+## Content
+Discussed Q1 roadmap and hiring plan
+```
+
+Expected:
+```typescript
+{
+  title: "Meeting notes 2025-11-16",
+  fields: {},  // No fields defined in template
+  sections: {},  // Task 2.3 not implemented
+  raw: "# Meeting notes..."
+}
+```
+
+**Test 5: Missing title**
+```markdown
+**Status**: Done
+**Priority**: Low
+```
+
+Expected:
+```typescript
+{
+  title: "",  // No H1 heading found
+  fields: { "Status": "Done", "Priority": "Low", "Due Date": "" },
+  sections: {},
+  raw: "**Status**: Done..."
+}
+```
+
+### Complete Implementation Code
+
+```typescript
+/**
+ * Parse markdown content into structured fields and sections
+ *
+ * Extracts:
+ * - Title from first H1 heading (# Title)
+ * - Field values from **FieldName**: value patterns
+ * - Section content from ## SectionName blocks (Task 2.3)
+ *
+ * @param content - Raw markdown string
+ * @param templateId - Template ID to use for parsing ('task', 'note-generic', 'note-youtube')
+ * @returns Parsed entity with title, fields, sections, and raw markdown
+ * @throws Error if template not found or field_config is invalid JSON
+ */
+export function parseMarkdown(content: string, templateId: string): ParsedEntity {
+  // 1. Load template from database
+  const template = getTemplate(templateId)
+  if (!template) {
+    throw new Error(`Template '${templateId}' not found`)
+  }
+
+  // 2. Parse field_config JSON to FieldConfig object
+  let fieldConfig: FieldConfig
+  try {
+    fieldConfig = JSON.parse(template.field_config)
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    throw new Error(`Failed to parse field_config for template '${templateId}': ${errorMessage}`)
+  }
+
+  // 3. Initialize parsed entity with raw content
+  const parsed: ParsedEntity = {
+    title: '',
+    fields: {},
+    sections: {},
+    raw: content
+  }
+
+  // 4. Extract title from first H1 heading (# Title)
+  const titleMatch = content.match(/^# (.+)$/m)
+  parsed.title = titleMatch ? titleMatch[1].trim() : ''
+
+  // 5. Extract field values (**FieldName**: value)
+  if (fieldConfig.fields) {
+    for (const fieldName in fieldConfig.fields) {
+      // Escape special regex characters in field name
+      const escapedFieldName = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+      // Match pattern: **FieldName**: value (rest of line)
+      const regex = new RegExp(`\\*\\*${escapedFieldName}\\*\\*:\\s*(.*)`, 'm')
+      const match = content.match(regex)
+
+      if (match) {
+        // Field found - capture value and trim whitespace
+        parsed.fields[fieldName] = match[1].trim()
+      } else {
+        // Field not found in markdown - store empty string
+        parsed.fields[fieldName] = ''
+      }
+    }
+  }
+
+  // 6. TODO (Task 2.3): Extract section content (## Section Name)
+  // For now, sections remain empty object {}
+
+  return parsed
+}
+```
+
+### What NOT to Implement
+
+Task 2.2 scope is ONLY field detection. Do NOT implement:
+
+- **Section extraction** (Task 2.3): `parsed.sections` stays `{}`
+- **Validation** (Task 2.5): No checking of required fields, date formats, select options, etc.
+- **Markdown reconstruction** (Task 2.4): renderMarkdown() stays as stub
+- **Checkbox field parsing**: None of the 3 seeded templates use checkbox-type fields. The plan mentions `**Label**: [x]` patterns, but this can be deferred until a template actually needs it.
+- **Multi-line field values**: The pattern `(.*)` captures to end of line only. Multi-line support would require more complex regex with `[\s\S]` and lookahead. Not needed for current templates.
+
+### Files and Locations
+
+**Primary Implementation File**:
+- `/home/mmariani/Projects/idealisted/lib/markdown-parser.ts`
+  - Lines 66-68: Replace parseMarkdown() stub with full implementation
+
+**Reference Files**:
+- `/home/mmariani/Projects/idealisted/types/index.ts`
+  - Lines 55-65: Template interface
+  - Lines 67-73: FieldDef interface
+  - Lines 81-84: FieldConfig interface
+  - Lines 86-91: ParsedEntity interface
+- `/home/mmariani/Projects/idealisted/lib/db.ts`
+  - Lines 118-215: Template seeding (shows exact markdown and field_config structure)
+- `/home/mmariani/Projects/idealisted/MARKDOWN_ENTITIES_PLAN.md`
+  - Lines 438-471: Pseudocode specification
+
+### Success Criteria Checklist
+
+After implementing parseMarkdown() field detection:
+
+- [ ] TypeScript compiles without errors (`npm run build`)
+- [ ] Can extract title from H1 heading
+- [ ] Can extract all 3 fields from task template markdown
+- [ ] Can extract all 3 fields from YouTube note template markdown
+- [ ] Handles note-generic template (no fields) without errors
+- [ ] Empty field values stored as `""` not `null`/`undefined`
+- [ ] Missing fields in markdown get `""` default
+- [ ] Field names with spaces (like "Due Date") handled correctly
+- [ ] sections object remains `{}` (not implemented yet)
+- [ ] Template not found throws: `Error("Template 'xyz' not found")`
+- [ ] Invalid field_config JSON throws clear error with template ID
+- [ ] Can parse all test cases above with correct results
 
 ---
 
@@ -2138,6 +3425,521 @@ Should extract:
 - Preserves whitespace and newlines
 - Handles empty sections
 - Unit tests pass
+
+---
+
+**Status**: Not Started
+
+---
+
+## Context Manifest for Task 2.3: Section Detection
+
+### How Section Extraction Works in the Markdown Parser
+
+The markdown parsing system is building up a `ParsedEntity` object from structured markdown content. Task 2.2 implemented field detection (extracting `**FieldName**: value` patterns). Task 2.3 completes the parsing implementation by extracting section content from `## SectionName` blocks.
+
+#### Current Parser State After Task 2.2
+
+The `parseMarkdown()` function in `/home/mmariani/Projects/idealisted/lib/markdown-parser.ts` (lines 66-122) currently:
+
+1. **Loads the template** (line 68): Calls `getTemplate(templateId)` to fetch template from database
+2. **Parses field_config** (lines 74-80): Converts JSON string to `FieldConfig` object
+3. **Initializes ParsedEntity** (lines 83-88): Creates result object with empty title, fields, sections, and raw markdown
+4. **Extracts title** (lines 91-94): Uses regex `/^#\s+(.+)$/m` to find first H1 heading
+5. **Extracts fields** (lines 99-116): Iterates through `fieldConfig.fields`, using regex to find `**FieldName**: value` patterns
+6. **Section extraction placeholder** (lines 118-119): Contains `// TODO: Implement section extraction in Task 2.3`
+
+**What's Missing**: The sections object in the returned ParsedEntity is always empty (`{}`). Task 2.3 adds the logic to populate it.
+
+#### Template Section Configurations
+
+From the three seeded templates in `/home/mmariani/Projects/idealisted/lib/db.ts`:
+
+**Task Template (lines 144-148)**: Has 3 sections
+```json
+{
+  "Description": { "type": "textarea", "required": false },
+  "Subtasks": { "type": "checklist", "required": false },
+  "Notes": { "type": "textarea", "required": false }
+}
+```
+
+Corresponding markdown (lines 127-135):
+```markdown
+## Description
+
+
+## Subtasks
+- [ ]
+
+
+## Notes
+```
+
+**Note-Generic Template (lines 161-165)**: Has 2 sections
+```json
+{
+  "Content": { "type": "textarea", "required": true },
+  "Tags": { "type": "taglist", "required": false }
+}
+```
+
+Corresponding markdown (lines 154-157):
+```markdown
+## Content
+
+
+## Tags
+```
+
+**Note-YouTube Template (lines 192-197)**: Has 4 sections
+```json
+{
+  "Key Concepts": { "type": "bulletlist", "required": false },
+  "Timestamps": { "type": "timestamplist", "required": false },
+  "AI Summary": { "type": "textarea", "readonly": true, "required": false },
+  "My Notes": { "type": "textarea", "required": false }
+}
+```
+
+Corresponding markdown (lines 174-183):
+```markdown
+## Key Concepts
+
+
+## Timestamps
+
+
+## AI Summary
+
+
+## My Notes
+```
+
+**Critical Observations**:
+- Section names can contain spaces ("Key Concepts", "AI Summary", "My Notes")
+- Sections are defined in `fieldConfig.sections` as `Record<string, SectionDef>`
+- Each section starts with `## SectionName` heading
+- Content spans from after the heading until the next `##` heading OR end of file
+- Blank lines between sections are part of the template structure but NOT part of section content
+
+#### Section Detection Pattern from Plan
+
+From `/home/mmariani/Projects/idealisted/MARKDOWN_ENTITIES_PLAN.md` lines 460-467, the pseudocode shows:
+
+```typescript
+// Extract ## Section content
+for (const section of template.field_config.sections) {
+  const regex = new RegExp(`## ${section}\\n([\\s\\S]*?)(?=\\n##|$)`)
+  const match = content.match(regex)
+  if (match) {
+    parsed.sections[section] = match[1].trim()
+  }
+}
+```
+
+**Breaking down the regex pattern**:
+
+1. `## ${section}` - Literal "##" followed by space and section name
+2. `\\n` - Newline after section heading
+3. `([\\s\\S]*?)` - Capture group: Match ANY characters (whitespace and non-whitespace) non-greedily
+4. `(?=\\n##|$)` - Lookahead: Stop when you see newline followed by "##" OR end of string
+5. The `m` flag is NOT needed because we're using `[\\s\\S]` which matches across lines
+
+**Why this pattern works**:
+- `[\\s\\S]` matches everything including newlines (unlike `.` which doesn't match newlines by default)
+- The `?` after `*` makes it non-greedy, stopping at the first occurrence of the lookahead
+- The lookahead `(?=...)` doesn't consume characters, so the next section's `##` remains for the next match
+- Using `$` in the lookahead handles the last section (no closing `##`)
+
+**Important**: The section name must be escaped for regex special characters, just like field names in Task 2.2.
+
+#### Edge Cases and How to Handle Them
+
+**Edge Case 1: Empty section**
+```markdown
+## Description
+
+## Notes
+Some content
+```
+
+Expected: `{ Description: "", Notes: "Some content" }`
+
+The regex captures everything between headings. If there's nothing (just whitespace), `trim()` makes it an empty string.
+
+**Edge Case 2: Section not in markdown but defined in template**
+```markdown
+# Task Title
+
+**Status**: Done
+
+## Description
+Content here
+```
+
+Template expects: `Description`, `Subtasks`, `Notes`
+
+Expected sections:
+```typescript
+{
+  "Description": "Content here",
+  "Subtasks": "",    // Not in markdown
+  "Notes": ""        // Not in markdown
+}
+```
+
+**Implementation**: Loop through all sections in `fieldConfig.sections`, not sections found in markdown. If regex doesn't match, store empty string (same pattern as field detection).
+
+**Edge Case 3: Section at end of file**
+```markdown
+## Description
+This is the last section
+```
+
+The regex pattern `(?=\\n##|$)` uses `$` to match end of string, so this works correctly. The content "This is the last section" is captured.
+
+**Edge Case 4: Section with multiple blank lines**
+```markdown
+## Description
+
+Line 1
+
+Line 2
+
+
+Line 3
+
+## Notes
+```
+
+Expected: `{ Description: "Line 1\n\nLine 2\n\n\nLine 3" }`
+
+The `[\\s\\S]*?` captures ALL content including blank lines. The `trim()` removes leading/trailing whitespace but preserves internal blank lines.
+
+**Edge Case 5: Section name with special regex characters**
+```markdown
+## My Notes (v2.0)
+Content
+```
+
+If a section name had regex special chars like parentheses, they need escaping. Currently, no seeded templates have this, but defensive programming requires it.
+
+**Edge Case 6: Content before first section**
+```markdown
+# Title
+
+**Status**: Done
+
+Some random content here
+
+## Description
+Actual description
+```
+
+The "Some random content here" line is NOT part of any section. It will be ignored (not captured by any section regex). This is expected behavior - only content under `##` headings is extracted.
+
+**Edge Case 7: Template with no sections**
+
+Theoretically possible (a template with only fields, no sections). The `if (fieldConfig.sections)` check handles this - if sections is undefined, skip the loop entirely.
+
+**Edge Case 8: Section names with spaces**
+
+Already tested in seeded templates: "Key Concepts", "AI Summary", "My Notes". The regex escaping handles this correctly.
+
+#### Implementation Code Pattern
+
+Following the exact same pattern as field detection (Task 2.2 implementation):
+
+```typescript
+// Step 6: Extract section content (## Section Name)
+if (fieldConfig.sections) {
+  for (const sectionName in fieldConfig.sections) {
+    // Escape special regex characters in section name
+    const escapedSectionName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+    // Match pattern: ## SectionName\ncontent (until next ## or EOF)
+    // [\\s\\S]*? matches any character including newlines (non-greedy)
+    // (?=\\n##|$) lookahead stops at next ## heading or end of string
+    const regex = new RegExp(`## ${escapedSectionName}\\n([\\s\\S]*?)(?=\\n##|$)`)
+    const match = content.match(regex)
+
+    if (match) {
+      // Section found - capture content and trim leading/trailing whitespace
+      parsed.sections[sectionName] = match[1].trim()
+    } else {
+      // Section not found in markdown - store empty string
+      parsed.sections[sectionName] = ''
+    }
+  }
+}
+```
+
+**Why this matches the field detection pattern**:
+1. Check if `fieldConfig.sections` exists (handles templates with no sections)
+2. Iterate through section names from template config (not sections found in markdown)
+3. Escape special regex characters in section name
+4. Use regex to find section in content
+5. If found: trim and store content
+6. If not found: store empty string
+7. Consistency with field detection makes code predictable and maintainable
+
+#### Where to Insert the Code
+
+In `/home/mmariani/Projects/idealisted/lib/markdown-parser.ts`:
+
+**Current line 118-119**:
+```typescript
+  // Step 6: Extract sections (deferred to Task 2.3)
+  // TODO: Implement section extraction in Task 2.3
+```
+
+**Replace with** (keeping the step number comment for consistency):
+```typescript
+  // Step 6: Extract section content (## Section Name)
+  if (fieldConfig.sections) {
+    for (const sectionName in fieldConfig.sections) {
+      // ... implementation code here ...
+    }
+  }
+```
+
+This goes AFTER field extraction (Step 5, lines 99-116) and BEFORE the return statement (line 121).
+
+#### Test Cases with Expected Results
+
+**Test 1: Task template with all sections populated**
+```markdown
+# Buy groceries
+
+**Status**: In Progress
+**Priority**: High
+**Due Date**: 2025-11-20
+
+## Description
+Need milk, eggs, and bread from the store.
+
+## Subtasks
+- [ ] Get milk
+- [ ] Get eggs
+- [ ] Get bread
+
+## Notes
+Don't forget to use the coupons!
+```
+
+Expected sections:
+```typescript
+{
+  "Description": "Need milk, eggs, and bread from the store.",
+  "Subtasks": "- [ ] Get milk\n- [ ] Get eggs\n- [ ] Get bread",
+  "Notes": "Don't forget to use the coupons!"
+}
+```
+
+**Test 2: Note-Generic template**
+```markdown
+# Meeting notes 2025-11-16
+
+## Content
+Discussed Q1 roadmap. Key decisions:
+- Launch feature X in January
+- Hire 2 engineers
+
+## Tags
+meeting, q1, roadmap
+```
+
+Expected sections:
+```typescript
+{
+  "Content": "Discussed Q1 roadmap. Key decisions:\n- Launch feature X in January\n- Hire 2 engineers",
+  "Tags": "meeting, q1, roadmap"
+}
+```
+
+**Test 3: YouTube note with Key Concepts section**
+```markdown
+# TypeScript Advanced Patterns
+
+**URL**: https://youtube.com/watch?v=abc123
+**Duration**: 45 minutes
+**Status**: Completed
+
+## Key Concepts
+- Generic types
+- Conditional types
+- Mapped types
+- Template literal types
+
+## Timestamps
+
+## AI Summary
+
+## My Notes
+Great explanations of advanced concepts. Need to practice mapped types more.
+```
+
+Expected sections:
+```typescript
+{
+  "Key Concepts": "- Generic types\n- Conditional types\n- Mapped types\n- Template literal types",
+  "Timestamps": "",
+  "AI Summary": "",
+  "My Notes": "Great explanations of advanced concepts. Need to practice mapped types more."
+}
+```
+
+Note: Empty sections get empty string, not null/undefined.
+
+**Test 4: Section with blank lines preserved**
+```markdown
+## Description
+
+First paragraph
+
+Second paragraph after blank line
+
+
+Third paragraph after two blank lines
+
+## Notes
+```
+
+Expected:
+```typescript
+{
+  "Description": "First paragraph\n\nSecond paragraph after blank line\n\n\nThird paragraph after two blank lines"
+}
+```
+
+Internal blank lines are preserved. Leading/trailing whitespace is trimmed.
+
+**Test 5: Last section at EOF (no trailing newline)**
+```markdown
+## Notes
+This is the very last line of the file
+```
+
+Expected:
+```typescript
+{
+  "Notes": "This is the very last line of the file"
+}
+```
+
+The `$` in the lookahead `(?=\\n##|$)` handles EOF correctly.
+
+#### Integration with Existing Code
+
+**No changes needed to other functions**:
+- `getTemplate()` - Already complete, returns template with field_config as JSON string
+- Field extraction (Step 5) - Already complete in Task 2.2
+- Return statement - Already returns `parsed` object with sections property
+
+**Type safety**:
+- `ParsedEntity.sections` is typed as `Record<string, string>` (lines 89 in types/index.ts)
+- All section values MUST be strings (even empty sections are `""` not `null`)
+- This matches the field handling pattern
+
+**Backward compatibility**:
+- Templates without sections (if any exist in future) are handled by the `if (fieldConfig.sections)` check
+- No breaking changes to existing API
+
+#### Dependencies and Prerequisites
+
+**This task depends on**:
+- Task 2.1 ✅ Complete: `getTemplate()` function exists and works
+- Task 2.2 ✅ Complete: Field extraction implemented and tested
+- Phase 1 ✅ Complete: Templates seeded in database with section configs
+
+**What depends on this task**:
+- Task 2.4 (Markdown Reconstruction): `renderMarkdown()` will need to reconstruct sections
+- Task 2.5 (Validation): Will validate required sections are non-empty
+- Phase 3+ (Entity Conversion): API routes will use section data to populate UI
+
+**No external dependencies**:
+- Uses same regex approach as field detection
+- No new npm packages
+- No database changes
+
+#### Files and Code Locations
+
+**Primary Implementation File**:
+- `/home/mmariani/Projects/idealisted/lib/markdown-parser.ts`
+  - Lines 118-119: Replace TODO comment with section extraction code
+
+**Type Definitions** (reference only, no changes needed):
+- `/home/mmariani/Projects/idealisted/types/index.ts`
+  - Lines 75-79: `SectionDef` interface
+  - Lines 81-84: `FieldConfig` interface with `sections?: Record<string, SectionDef>`
+  - Lines 86-91: `ParsedEntity` interface with `sections: Record<string, string>`
+
+**Template Data** (reference for testing):
+- `/home/mmariani/Projects/idealisted/lib/db.ts`
+  - Lines 127-136: Task template markdown with 3 sections
+  - Lines 144-148: Task template section config
+  - Lines 152-158: Note-Generic template markdown with 2 sections
+  - Lines 161-165: Note-Generic section config
+  - Lines 168-184: YouTube note template markdown with 4 sections
+  - Lines 192-197: YouTube note section config
+
+**Plan Reference**:
+- `/home/mmariani/Projects/idealisted/MARKDOWN_ENTITIES_PLAN.md`
+  - Lines 438-471: Pseudocode showing section extraction pattern
+
+#### Success Criteria Checklist
+
+After implementing section extraction:
+
+- [ ] TypeScript compiles without errors (`npm run build`)
+- [ ] Can extract all 3 sections from task template markdown
+- [ ] Can extract all 2 sections from note-generic template markdown
+- [ ] Can extract all 4 sections from YouTube note template markdown
+- [ ] Empty sections stored as `""` not `null`/`undefined`
+- [ ] Missing sections in markdown get `""` default
+- [ ] Section names with spaces ("Key Concepts", "AI Summary") handled correctly
+- [ ] Multi-line section content captured correctly with newlines preserved
+- [ ] Internal blank lines preserved (only leading/trailing trimmed)
+- [ ] Last section at EOF captured correctly
+- [ ] Sections object populated for all templates (no longer always empty)
+- [ ] All test cases above pass with correct results
+- [ ] Field extraction (Task 2.2) still works (no regressions)
+
+#### Complete Implementation Code
+
+**Replace lines 118-119 in `/home/mmariani/Projects/idealisted/lib/markdown-parser.ts` with**:
+
+```typescript
+  // Step 6: Extract section content (## Section Name)
+  if (fieldConfig.sections) {
+    for (const sectionName in fieldConfig.sections) {
+      // Escape special regex characters in section name
+      const escapedSectionName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+      // Match pattern: ## SectionName\ncontent (until next ## or EOF)
+      // [\\s\\S]*? matches any character including newlines (non-greedy)
+      // (?=\\n##|$) lookahead stops at next ## heading or end of string
+      const regex = new RegExp(`## ${escapedSectionName}\\n([\\s\\S]*?)(?=\\n##|$)`)
+      const match = content.match(regex)
+
+      if (match) {
+        // Section found - capture content and trim leading/trailing whitespace
+        parsed.sections[sectionName] = match[1].trim()
+      } else {
+        // Section not found in markdown - store empty string
+        parsed.sections[sectionName] = ''
+      }
+    }
+  }
+```
+
+**That's it!** No other changes needed to the file. This implementation:
+1. Follows the exact same pattern as field extraction (consistency)
+2. Handles all edge cases identified above
+3. Matches the pseudocode from the plan
+4. Works with all 3 seeded templates
+5. Is defensive (checks if sections exist, escapes special chars, handles missing sections)
 
 ---
 
@@ -2179,6 +3981,496 @@ renderMarkdown(parsed)
 - Round-trip works (parse → render → parse produces same result)
 - Formatting consistent
 - Unit tests pass
+
+---
+
+## Context Manifest for Task 2.4: Markdown Reconstruction
+
+### How Markdown Parsing Currently Works
+
+The markdown parser library (`/home/mmariani/Projects/idealisted/lib/markdown-parser.ts`) implements a **template-driven bidirectional conversion system** between markdown text and structured ParsedEntity objects. Task 2.4 focuses on the **reconstruction direction**: taking a ParsedEntity and rebuilding valid markdown.
+
+#### Current Implementation Status
+
+**What's Already Working** (Task 2.1-2.3 Complete):
+
+1. **getTemplate() function** (lines 20-49): Loads templates from the database, validates field_config JSON
+2. **parseMarkdown() function** (lines 66-143): Extracts structured data from markdown content
+   - Title extraction from first H1 heading (`# Title`)
+   - Field extraction using pattern `**Field Name**: value`
+   - Section extraction using pattern `## Section Name\ncontent`
+   - Stores original markdown in `parsed.raw` for debugging
+
+**What Needs Implementation** (Task 2.4 - THIS TASK):
+
+3. **renderMarkdown() function** (lines 145-163): Currently a stub that throws "Not yet implemented - Task 2.4"
+
+#### The Template-Driven Architecture
+
+The system uses three seed templates stored in the database (seeded at `/home/mmariani/Projects/idealisted/lib/db.ts` lines 118-215):
+
+**Template 1: Task** (`id: 'task'`):
+```markdown
+# {title}
+
+**Status**: Not Started
+**Priority**: Medium
+**Due Date**:
+
+## Description
+
+
+## Subtasks
+- [ ]
+
+
+## Notes
+```
+
+**Field Config** (lines 138-149):
+```json
+{
+  "fields": {
+    "Status": { "type": "select", "options": ["Not Started", "In Progress", "Completed"], "required": true },
+    "Priority": { "type": "select", "options": ["Low", "Medium", "High", "Urgent"], "required": true },
+    "Due Date": { "type": "date", "required": false }
+  },
+  "sections": {
+    "Description": { "type": "textarea", "required": false },
+    "Subtasks": { "type": "checklist", "required": false },
+    "Notes": { "type": "textarea", "required": false }
+  }
+}
+```
+
+**Template 2: Note-Generic** (`id: 'note-generic'`, lines 151-165):
+```markdown
+# {title}
+
+## Content
+
+
+## Tags
+```
+
+**Field Config**: No fields, only sections (Content, Tags)
+
+**Template 3: Note-YouTube** (`id: 'note-youtube'`, lines 167-198):
+```markdown
+# {title}
+
+**URL**:
+**Duration**:
+**Status**: Not Watched
+
+## Key Concepts
+
+
+## Timestamps
+
+
+## AI Summary
+
+
+## My Notes
+```
+
+**Field Config**: 3 fields (URL, Duration, Status), 4 sections (Key Concepts, Timestamps, AI Summary, My Notes)
+
+#### How parseMarkdown() Extracts Data (The Reverse Operation)
+
+Understanding how parsing works is critical because **renderMarkdown() must reverse this process exactly**.
+
+**Title Extraction** (lines 90-94):
+```typescript
+const titleMatch = content.match(/^#\s+(.+)$/m)
+if (titleMatch) {
+  parsed.title = titleMatch[1].trim()
+}
+```
+Pattern: Matches first H1 heading, captures text after `# `
+
+**Field Extraction** (lines 96-116):
+```typescript
+if (fieldConfig.fields) {
+  for (const fieldName in fieldConfig.fields) {
+    const escapedFieldName = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const fieldRegex = new RegExp(`\\*\\*${escapedFieldName}\\*\\*:\\s*(.*)`, 'm')
+    const match = content.match(fieldRegex)
+
+    if (match) {
+      parsed.fields[fieldName] = match[1].trim()
+    } else {
+      parsed.fields[fieldName] = ''
+    }
+  }
+}
+```
+Pattern: `**FieldName**: value` - Extracts value, stores empty string if not found
+
+**Section Extraction** (lines 118-140):
+```typescript
+if (fieldConfig.sections) {
+  for (const sectionName in fieldConfig.sections) {
+    const escapedSectionName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const sectionRegex = new RegExp(`##\\s+${escapedSectionName}\\n([\\s\\S]*?)(?=\\n##|$)`, 'm')
+    const match = content.match(sectionRegex)
+
+    if (match) {
+      parsed.sections[sectionName] = match[1].trim()
+    } else {
+      parsed.sections[sectionName] = ''
+    }
+  }
+}
+```
+Pattern: `## SectionName\ncontent` - Content captured until next section or EOF, trimmed
+
+#### The ParsedEntity Structure (Input to renderMarkdown)
+
+From `/home/mmariani/Projects/idealisted/types/index.ts` lines 86-91:
+
+```typescript
+export interface ParsedEntity {
+  title: string
+  fields: Record<string, string>  // Extracted field values
+  sections: Record<string, string>  // Extracted section content
+  raw: string  // Original markdown for debugging/reference
+}
+```
+
+**Example ParsedEntity** (Task template):
+```typescript
+{
+  title: "Implement API endpoint",
+  fields: {
+    Status: "In Progress",
+    Priority: "High",
+    "Due Date": "2025-11-20"
+  },
+  sections: {
+    Description: "Create REST endpoint for user authentication",
+    Subtasks: "- [ ] Design schema\n- [x] Implement handler",
+    Notes: "Remember to add rate limiting"
+  },
+  raw: "# Implement API endpoint\n\n**Status**: In Progress\n..."
+}
+```
+
+**Example ParsedEntity** (Note-Generic template):
+```typescript
+{
+  title: "Meeting Notes - Sprint Planning",
+  fields: {},  // Note-generic has no fields!
+  sections: {
+    Content: "Discussed Q1 goals and timeline",
+    Tags: "meeting, planning, q1"
+  },
+  raw: "# Meeting Notes - Sprint Planning\n\n## Content\n..."
+}
+```
+
+### What renderMarkdown() Must Do
+
+The `renderMarkdown()` function signature at line 161:
+```typescript
+export function renderMarkdown(parsed: ParsedEntity, templateId: string): string
+```
+
+**Input**: ParsedEntity object + templateId string
+**Output**: Valid markdown string that matches the template structure
+
+#### Reconstruction Algorithm (From MARKDOWN_ENTITIES_PLAN.md lines 438-470)
+
+The plan provides this pseudocode showing the expected approach:
+
+**Step 1: Load Template**
+```typescript
+const template = getTemplate(templateId)
+if (!template) {
+  throw new Error(`Template '${templateId}' not found`)
+}
+```
+
+**Step 2: Start with Title**
+```typescript
+let markdown = `# ${parsed.title}\n\n`
+```
+
+**Step 3: Reconstruct Fields** (from template's field_config)
+```typescript
+const fieldConfig: FieldConfig = JSON.parse(template.field_config)
+
+if (fieldConfig.fields) {
+  for (const fieldName in fieldConfig.fields) {
+    const fieldValue = parsed.fields[fieldName] || ''
+    markdown += `**${fieldName}**: ${fieldValue}\n`
+  }
+  markdown += '\n'  // Blank line after fields section
+}
+```
+
+**Step 4: Reconstruct Sections** (from template's field_config)
+```typescript
+if (fieldConfig.sections) {
+  for (const sectionName in fieldConfig.sections) {
+    const sectionContent = parsed.sections[sectionName] || ''
+    markdown += `## ${sectionName}\n${sectionContent}\n\n`
+  }
+}
+```
+
+**Step 5: Return Markdown**
+```typescript
+return markdown
+```
+
+#### Critical Implementation Details
+
+**1. Template-Driven Order Preservation**
+
+The reconstruction MUST follow the template's field_config order, NOT the order of keys in the ParsedEntity. Why?
+- JavaScript object key iteration order is not guaranteed for all scenarios
+- The template defines the canonical structure
+- Round-trip consistency requires: `parse(render(parse(md))) === parse(md)`
+
+**2. Handling Empty Values**
+
+From the parseMarkdown implementation, we know that missing fields/sections are stored as empty strings:
+```typescript
+parsed.fields[fieldName] = match ? match[1].trim() : ''
+parsed.sections[sectionName] = match ? match[1].trim() : ''
+```
+
+When rendering:
+- Empty field values should still render the field label: `**Status**: \n` (not skip it)
+- Empty sections should still render the heading: `## Notes\n\n` (not skip it)
+- This ensures the template structure is always preserved
+
+**3. Spacing and Formatting Rules**
+
+From analyzing the template markdown (lines 122-136, 152-158, 168-184):
+- Title: `# {title}\n\n` (H1 with TWO newlines after)
+- Fields: `**Label**: value\n` (one newline after each field)
+- Blank line: Between fields section and first section (`\n`)
+- Sections: `## Name\ncontent\n\n` (H2, content, TWO newlines after)
+- Final output: Should end with double newline after last section
+
+**4. Edge Cases to Handle**
+
+**Empty Title**:
+```typescript
+title: ""
+// Should render: `# \n\n` (not skip the heading)
+```
+
+**Template with No Fields** (Note-Generic):
+```typescript
+fields: {}
+// Should skip field iteration entirely, go straight to sections
+```
+
+**Template with No Sections** (hypothetical):
+```typescript
+sections: {}
+// Should skip section iteration, end after fields
+```
+
+**Field Value with Newlines** (shouldn't happen but be defensive):
+```typescript
+fields: { Status: "In\nProgress" }
+// Should render as-is: **Status**: In\nProgress\n
+// Parser will extract first line only on round-trip
+```
+
+**Section Content with Multiple Paragraphs**:
+```typescript
+sections: { Notes: "First paragraph\n\nSecond paragraph" }
+// Should render: ## Notes\nFirst paragraph\n\nSecond paragraph\n\n
+// Preserves internal newlines, adds double newline at end
+```
+
+#### Round-Trip Consistency Requirement
+
+The success criteria states: "Round-trip works (parse → render → parse produces same result)"
+
+What this means in practice:
+```typescript
+const original = parseMarkdown(markdown, 'task')
+const reconstructed = renderMarkdown(original, 'task')
+const reparsed = parseMarkdown(reconstructed, 'task')
+
+// These should be deeply equal:
+assert.deepEqual(original.title, reparsed.title)
+assert.deepEqual(original.fields, reparsed.fields)
+assert.deepEqual(original.sections, reparsed.sections)
+```
+
+**Why round-trip matters:**
+- Ensures data integrity through edit cycles
+- Validates that parsing and rendering are true inverses
+- Prevents data loss when users edit → save → re-open
+
+**Known limitation**: The `raw` field will differ (it contains the new markdown), but title/fields/sections must match exactly.
+
+### Technical Reference Details
+
+#### Function Signature and JSDoc
+
+Current stub (lines 145-163):
+```typescript
+/**
+ * Render a ParsedEntity back into markdown format
+ *
+ * This function will:
+ * - Load the template by templateId
+ * - Reconstruct the markdown from the template structure
+ * - Insert the title into the {title} placeholder
+ * - Insert field values after their bold labels
+ * - Insert section content under ## headings
+ * - Return properly formatted markdown string
+ *
+ * @param parsed - Parsed entity object
+ * @param templateId - Template ID to use for rendering
+ * @returns Markdown string
+ * @throws Error when called (not yet implemented)
+ */
+export function renderMarkdown(parsed: ParsedEntity, templateId: string): string {
+  throw new Error('Not yet implemented - Task 2.4')
+}
+```
+
+This JSDoc is already correct and should be kept.
+
+#### Error Handling
+
+**Template Not Found**:
+```typescript
+const template = getTemplate(templateId)
+if (!template) {
+  throw new Error(`Template '${templateId}' not found`)
+}
+```
+
+**Invalid field_config JSON**:
+The getTemplate() function already validates JSON at line 32-36, so this will throw before reaching renderMarkdown. No additional handling needed.
+
+**Database Errors**:
+Also handled by getTemplate() (lines 40-48). If DB access fails, error is thrown with context.
+
+#### TypeScript Type Safety
+
+**FieldConfig Type** (from `/home/mmariani/Projects/idealisted/types/index.ts` lines 81-84):
+```typescript
+export interface FieldConfig {
+  fields?: Record<string, FieldDef>
+  sections?: Record<string, SectionDef>
+}
+```
+
+Both `fields` and `sections` are OPTIONAL (note the `?`). Must check for existence:
+```typescript
+if (fieldConfig.fields) {
+  // Safe to iterate
+}
+```
+
+**ParsedEntity Fields** (lines 86-91):
+```typescript
+fields: Record<string, string>  // Key-value pairs
+sections: Record<string, string>  // Key-value pairs
+```
+
+These are always defined (not optional), but MAY be empty objects `{}`.
+
+Accessing a non-existent key returns `undefined`, so use fallback:
+```typescript
+const fieldValue = parsed.fields[fieldName] || ''
+```
+
+### Implementation Strategy
+
+**Recommended Implementation Pattern**:
+
+```typescript
+export function renderMarkdown(parsed: ParsedEntity, templateId: string): string {
+  // 1. Load template
+  const template = getTemplate(templateId)
+  if (!template) {
+    throw new Error(`Template '${templateId}' not found`)
+  }
+
+  // 2. Parse field_config
+  const fieldConfig: FieldConfig = JSON.parse(template.field_config)
+
+  // 3. Build markdown incrementally
+  let markdown = ''
+
+  // 4. Add title
+  markdown += `# ${parsed.title}\n\n`
+
+  // 5. Add fields (if template has any)
+  if (fieldConfig.fields) {
+    for (const fieldName in fieldConfig.fields) {
+      const fieldValue = parsed.fields[fieldName] || ''
+      markdown += `**${fieldName}**: ${fieldValue}\n`
+    }
+    // Blank line after fields section
+    markdown += '\n'
+  }
+
+  // 6. Add sections (if template has any)
+  if (fieldConfig.sections) {
+    for (const sectionName in fieldConfig.sections) {
+      const sectionContent = parsed.sections[sectionName] || ''
+      markdown += `## ${sectionName}\n${sectionContent}\n\n`
+    }
+  }
+
+  return markdown
+}
+```
+
+**Alternative: Use Template as Base**
+
+Instead of building from scratch, could load `template.markdown_template` and perform replacements:
+1. Replace `{title}` placeholder with `parsed.title`
+2. Replace field values after their labels
+3. Replace section content under headings
+
+**Pros**: Preserves exact template formatting (default values, empty lines)
+**Cons**: More complex regex/string manipulation, harder to handle missing fields
+
+**Recommendation**: Use the incremental building approach (shown above) for simplicity and predictability.
+
+### Files to Reference During Implementation
+
+**Core Files**:
+- `/home/mmariani/Projects/idealisted/lib/markdown-parser.ts` - Where renderMarkdown() will be implemented
+- `/home/mmariani/Projects/idealisted/types/index.ts` - Type definitions (ParsedEntity, FieldConfig, Template)
+- `/home/mmariani/Projects/idealisted/lib/db.ts` - Template seed data showing structure
+
+**Related Code**:
+- `parseMarkdown()` function (lines 66-143 of markdown-parser.ts) - The inverse operation
+- `getTemplate()` function (lines 20-49 of markdown-parser.ts) - Template loading helper
+
+**Planning Documents**:
+- `/home/mmariani/Projects/idealisted/MARKDOWN_ENTITIES_PLAN.md` - Overall architecture (lines 438-470 for pseudocode)
+- `/home/mmariani/Projects/idealisted/MARKDOWN_ENTITIES_TASKS.md` - Task 2.4 specification (lines 3946-3984)
+
+### Verification Checklist
+
+After implementing renderMarkdown():
+
+1. **Compiles**: `npm run build` succeeds
+2. **Type-safe**: No TypeScript errors
+3. **Round-trip**: For each template (task, note-generic, note-youtube):
+   - Parse markdown → render → parse again
+   - Verify fields/sections/title unchanged
+4. **Empty values**: Test with empty title, empty fields, empty sections
+5. **Formatting**: Output matches template structure (spacing, newlines)
+6. **Error handling**: Template not found throws clear error
+7. **No side effects**: Function is pure (no DB writes, no state mutation)
 
 ---
 
@@ -2784,8 +5076,9 @@ const markdown = populateTemplate(template, {
 
 ## Phase 7: Markdown Viewer & Editor UI
 
-### Task 7.1: Create MarkdownViewer Component
+### Task 7.1: Create MarkdownViewer Component ✅
 **Objective**: Beautiful read-only markdown rendering
+**Status**: Complete (2025-11-17)
 
 **Deliverables**:
 - Component renders markdown with react-markdown or similar

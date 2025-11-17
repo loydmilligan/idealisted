@@ -34,6 +34,9 @@
   --entity-project: #7B9E6B;   /* Muted sage-grey */
   --entity-list: #8B6B9E;      /* Muted mauve-grey */
 
+  /* Accent colors for links and interactive elements */
+  --palm-accent-blue: #6B8B9E;  /* Same as entity-task for consistency */
+
   /* Swipe action colors */
   --swipe-delete: #8B6B6B;     /* Dark red-tinted green */
 
@@ -1814,4 +1817,231 @@ body {
   background: #7ED32120;
   border-color: #7ED321;
   color: #5BA519;
+}
+
+/* ============================================
+   MARKDOWN VIEWER STYLES
+   ============================================ */
+
+.markdown-viewer {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--palm-text-primary);
+}
+
+/* Compact mode for list views */
+.markdown-viewer.compact {
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.markdown-viewer.compact h1,
+.markdown-viewer.compact h2,
+.markdown-viewer.compact h3 {
+  margin: var(--space-xs) 0;
+}
+
+.markdown-viewer.compact p {
+  margin: var(--space-xs) 0;
+}
+
+.markdown-viewer.compact ul,
+.markdown-viewer.compact ol {
+  margin: var(--space-xs) 0;
+  padding-left: var(--space-lg);
+}
+
+/* Typography */
+.markdown-viewer h1 {
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--palm-text-primary);
+  margin: var(--space-md) 0 var(--space-sm) 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid var(--palm-border);
+  padding-bottom: var(--space-xs);
+}
+
+.markdown-viewer h2 {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: var(--palm-text-primary);
+  margin: var(--space-md) 0 var(--space-sm) 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.markdown-viewer h3 {
+  font-family: var(--font-mono);
+  font-size: 1.125rem;
+  font-weight: bold;
+  color: var(--palm-text-primary);
+  margin: var(--space-sm) 0 var(--space-xs) 0;
+  letter-spacing: 0.03em;
+}
+
+.markdown-viewer p {
+  margin: var(--space-sm) 0;
+}
+
+.markdown-viewer strong {
+  font-weight: 600;
+  color: var(--palm-text-primary);
+}
+
+.markdown-viewer em {
+  font-style: italic;
+  color: var(--palm-text-primary);
+}
+
+/* Lists */
+.markdown-viewer ul,
+.markdown-viewer ol {
+  margin: var(--space-sm) 0;
+  padding-left: var(--space-xl);
+}
+
+.markdown-viewer li {
+  margin: var(--space-xs) 0;
+}
+
+.markdown-viewer ul > li {
+  list-style-type: square;
+}
+
+.markdown-viewer ol > li {
+  list-style-type: decimal;
+}
+
+/* Links */
+.markdown-viewer a {
+  color: var(--palm-accent-blue);
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.markdown-viewer a:hover {
+  color: var(--entity-task);
+  text-decoration: none;
+}
+
+/* Timestamp links (YouTube notes) */
+.markdown-viewer .timestamp-link {
+  cursor: pointer;
+  color: var(--palm-accent-blue);
+  text-decoration: underline;
+  font-weight: bold;
+  font-family: var(--font-mono);
+}
+
+.markdown-viewer .timestamp-link:hover {
+  color: var(--entity-task);
+  background: var(--palm-bg-secondary);
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+
+/* Blockquotes */
+.markdown-viewer blockquote {
+  margin: var(--space-md) 0;
+  padding: var(--space-sm) var(--space-md);
+  border-left: 3px solid var(--palm-border);
+  background: var(--palm-bg-secondary);
+  color: var(--palm-text-secondary);
+  font-style: italic;
+}
+
+.markdown-viewer blockquote p {
+  margin: 0;
+}
+
+/* Code blocks (inline and block) */
+.markdown-viewer code {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  background: var(--palm-bg-secondary);
+  border: 1px solid var(--palm-border);
+  border-radius: 3px;
+  color: var(--palm-text-primary);
+}
+
+.markdown-viewer pre {
+  margin: var(--space-sm) 0;
+  padding: var(--space-sm);
+  background: var(--palm-bg-secondary);
+  border: 2px solid var(--palm-border);
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.markdown-viewer pre code {
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+/* Tables (GFM) */
+.markdown-viewer table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-md) 0;
+  font-size: 0.875rem;
+}
+
+.markdown-viewer th {
+  font-family: var(--font-mono);
+  font-weight: bold;
+  text-align: left;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--palm-screen-dark);
+  color: var(--palm-text-light);
+  border: 1px solid var(--palm-border);
+}
+
+.markdown-viewer td {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--palm-border);
+  background: var(--palm-bg-secondary);
+}
+
+.markdown-viewer tr:nth-child(even) td {
+  background: var(--palm-bg-primary);
+}
+
+/* Horizontal rules */
+.markdown-viewer hr {
+  border: none;
+  border-top: 2px solid var(--palm-border);
+  margin: var(--space-lg) 0;
+}
+
+/* Task lists (GFM checkboxes) */
+.markdown-viewer input[type="checkbox"] {
+  margin-right: 8px;
+  cursor: not-allowed;
+}
+
+.markdown-viewer ul:has(input[type="checkbox"]) {
+  list-style-type: none;
+  padding-left: var(--space-md);
+}
+
+.markdown-viewer li:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+/* Strikethrough (GFM) */
+.markdown-viewer del {
+  text-decoration: line-through;
+  color: var(--palm-text-secondary);
+  opacity: 0.7;
 }

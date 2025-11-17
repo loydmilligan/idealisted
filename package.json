@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "node __tests__/markdown-parser.test.cjs"
   },
   "dependencies": {
     "@heroicons/react": "^2.1.1",
@@ -30,7 +31,9 @@
     "openai": "^6.8.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-markdown": "^10.1.0",
     "recharts": "^3.3.0",
+    "remark-gfm": "^4.0.1",
     "tailwind-merge": "^2.2.1",
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^13.0.0",
