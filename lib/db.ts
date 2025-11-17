@@ -210,6 +210,27 @@ export function initializeDatabase() {
     // Column already exists, safe to ignore
   }
 
+  // Add markdown entity support columns to items table
+  try {
+    db.exec(`ALTER TABLE items ADD COLUMN markdown_content TEXT`)
+  } catch (e) {
+    if (!e.message?.includes('duplicate column name')) {
+      console.error('Failed to add markdown_content column:', e)
+      throw e
+    }
+    // Column already exists, safe to ignore
+  }
+
+  try {
+    db.exec(`ALTER TABLE items ADD COLUMN template_id TEXT`)
+  } catch (e) {
+    if (!e.message?.includes('duplicate column name')) {
+      console.error('Failed to add template_id column:', e)
+      throw e
+    }
+    // Column already exists, safe to ignore
+  }
+
   // Notes table
   db.exec(`
     CREATE TABLE IF NOT EXISTS notes (
@@ -262,6 +283,21 @@ export function initializeDatabase() {
       start_date INTEGER,
       end_date INTEGER,
       FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+    )
+  `)
+
+  // Templates table - stores markdown templates for tasks and notes
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS templates (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      entity_type TEXT NOT NULL,
+      subtype TEXT,
+      markdown_template TEXT NOT NULL,
+      field_config TEXT NOT NULL,
+      is_system INTEGER DEFAULT 1,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
     )
   `)
 
@@ -355,12 +391,14 @@ export function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_items_type ON items(type);
     CREATE INDEX IF NOT EXISTS idx_items_created_at ON items(created_at);
     CREATE INDEX IF NOT EXISTS idx_items_archived ON items(archived);
+    CREATE INDEX IF NOT EXISTS idx_items_template_id ON items(template_id);
     CREATE INDEX IF NOT EXISTS idx_todos_item_id ON todos(item_id);
     CREATE INDEX IF NOT EXISTS idx_todos_due_date ON todos(due_date);
     CREATE INDEX IF NOT EXISTS idx_plans_date ON plans(date);
     CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
     CREATE INDEX IF NOT EXISTS idx_tags_usage ON tags(usage_count DESC);
     CREATE INDEX IF NOT EXISTS idx_tasks_reminder ON tasks(reminder_datetime);
+    CREATE INDEX IF NOT EXISTS idx_templates_entity_type ON templates(entity_type);
   `)
 
   console.log('Database initialized successfully')
