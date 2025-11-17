@@ -185,6 +185,18 @@ export interface AppearanceConfig {
   animationsEnabled: boolean
 }
 
+export interface ReminderConfig {
+  enabled: boolean
+  quietHours: {
+    enabled: boolean
+    start: string  // HH:mm format (e.g., "22:00")
+    end: string    // HH:mm format (e.g., "08:00")
+  }
+  defaultTiming: 'morning_of' | '1_hour_before' | '1_day_before' | 'custom'
+  customMinutesBefore?: number  // Only used if defaultTiming is 'custom'
+  priorityFilter: number[]  // Array of priority levels that trigger reminders (1-5)
+}
+
 // Combined types for API responses
 export interface ItemWithRelations extends Item {
   todo?: Todo

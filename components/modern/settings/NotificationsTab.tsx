@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { NtfyConfig } from '@/types'
+import { NtfyConfig, ReminderConfig } from '@/types'
 
 interface NotificationEvents {
   taskCompleted: boolean
@@ -32,6 +32,17 @@ export const NotificationsTab: React.FC = () => {
     time: '18:00',
     includeAiSummary: true,
   })
+  const [reminderConfig, setReminderConfig] = useState<ReminderConfig>({
+    enabled: false,
+    quietHours: {
+      enabled: false,
+      start: '22:00',
+      end: '08:00',
+    },
+    defaultTiming: '1_day_before',
+    customMinutesBefore: 60,
+    priorityFilter: [3, 4, 5],
+  })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -44,17 +55,25 @@ export const NotificationsTab: React.FC = () => {
 
   const loadSettings = async () => {
     try {
-      const response = await fetch('/api/settings')
-      const data = await response.json()
+      const [settingsResponse, reminderResponse] = await Promise.all([
+        fetch('/api/settings'),
+        fetch('/api/settings/reminders')
+      ])
 
-      if (data.settings?.ntfy_config) {
-        setConfig(data.settings.ntfy_config)
+      const settingsData = await settingsResponse.json()
+      const reminderData = await reminderResponse.json()
+
+      if (settingsData.settings?.ntfy_config) {
+        setConfig(settingsData.settings.ntfy_config)
       }
-      if (data.settings?.notification_events) {
-        setEvents(data.settings.notification_events)
+      if (settingsData.settings?.notification_events) {
+        setEvents(settingsData.settings.notification_events)
       }
-      if (data.settings?.daily_review) {
-        setDailyReview(data.settings.daily_review)
+      if (settingsData.settings?.daily_review) {
+        setDailyReview(settingsData.settings.daily_review)
+      }
+      if (reminderData.success && reminderData.config) {
+        setReminderConfig(reminderData.config)
       }
     } catch (error) {
       console.error('Failed to load settings:', error)
@@ -106,17 +125,26 @@ export const NotificationsTab: React.FC = () => {
     }
 
     try {
-      const response = await fetch('/api/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ntfy_config: config,
-          notification_events: events,
-          daily_review: dailyReview,
+      const [settingsResponse, reminderResponse] = await Promise.all([
+        fetch('/api/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ntfy_config: config,
+            notification_events: events,
+            daily_review: dailyReview,
+          }),
         }),
-      })
+        fetch('/api/settings/reminders', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            config: reminderConfig,
+          }),
+        })
+      ])
 
-      if (response.ok) {
+      if (settingsResponse.ok && reminderResponse.ok) {
         setMessage('✓ Settings saved successfully')
       } else {
         setMessage('✗ Failed to save settings')
@@ -393,6 +421,166 @@ export const NotificationsTab: React.FC = () => {
         >
           {testingReview ? 'TESTING...' : 'TEST DAILY REVIEW'}
         </button>
+      </div>
+
+      <hr className="retro-divider" />
+
+      <h3 className="retro-section-title">TASK REMINDER PREFERENCES</h3>
+
+      <label className="retro-checkbox-label">
+        <input
+          type="checkbox"
+          className="retro-checkbox"
+          checked={reminderConfig.enabled}
+          onChange={(e) => setReminderConfig({ ...reminderConfig, enabled: e.target.checked })}
+        />
+        Enable task reminders
+      </label>
+      <p style={{
+        fontSize: '11px',
+        color: 'var(--retro-text-secondary)',
+        marginTop: '4px',
+        marginLeft: '24px',
+        marginBottom: '16px'
+      }}>
+        Automatically send notifications for tasks with due dates
+      </p>
+
+      <div className="retro-form-group">
+        <label className="retro-form-label">Default reminder timing</label>
+        <select
+          className="retro-select"
+          value={reminderConfig.defaultTiming}
+          onChange={(e) => setReminderConfig({
+            ...reminderConfig,
+            defaultTiming: e.target.value as ReminderConfig['defaultTiming']
+          })}
+          disabled={!reminderConfig.enabled}
+          style={!reminderConfig.enabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+        >
+          <option value="morning_of">Morning of (8:00 AM)</option>
+          <option value="1_hour_before">1 hour before</option>
+          <option value="1_day_before">1 day before</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+
+      {reminderConfig.defaultTiming === 'custom' && (
+        <div className="retro-form-group">
+          <label className="retro-form-label">Minutes before due date</label>
+          <input
+            type="number"
+            className="retro-input"
+            value={reminderConfig.customMinutesBefore || 60}
+            onChange={(e) => setReminderConfig({
+              ...reminderConfig,
+              customMinutesBefore: parseInt(e.target.value) || 60
+            })}
+            disabled={!reminderConfig.enabled}
+            style={!reminderConfig.enabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+            min="1"
+            placeholder="60"
+          />
+        </div>
+      )}
+
+      <div className="retro-form-group">
+        <label className="retro-form-label">Quiet hours</label>
+        <label className="retro-checkbox-label">
+          <input
+            type="checkbox"
+            className="retro-checkbox"
+            checked={reminderConfig.quietHours.enabled}
+            onChange={(e) => setReminderConfig({
+              ...reminderConfig,
+              quietHours: { ...reminderConfig.quietHours, enabled: e.target.checked }
+            })}
+            disabled={!reminderConfig.enabled}
+          />
+          Enable quiet hours
+        </label>
+        <p style={{
+          fontSize: '11px',
+          color: 'var(--retro-text-secondary)',
+          marginTop: '4px',
+          marginLeft: '24px',
+          marginBottom: '12px'
+        }}>
+          Suppress notifications during specified time range
+        </p>
+      </div>
+
+      {reminderConfig.quietHours.enabled && (
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+          <div style={{ flex: 1 }}>
+            <label className="retro-form-label">Start time</label>
+            <input
+              type="time"
+              className="retro-input"
+              value={reminderConfig.quietHours.start}
+              onChange={(e) => setReminderConfig({
+                ...reminderConfig,
+                quietHours: { ...reminderConfig.quietHours, start: e.target.value }
+              })}
+              disabled={!reminderConfig.enabled}
+              style={!reminderConfig.enabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label className="retro-form-label">End time</label>
+            <input
+              type="time"
+              className="retro-input"
+              value={reminderConfig.quietHours.end}
+              onChange={(e) => setReminderConfig({
+                ...reminderConfig,
+                quietHours: { ...reminderConfig.quietHours, end: e.target.value }
+              })}
+              disabled={!reminderConfig.enabled}
+              style={!reminderConfig.enabled ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="retro-form-group">
+        <label className="retro-form-label">Priority filter</label>
+        <p style={{
+          fontSize: '11px',
+          color: 'var(--retro-text-secondary)',
+          marginBottom: '8px'
+        }}>
+          Only send reminders for tasks with these priority levels
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {[
+            { value: 1, label: 'Low (1)' },
+            { value: 2, label: 'Medium-Low (2)' },
+            { value: 3, label: 'Medium (3)' },
+            { value: 4, label: 'High (4)' },
+            { value: 5, label: 'Urgent (5)' },
+          ].map((priority) => (
+            <label
+              key={priority.value}
+              className="retro-checkbox-label"
+              style={!reminderConfig.enabled ? { opacity: 0.5 } : {}}
+            >
+              <input
+                type="checkbox"
+                className="retro-checkbox"
+                checked={reminderConfig.priorityFilter.includes(priority.value)}
+                onChange={(e) => {
+                  const newFilter = e.target.checked
+                    ? [...reminderConfig.priorityFilter, priority.value]
+                    : reminderConfig.priorityFilter.filter(p => p !== priority.value)
+                  setReminderConfig({ ...reminderConfig, priorityFilter: newFilter })
+                }}
+                disabled={!reminderConfig.enabled}
+              />
+              {priority.label}
+            </label>
+          ))}
+        </div>
       </div>
 
       {message && (
