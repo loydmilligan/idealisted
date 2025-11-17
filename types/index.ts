@@ -239,6 +239,18 @@ export interface ReminderConfig {
   priorityFilter: number[]  // Array of priority levels that trigger reminders (1-5)
 }
 
+export interface DailySummaryConfig {
+  enabled: boolean
+  times: string[]  // Array of HH:mm time strings (e.g., ['09:00', '12:00', '18:00'])
+  includeMetrics: {
+    ideasCaptured: boolean
+    ideasConverted: boolean
+    tasksCompleted: boolean
+    tasksDueToday: boolean
+    tasksDueSoon: boolean
+  }
+}
+
 // Combined types for API responses
 export interface ItemWithRelations extends Item {
   todo?: Todo

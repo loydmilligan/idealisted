@@ -2,7 +2,7 @@
 
 **Sprint**: Post-Beta AI & NTFY Integration
 **Started**: 2025-01-14
-**Status**: Phase 1 Complete ✅, Phase 2 Complete ✅, Phase 3 Complete ✅, Phase 4 Complete ✅, Phase 5 Tasks 5.1 ✅ and 5.3 ✅ Complete, Phase 6 Complete ✅ (Tasks 6.2 ✅ and 6.3 ✅)
+**Status**: Phase 1 Complete ✅, Phase 2 Complete ✅, Phase 3 Complete ✅, Phase 4 Complete ✅, Phase 5 Tasks 5.1 ✅ and 5.3 ✅ Complete, Phase 6 Complete ✅ (All Tasks Complete)
 
 ---
 
@@ -271,7 +271,7 @@ This sprint implements AI-powered features and notification capabilities for Ide
 
 ## Phase 6: Scheduled Summary
 
-**Status**: Phase 6 Complete ✅ (Tasks 6.2 ✅ and 6.3 ✅)
+**Status**: Phase 6 Complete ✅ (All Tasks Complete: 6.2 ✅, 6.3 ✅, 6.4 ✅)
 **Dependencies**: Phase 1 complete (ai_feature_settings with daily_summary)
 
 **Purpose**: Periodic digest notifications of user activity.
@@ -303,8 +303,21 @@ This sprint implements AI-powered features and notification capabilities for Ide
 - ✅ Code review: 10/10 score with greenlight
 - ✅ Implementation location: lib/scheduler.ts lines 346-396
 
-**What Will Be Built (Remaining Tasks)**:
-- Settings UI for summary preferences - Task 6.4 (optional)
+**What Was Built (Task 6.4 - Settings UI)**:
+- ✅ TypeScript type: `DailySummaryConfig` interface with enabled, times, includeMetrics fields
+- ✅ Settings UI: Added "Daily Summary" section to Notifications tab
+  - Master toggle for enable/disable
+  - Three time checkboxes: 9:00 AM, 12:00 PM, 6:00 PM
+  - Helper text and disabled states
+  - Validation: Cannot save with enabled=true and no times selected
+- ✅ Dual-toggle sync: Updates both `settings.daily_summary_config` and `ai_feature_settings.daily_summary`
+- ✅ CRON scheduler updated: Loads times from database config with fallback to defaults
+- ✅ Backward compatible: Falls back to `['09:00', '12:00', '18:00']` if config missing
+- ✅ Code review: 8.5/10 score with greenlight approval
+- ✅ Files modified:
+  - `types/index.ts` - Added DailySummaryConfig interface
+  - `components/modern/settings/NotificationsTab.tsx` - UI section and state management
+  - `lib/scheduler.ts` - Database-driven time configuration
 
 **Summary Includes**:
 - Ideas captured today
@@ -317,6 +330,872 @@ This sprint implements AI-powered features and notification capabilities for Ide
 - Don't send if no activity ✅
 - Hour-based deduplication (allows 9am, 12pm, 6pm summaries) ✅
 - Respects AI feature flags and NTFY settings ✅
+
+---
+
+## Context Manifest for Task 6.4: Summary Settings UI
+
+### What This Task Is About
+
+Task 6.4 is about creating a **user-facing Settings UI** that allows users to control the daily summary feature. Currently, the daily summary system is fully functional (Tasks 6.2 and 6.3 complete), but users have **no way to configure it** through the UI. All configuration is currently:
+
+1. **Feature enabled/disabled**: Controlled via `ai_feature_settings.daily_summary.enabled` (database only, no UI except AI Settings tab)
+2. **Summary times**: Hardcoded to `['09:00', '12:00', '18:00']` in `lib/scheduler.ts` line 305
+3. **Metrics included**: All metrics always included (no UI to customize which metrics appear in summaries)
+
+This task will add a **dedicated section in the Notifications Settings tab** where users can:
+- Enable/disable the daily summary feature (duplicates AI Settings tab toggle, but contextually appropriate here)
+- Choose which times to receive summaries (9am, 12pm, 6pm - checkboxes for each)
+- Optionally customize which metrics are included in summaries (future enhancement)
+
+**Important**: This task is marked **optional** because the core feature already works. This is purely UX polish.
+
+---
+
+### How The Current Settings Architecture Works
+
+**Settings Storage Pattern** (Multi-Table Strategy):
+
+IdeaListed uses **two different database tables** for different types of settings:
+
+1. **`settings` table** - General app configuration stored as JSON blobs
+   - Schema: `(key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL)`
+   - Used for: `ai_config`, `ntfy_config`, `notification_events`, `daily_review`, `appearance_config`
+   - API: `/api/settings` (GET/PUT)
+   - Pattern: Each setting is a JSON object stored as stringified text
+
+2. **`ai_feature_settings` table** - Granular AI feature toggles
+   - Schema: `(feature_name TEXT PRIMARY KEY, enabled INTEGER DEFAULT 0, description TEXT NOT NULL)`
+   - Used for: `suggestion_panel`, `tag_suggestions`, `daily_summary`
+   - API: `/api/ai-features` (GET/PUT)
+   - Pattern: Boolean flags (0 or 1) for individual AI features
+
+**Why Two Tables?**
+
+The architecture reflects feature evolution:
+- `settings` table: Original design for complex configuration objects
+- `ai_feature_settings` table: Added in Phase 1 for fine-grained AI feature control (Task 1.1)
+
+The `daily_summary` feature exists in BOTH tables conceptually:
+- **Enable/Disable**: `ai_feature_settings.daily_summary.enabled` (boolean flag)
+- **Configuration** (times, metrics): Not yet stored anywhere - **this is what Task 6.4 needs to add**
+
+**Settings Tab Architecture**:
+
+The SettingsModal (`/home/mmariani/Projects/idealisted/components/modern/SettingsModal.tsx`) is the parent container with 4 tabs:
+
+```typescript
+type SettingsTab = 'ai' | 'notifications' | 'tags' | 'appearance'
+```
+
+Each tab is a separate component loaded conditionally:
+- **AI Tab**: `/home/mmariani/Projects/idealisted/components/modern/settings/AISettingsTab.tsx` (lines 1-408)
+- **Notifications Tab**: `/home/mmariani/Projects/idealisted/components/modern/settings/NotificationsTab.tsx` (lines 1-604)
+- **Tags Tab**: `components/modern/settings/TagsTab.tsx` (not examined, not relevant)
+- **Appearance Tab**: `components/modern/settings/AppearanceTab.tsx` (not examined, not relevant)
+
+**Task 6.4 Implementation Location**: We'll add the daily summary settings UI to the **Notifications Tab** (most contextually appropriate).
+
+---
+
+### How The Notifications Tab Currently Works
+
+**Component Structure** (`NotificationsTab.tsx` lines 1-604):
+
+The Notifications Tab manages **three distinct feature areas**, each with its own state and UI section:
+
+**1. NTFY Configuration** (lines 15-22, 240-326):
+- State: `config` (NtfyConfig type)
+- Fields: enabled, server, topic, username, password, priority
+- UI: Master toggle, text inputs, radio group for priority
+- Save: PUT `/api/settings` with `ntfy_config` key
+- Test button: POST `/api/notify` to send test notification
+
+**2. Event Notifications** (lines 23-29, 328-380):
+- State: `events` (NotificationEvents interface)
+- Fields: taskCompleted, taskDueSoon, ideaCaptured, ideaSorted, entityCreated
+- UI: 5 checkboxes
+- Save: PUT `/api/settings` with `notification_events` key
+- Pattern: Boolean flags for which events trigger notifications
+
+**3. Daily Review Reminder** (lines 30-34, 382-424):
+- State: `dailyReview` object
+- Fields: enabled, time (HH:mm), includeAiSummary
+- UI: Enable checkbox, time picker, AI summary toggle
+- Save: PUT `/api/settings` with `daily_review` key
+- Test button: POST `/api/review` with `test: true` flag
+
+**4. Task Reminder Preferences** (lines 35-45, 426-584):
+- State: `reminderConfig` (ReminderConfig type)
+- Fields: enabled, quietHours, defaultTiming, customMinutesBefore, priorityFilter
+- UI: Complex nested form with conditional rendering
+- Save: PUT `/api/settings/reminders` (separate API route)
+- Pattern: Separate API endpoint for complex reminder configuration
+
+**Load/Save Pattern**:
+
+```typescript
+// Load settings on mount (lines 52-83)
+useEffect(() => {
+  loadSettings() // Fetches from /api/settings and /api/settings/reminders
+}, [])
+
+// Save all settings in parallel (lines 99-158)
+const handleSave = async () => {
+  await Promise.all([
+    fetch('/api/settings', {
+      method: 'PUT',
+      body: JSON.stringify({
+        ntfy_config: config,
+        notification_events: events,
+        daily_review: dailyReview,
+      }),
+    }),
+    fetch('/api/settings/reminders', {
+      method: 'PUT',
+      body: JSON.stringify({ config: reminderConfig }),
+    })
+  ])
+}
+```
+
+**UI Component Patterns**:
+
+1. **Section Headers**: `<h3 className="retro-section-title">SECTION NAME</h3>` (lines 242, 330, 384, 428)
+2. **Dividers**: `<hr className="retro-divider" />` (lines 328, 382, 426)
+3. **Checkboxes**: `<label className="retro-checkbox-label">` with `<input type="checkbox" className="retro-checkbox">`
+4. **Form Groups**: `<div className="retro-form-group">` wrapper for labeled inputs
+5. **Time Pickers**: `<input type="time" className="retro-input">` (line 399)
+6. **Disabled State**: Conditional `disabled` prop + inline `opacity: 0.5` style
+7. **Helper Text**: Small gray text with specific styling (lines 439-447, 502-510)
+8. **Button Row**: `<div className="retro-button-row">` with secondary/primary buttons
+
+**Validation Pattern** (lines 99-125):
+
+The `handleSave` function includes pre-save validation:
+- Check required fields when feature is enabled
+- Validate topic format (alphanumeric, hyphens, underscores only)
+- Validate server URL format
+- Show error message via `setMessage()` and early return on failure
+
+**Message Display Pattern** (lines 50, 586-590):
+
+All tabs use a shared message display system:
+- State: `message` (string)
+- Display: `<div className="retro-message">{message}</div>` conditionally rendered
+- Auto-clear: `setTimeout(() => setMessage(''), 3000)` after save/test
+- Longer timeout (8000ms) for errors (AI Settings Tab line 182)
+
+---
+
+### How The Daily Summary Feature Flag Currently Works
+
+**Two-Tier Control System**:
+
+The daily summary feature is controlled by **two independent toggles**:
+
+**Tier 1: AI Master Toggle** (`ai_config.enabled`):
+- Location: Settings > AI tab (AISettingsTab.tsx lines 231-249)
+- Database: `settings` table, key `ai_config`, field `enabled` (boolean)
+- Effect: When disabled, ALL AI features are disabled (line 365 in AISettingsTab.tsx)
+- UI: Large checkbox labeled "Enable AI Features"
+- Description: "Toggle to enable/disable all AI functionality app-wide"
+
+**Tier 2: Daily Summary Feature Flag** (`ai_feature_settings.daily_summary.enabled`):
+- Location: Settings > AI tab, Features section (AISettingsTab.tsx lines 354-381)
+- Database: `ai_feature_settings` table, row where `feature_name='daily_summary'`
+- Effect: When disabled, daily summary CRON returns early (scheduler.ts lines 280-285)
+- UI: Checkbox labeled "AI Daily Summary"
+- Description: "AI-generated summary in daily review notification. Requires notifications enabled."
+- Disabled state: Grayed out when AI master toggle is off
+
+**Defense-in-Depth Pattern**:
+
+The CRON job in `lib/scheduler.ts` (lines 271-413) checks BOTH flags:
+
+```typescript
+// Check 1: Feature flag (line 280)
+const featureSetting = db.prepare('SELECT enabled FROM ai_feature_settings WHERE feature_name = ?')
+  .get('daily_summary')
+if (!featureSetting || !featureSetting.enabled) {
+  return // Silent return, no summary sent
+}
+
+// Check 2: NTFY enabled (lines 288-298)
+const ntfyConfig = JSON.parse(ntfySetting.value)
+if (!ntfyConfig.enabled) {
+  return // No point generating summary if can't send it
+}
+```
+
+**Current User Journey**:
+
+To enable daily summaries, users must:
+1. Go to Settings > AI tab
+2. Check "Enable AI Features" (master toggle)
+3. Scroll down to Features section
+4. Check "AI Daily Summary" (feature flag)
+5. Go to Settings > Notifications tab (separate tab!)
+6. Check "Enable notifications" (NTFY master toggle)
+7. Configure NTFY server/topic
+8. Save settings
+
+Then the CRON runs at 9am, 12pm, and 6pm automatically (no user control over times).
+
+**Problem**: There's NO UI in the Notifications tab that shows daily summary settings, even though:
+- Daily summaries are notification-related (sent via NTFY)
+- Daily Review settings ARE in Notifications tab (lines 382-424)
+- Users expect notification settings to be in one place
+
+**Task 6.4 Solution**: Add a "Daily Summary" section to Notifications tab for better discoverability and control.
+
+---
+
+### How The CRON Job Uses Hardcoded Times
+
+**Current Implementation** (`lib/scheduler.ts` lines 300-309):
+
+```typescript
+// Get current time in HH:mm format
+const now = new Date()
+const currentTime = format(now, 'HH:mm')  // Uses date-fns format()
+
+// Check if it's one of the configured summary times (9am, 12pm, 6pm)
+const summaryTimes = ['09:00', '12:00', '18:00']  // HARDCODED ARRAY
+
+if (!summaryTimes.includes(currentTime)) {
+  return // Not a summary time, exit early
+}
+```
+
+The `summaryTimes` array is **hardcoded at line 305**. To make this user-configurable, we need to:
+
+1. **Store time preferences in database** (new `daily_summary_config` settings key)
+2. **Load times from database** in CRON job instead of using hardcoded array
+3. **Provide UI** for users to select which times they want summaries
+
+**Design Decision**: Use a similar pattern to Daily Review's single-time picker, but allow **multiple time selection**.
+
+---
+
+### Recommended Database Schema for Summary Configuration
+
+**New Settings Key**: `daily_summary_config`
+
+**Storage Location**: `settings` table (consistent with `daily_review`, `ntfy_config` patterns)
+
+**Proposed JSON Structure**:
+
+```typescript
+interface DailySummaryConfig {
+  enabled: boolean          // Redundant with ai_feature_settings, but convenient for UI
+  times: string[]           // Array of HH:mm strings (e.g., ['09:00', '12:00', '18:00'])
+  includeMetrics: {         // Optional: control which metrics appear in summaries
+    ideasCaptured: boolean
+    ideasConverted: boolean
+    tasksCompleted: boolean
+    tasksDueToday: boolean
+    tasksDueSoon: boolean
+  }
+}
+```
+
+**Default Values** (should match current behavior):
+
+```typescript
+const defaultConfig: DailySummaryConfig = {
+  enabled: false,  // Matches ai_feature_settings.daily_summary default
+  times: ['09:00', '12:00', '18:00'],  // Matches current hardcoded array
+  includeMetrics: {
+    ideasCaptured: true,
+    ideasConverted: true,
+    tasksCompleted: true,
+    tasksDueToday: true,
+    tasksDueSoon: true
+  }
+}
+```
+
+**Why Not Use `ai_feature_settings` Table?**
+
+The `ai_feature_settings` table only supports:
+- `feature_name` (primary key)
+- `enabled` (integer 0/1)
+- `description` (text)
+
+It's designed for simple boolean flags, not complex configuration. The `settings` table is the correct place for structured configuration.
+
+**Migration Strategy**:
+
+Since `daily_summary_config` doesn't exist yet, the Notifications Tab component should:
+1. Try to load `daily_summary_config` from `/api/settings`
+2. If not found, create default config object in memory
+3. On first save, INSERT the config into database
+4. Also check `ai_feature_settings.daily_summary.enabled` for initial state (sync the toggles)
+
+**Sync Strategy Between Two Toggles**:
+
+We have redundant enabled flags:
+- `ai_feature_settings.daily_summary.enabled` (AI tab)
+- `daily_summary_config.enabled` (Notifications tab)
+
+**Recommendation**: Keep both, but treat `ai_feature_settings` as the **source of truth** for the CRON job. The Notifications tab toggle is just a convenience UI that ALSO updates `ai_feature_settings` when changed.
+
+Implementation:
+```typescript
+const handleDailySummarySave = async () => {
+  // Save to settings table (times, metrics)
+  await fetch('/api/settings', {
+    method: 'PUT',
+    body: JSON.stringify({ daily_summary_config: summaryConfig })
+  })
+
+  // ALSO update ai_feature_settings (enabled flag)
+  await fetch('/api/ai-features', {
+    method: 'PUT',
+    body: JSON.stringify({
+      features: [{
+        feature_name: 'daily_summary',
+        enabled: summaryConfig.enabled ? 1 : 0
+      }]
+    })
+  })
+}
+```
+
+---
+
+### Recommended UI Design for Task 6.4
+
+**Location**: `NotificationsTab.tsx` after Task Reminder Preferences section (after line 584)
+
+**Section Structure**:
+
+```tsx
+<hr className="retro-divider" />
+
+<h3 className="retro-section-title">DAILY SUMMARY NOTIFICATIONS</h3>
+
+{/* Master Toggle */}
+<label className="retro-checkbox-label">
+  <input
+    type="checkbox"
+    className="retro-checkbox"
+    checked={dailySummaryConfig.enabled}
+    onChange={(e) => setDailySummaryConfig({
+      ...dailySummaryConfig,
+      enabled: e.target.checked
+    })}
+    disabled={!config.enabled}  // Disable if NTFY disabled
+  />
+  Enable daily summary notifications
+</label>
+<p style={{
+  fontSize: '11px',
+  color: 'var(--retro-text-secondary)',
+  marginTop: '4px',
+  marginLeft: '24px',
+  marginBottom: '16px'
+}}>
+  Periodic digest of your daily activity. Requires AI features enabled.
+</p>
+
+{/* Time Selection */}
+<div className="retro-form-group">
+  <label className="retro-form-label">Summary times</label>
+  <p style={{
+    fontSize: '11px',
+    color: 'var(--retro-text-secondary)',
+    marginBottom: '8px'
+  }}>
+    Choose when to receive daily summaries
+  </p>
+
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+    {[
+      { value: '09:00', label: 'Morning (9:00 AM)' },
+      { value: '12:00', label: 'Midday (12:00 PM)' },
+      { value: '18:00', label: 'Evening (6:00 PM)' },
+    ].map((time) => (
+      <label
+        key={time.value}
+        className="retro-checkbox-label"
+        style={!dailySummaryConfig.enabled ? { opacity: 0.5 } : {}}
+      >
+        <input
+          type="checkbox"
+          className="retro-checkbox"
+          checked={dailySummaryConfig.times.includes(time.value)}
+          onChange={(e) => {
+            const newTimes = e.target.checked
+              ? [...dailySummaryConfig.times, time.value]
+              : dailySummaryConfig.times.filter(t => t !== time.value)
+            setDailySummaryConfig({ ...dailySummaryConfig, times: newTimes })
+          }}
+          disabled={!dailySummaryConfig.enabled || !config.enabled}
+        />
+        {time.label}
+      </label>
+    ))}
+  </div>
+</div>
+
+{/* Optional: Metrics Selection (Future Enhancement) */}
+{/* This section can be added later if users request granular control */}
+```
+
+**State Management**:
+
+Add to component state (line ~46):
+```typescript
+const [dailySummaryConfig, setDailySummaryConfig] = useState<DailySummaryConfig>({
+  enabled: false,
+  times: ['09:00', '12:00', '18:00'],
+  includeMetrics: {
+    ideasCaptured: true,
+    ideasConverted: true,
+    tasksCompleted: true,
+    tasksDueToday: true,
+    tasksDueSoon: true
+  }
+})
+```
+
+**Load Settings** (add to `loadSettings()` function ~line 56):
+```typescript
+const loadSettings = async () => {
+  try {
+    const [settingsResponse, reminderResponse, aiFeatures] = await Promise.all([
+      fetch('/api/settings'),
+      fetch('/api/settings/reminders'),
+      fetch('/api/ai-features')  // NEW: fetch AI feature flags
+    ])
+
+    const settingsData = await settingsResponse.json()
+    const reminderData = await reminderResponse.json()
+    const aiFeaturesData = await aiFeatures.json()
+
+    // ... existing loads ...
+
+    // Load daily summary config
+    if (settingsData.settings?.daily_summary_config) {
+      setDailySummaryConfig(settingsData.settings.daily_summary_config)
+    } else {
+      // Sync initial enabled state from ai_feature_settings
+      const dailySummaryFeature = aiFeaturesData.features?.find(
+        f => f.feature_name === 'daily_summary'
+      )
+      if (dailySummaryFeature) {
+        setDailySummaryConfig(prev => ({
+          ...prev,
+          enabled: dailySummaryFeature.enabled === 1
+        }))
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load settings:', error)
+  } finally {
+    setLoading(false)
+  }
+}
+```
+
+**Save Settings** (modify `handleSave()` function ~line 99):
+```typescript
+const handleSave = async () => {
+  setSaving(true)
+  setMessage('')
+
+  // ... existing validation ...
+
+  try {
+    const [settingsResponse, reminderResponse, aiFeatureResponse] = await Promise.all([
+      fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ntfy_config: config,
+          notification_events: events,
+          daily_review: dailyReview,
+          daily_summary_config: dailySummaryConfig  // NEW
+        }),
+      }),
+      fetch('/api/settings/reminders', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: reminderConfig }),
+      }),
+      fetch('/api/ai-features', {  // NEW: sync enabled flag
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          features: [{
+            feature_name: 'daily_summary',
+            enabled: dailySummaryConfig.enabled ? 1 : 0
+          }]
+        }),
+      })
+    ])
+
+    if (settingsResponse.ok && reminderResponse.ok && aiFeatureResponse.ok) {
+      setMessage('✓ Settings saved successfully')
+    } else {
+      setMessage('✗ Failed to save settings')
+    }
+  } catch (error) {
+    setMessage('✗ Error saving settings')
+  } finally {
+    setSaving(false)
+    setTimeout(() => setMessage(''), 3000)
+  }
+}
+```
+
+**Validation Rules**:
+
+1. At least one time must be selected when enabled (prevent empty times array)
+2. Times array can't be empty if `enabled: true`
+3. Warning message if times selected but NTFY disabled (summaries won't be sent)
+4. Warning message if times selected but AI features disabled (CRON won't run)
+
+---
+
+### How The CRON Job Needs To Change
+
+**Current Code** (`lib/scheduler.ts` lines 300-309):
+
+```typescript
+const summaryTimes = ['09:00', '12:00', '18:00']  // HARDCODED
+
+if (!summaryTimes.includes(currentTime)) {
+  return
+}
+```
+
+**Modified Code** (replace hardcoded array with database lookup):
+
+```typescript
+// Load daily summary configuration from settings
+const dailySummarySettings = db.prepare('SELECT value FROM settings WHERE key = ?')
+  .get('daily_summary_config') as any
+
+// Use default times if config not found
+const summaryTimes = dailySummarySettings
+  ? JSON.parse(dailySummarySettings.value).times
+  : ['09:00', '12:00', '18:00']  // Fallback to defaults
+
+// Early return if times array is empty (user disabled all times)
+if (!summaryTimes || summaryTimes.length === 0) {
+  return
+}
+
+// Check if current time matches any configured summary time
+const now = new Date()
+const currentTime = format(now, 'HH:mm')
+
+if (!summaryTimes.includes(currentTime)) {
+  return
+}
+```
+
+**Location of Change**: `lib/scheduler.ts` lines 300-309
+
+**Why This Works**:
+- Backward compatible (uses defaults if config missing)
+- Minimal code change (just load from DB instead of hardcoded)
+- No new dependencies (already imports db module at line 279)
+- Handles edge cases (empty array, missing config)
+
+**Testing Considerations**:
+- Test with default config (should behave identically to current)
+- Test with empty times array (should never send summaries)
+- Test with single time selected (should only send at that time)
+- Test with all three times (should match current behavior)
+
+---
+
+### TypeScript Type Definitions Needed
+
+**New Interface** (add to `/home/mmariani/Projects/idealisted/types/index.ts` after line 241):
+
+```typescript
+export interface DailySummaryConfig {
+  enabled: boolean
+  times: string[]  // Array of HH:mm time strings
+  includeMetrics: {
+    ideasCaptured: boolean
+    ideasConverted: boolean
+    tasksCompleted: boolean
+    tasksDueToday: boolean
+    tasksDueSoon: boolean
+  }
+}
+```
+
+**Import in NotificationsTab.tsx** (add to line 4):
+
+```typescript
+import { NtfyConfig, ReminderConfig, DailySummaryConfig } from '@/types'
+```
+
+---
+
+### UI Component Styling Reference
+
+All retro-themed UI components follow consistent patterns defined in `/home/mmariani/Projects/idealisted/styles/retro.css`:
+
+**Available Classes**:
+- `.retro-section-title` - Section headers (uppercase, spacing)
+- `.retro-divider` - Horizontal rule separator
+- `.retro-form-group` - Form field wrapper with margin
+- `.retro-form-label` - Label text styling
+- `.retro-checkbox-label` - Checkbox label with flexbox layout
+- `.retro-checkbox` - Styled checkbox input
+- `.retro-input` - Text input styling
+- `.retro-select` - Dropdown select styling
+- `.retro-button-row` - Flexbox container for buttons with gap
+- `.retro-btn` - Base button class
+- `.retro-btn-primary` - Primary action button
+- `.retro-btn-secondary` - Secondary action button
+- `.retro-message` - Message display box
+
+**CSS Variables** (theme-aware):
+- `var(--retro-text-secondary)` - Gray text color for descriptions
+- `var(--retro-primary)` - Primary theme color
+- `var(--retro-bg-primary)` - Background color
+- `var(--retro-border)` - Border color
+
+---
+
+### API Routes Reference
+
+**Existing Routes** (no changes needed):
+
+1. **GET /api/settings** (`/home/mmariani/Projects/idealisted/app/api/settings/route.ts` lines 6-59):
+   - Returns all settings as JSON object
+   - Auto-initializes `ai_config` with defaults if missing
+   - Will automatically return `daily_summary_config` once saved
+
+2. **PUT /api/settings** (same file, lines 61-82):
+   - Accepts object with any setting keys
+   - Stringifies each value to JSON and stores in database
+   - Transaction-safe with `INSERT OR REPLACE`
+   - Returns `{ success: true, settings: body }`
+
+3. **GET /api/ai-features** (`/home/mmariani/Projects/idealisted/app/api/ai-features/route.ts` lines 6-25):
+   - Returns array of all AI feature settings
+   - Ordered by `feature_name ASC`
+   - Format: `{ success: true, features: AIFeatureSetting[] }`
+
+4. **PUT /api/ai-features** (same file, lines 27-94):
+   - Supports bulk update (array of features) or single update
+   - Validates: feature_name required, enabled must be 0 or 1
+   - Returns 404 if feature not found
+   - Returns `{ success: true, updated: AIFeatureSetting[] }`
+
+**No New API Routes Needed**: The existing `/api/settings` and `/api/ai-features` endpoints handle everything Task 6.4 needs.
+
+---
+
+### Implementation Checklist
+
+**Database & Types**:
+- [ ] Add `DailySummaryConfig` interface to `/home/mmariani/Projects/idealisted/types/index.ts`
+- [ ] Ensure `daily_summary_config` is loadable from `settings` table (no schema changes needed)
+
+**Notifications Tab UI** (`components/modern/settings/NotificationsTab.tsx`):
+- [ ] Add import for `DailySummaryConfig` type
+- [ ] Add state: `dailySummaryConfig` with default values
+- [ ] Add UI section after Task Reminder Preferences (after line 584):
+  - [ ] Section header: "DAILY SUMMARY NOTIFICATIONS"
+  - [ ] Enable checkbox with helper text
+  - [ ] Time selection checkboxes (9am, 12pm, 6pm)
+  - [ ] Proper disabled states when NTFY or feature disabled
+- [ ] Modify `loadSettings()` to fetch `daily_summary_config` and `ai_feature_settings`
+- [ ] Modify `handleSave()` to save `daily_summary_config` AND sync `ai_feature_settings.daily_summary`
+- [ ] Add validation: warn if enabled but no times selected
+- [ ] Add validation: warn if enabled but NTFY disabled
+- [ ] Consider adding "Test Summary" button (optional, similar to "Test Daily Review")
+
+**CRON Scheduler** (`lib/scheduler.ts`):
+- [ ] Replace hardcoded `summaryTimes` array (line 305)
+- [ ] Load `daily_summary_config.times` from database
+- [ ] Add fallback to default times `['09:00', '12:00', '18:00']` if config missing
+- [ ] Handle empty times array (return early, no summaries sent)
+- [ ] Test with various time configurations
+
+**Testing**:
+- [ ] Test with no config saved (should use defaults)
+- [ ] Test enabling/disabling feature from Notifications tab
+- [ ] Test selecting different time combinations
+- [ ] Test with empty times array (no summaries should send)
+- [ ] Test sync between AI tab and Notifications tab toggles
+- [ ] Test CRON respects new time configuration
+- [ ] Test validation messages appear correctly
+- [ ] Test save button updates both tables correctly
+
+**Documentation**:
+- [x] Update CLAUDE.md with daily summary settings location
+- [x] Update this plan file with "Task 6.4 Complete" when done
+- [x] Document the dual-toggle sync strategy
+
+---
+
+### Potential Challenges & Considerations
+
+**Challenge 1: Toggle Sync Complexity**
+
+The `daily_summary` enabled flag exists in TWO places:
+- `ai_feature_settings.daily_summary.enabled` (AI tab)
+- `daily_summary_config.enabled` (Notifications tab)
+
+**Solution**: Always update BOTH on save. The AI tab should ALSO update `daily_summary_config.enabled` when its toggle changes (requires modifying AISettingsTab.tsx too, or just accept potential desync).
+
+**Simpler Alternative**: Only show the toggle in Notifications tab, remove it from AI tab Features section. But this breaks the pattern where all AI features are listed in AI tab.
+
+**Recommendation**: Accept the redundancy. Document that both toggles control the same feature. The CRON job only checks `ai_feature_settings`, so that's the source of truth.
+
+---
+
+**Challenge 2: Empty Times Array Edge Case**
+
+What if user unchecks all time options? Should we:
+1. Prevent save (show error "At least one time required")
+2. Allow save but disable feature automatically
+3. Allow save and let CRON handle gracefully
+
+**Recommendation**: Option 3 (allow save, CRON returns early). This lets users "pause" summaries without fully disabling the feature.
+
+---
+
+**Challenge 3: Time Zone Handling**
+
+The CRON scheduler uses **server time**, not user time. If the server is in UTC but user is in EST:
+- User selects "9:00 AM" thinking it's local time
+- CRON sends at 9:00 AM UTC (4:00 AM EST)
+- User receives summary at wrong time
+
+**Current Behavior**: Daily Review has the same issue (line 399 uses `<input type="time">` which is timezone-naive).
+
+**Recommendation**: Document that times are in server timezone. Adding timezone support is out of scope for Task 6.4 (would require rearchitecting CRON scheduler).
+
+---
+
+**Challenge 4: Metrics Selection UI Complexity**
+
+The `includeMetrics` object has 5 boolean fields. If we add checkboxes for each:
+- UI becomes very long
+- Most users won't customize this
+- Current implementation always includes all metrics (no filtering logic exists)
+
+**Recommendation**: SKIP metrics selection for initial implementation. Add comment in code "Future enhancement: allow users to customize which metrics appear in summaries". This reduces scope significantly.
+
+---
+
+### Success Criteria
+
+**Must Have**:
+- [ ] Users can enable/disable daily summary from Notifications tab
+- [ ] Users can select which times (9am, 12pm, 6pm) to receive summaries
+- [ ] Settings persist to database correctly
+- [ ] CRON scheduler respects user-configured times
+- [ ] Disabled states work correctly (when NTFY disabled, when feature disabled)
+- [ ] Save button updates both `settings` and `ai_feature_settings` tables
+- [ ] UI follows existing retro design patterns
+
+**Nice to Have**:
+- [ ] "Test Summary" button to send immediate test (like "Test Daily Review")
+- [ ] Warning icons/messages when config is incomplete (e.g., times selected but NTFY disabled)
+- [ ] Sync detection (warn if AI tab toggle and Notifications tab toggle differ)
+- [ ] Metrics selection UI (future enhancement)
+
+**Not Required**:
+- Timezone support (out of scope)
+- Custom time picker (stick with 3 hardcoded options for simplicity)
+- AI-generated summary content customization (that's a different feature)
+- Historical summary viewing UI (database stores summaries but no viewer yet)
+
+---
+
+### Files To Modify
+
+**Primary Implementation**:
+1. `/home/mmariani/Projects/idealisted/types/index.ts` - Add `DailySummaryConfig` interface
+2. `/home/mmariani/Projects/idealisted/components/modern/settings/NotificationsTab.tsx` - Add UI section
+3. `/home/mmariani/Projects/idealisted/lib/scheduler.ts` - Replace hardcoded times with database lookup
+
+**Optional Enhancements**:
+4. `/home/mmariani/Projects/idealisted/components/modern/settings/AISettingsTab.tsx` - Sync toggle state (if desired)
+
+**No Changes Needed**:
+- `/home/mmariani/Projects/idealisted/app/api/settings/route.ts` - Already handles arbitrary JSON settings
+- `/home/mmariani/Projects/idealisted/app/api/ai-features/route.ts` - Already handles feature flag updates
+- `/home/mmariani/Projects/idealisted/lib/db.ts` - No schema changes needed
+- `/home/mmariani/Projects/idealisted/lib/summary.ts` - Summary generation logic unchanged
+
+---
+
+### Recommended Implementation Approach
+
+**Step 1: Types & Interfaces** (10 min)
+- Add `DailySummaryConfig` to types/index.ts
+- Verify TypeScript compilation
+
+**Step 2: UI Scaffolding** (30 min)
+- Add state to NotificationsTab.tsx
+- Add UI section with checkboxes (copy pattern from Task Reminders)
+- Test UI renders correctly (no save logic yet)
+
+**Step 3: Load/Save Logic** (30 min)
+- Modify `loadSettings()` to fetch `daily_summary_config` and `ai_feature_settings`
+- Modify `handleSave()` to save to both tables
+- Test save/load cycle with browser dev tools
+
+**Step 4: CRON Integration** (20 min)
+- Modify scheduler.ts to load times from database
+- Add fallback logic for missing config
+- Test with different time configurations
+
+**Step 5: Validation & Polish** (20 min)
+- Add disabled states
+- Add helper text
+- Add validation warnings
+- Test edge cases (empty times, disabled features)
+
+**Step 6: Testing** (30 min)
+- Test full flow from UI to CRON
+- Test with NTFY enabled/disabled
+- Test with AI features enabled/disabled
+- Test time selection variations
+
+**Total Estimated Time**: ~2.5 hours (conservative estimate, could be faster)
+
+---
+
+### Alternative: Minimal Implementation
+
+If full implementation is too complex, a **minimal viable UI** could be:
+
+**Just Add Enable/Disable Toggle**:
+- Single checkbox in Notifications tab: "Enable daily summary notifications"
+- No time selection (keep hardcoded 9am, 12pm, 6pm)
+- No metrics selection
+- Just syncs with `ai_feature_settings.daily_summary.enabled`
+
+**Benefits**:
+- Much simpler (~30 min implementation)
+- Provides discoverability (users find daily summary settings in Notifications tab)
+- No CRON changes needed
+
+**Drawbacks**:
+- Users still can't control WHEN they receive summaries
+- Less valuable than full implementation
+
+**Recommendation**: Go with full implementation. The time selection is the main value-add.
+
+---
+
+**End of Context Manifest for Task 6.4**
 
 ---
 
@@ -1414,7 +2293,7 @@ console.log('[Scheduler] Daily summary check cron started (every minute)')
 - [x] Phase 3: AI Suggestion Flow ✅
 - [x] Phase 4: AI Tag Suggestions ✅
 - [ ] Phase 5: Task Reminders (Tasks 5.1 ✅ and 5.3 ✅ Complete, Task 5.4 Optional)
-- [x] Phase 6: Scheduled Summary ✅ (Tasks 6.2 ✅ and 6.3 ✅ Complete, Task 6.4 Optional)
+- [x] Phase 6: Scheduled Summary ✅ (All Tasks Complete: 6.2 ✅, 6.3 ✅, 6.4 ✅)
 - [ ] Phase 7: Onboarding Wizard
 
 **Overall Sprint Goals**:
@@ -1437,5 +2316,5 @@ console.log('[Scheduler] Daily summary check cron started (every minute)')
 ---
 
 **Last Updated**: 2025-11-17
-**Current Phase**: Phase 6 Complete ✅ (Tasks 6.2 ✅ and 6.3 ✅)
-**Next Phase**: Phase 5 Task 5.4 (Settings UI for reminder preferences) OR Phase 6 Task 6.4 (Settings UI for summary preferences) - Both Optional
+**Current Phase**: Phase 6 Complete ✅ (All Tasks Complete: 6.2 ✅, 6.3 ✅, 6.4 ✅)
+**Next Phase**: Phase 5 Task 5.4 (Settings UI for reminder preferences - Optional) OR Phase 7 (Onboarding Wizard)

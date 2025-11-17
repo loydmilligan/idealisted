@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { NtfyConfig, ReminderConfig } from '@/types'
+import { NtfyConfig, ReminderConfig, DailySummaryConfig } from '@/types'
 
 interface NotificationEvents {
   taskCompleted: boolean
@@ -43,6 +43,17 @@ export const NotificationsTab: React.FC = () => {
     customMinutesBefore: 60,
     priorityFilter: [3, 4, 5],
   })
+  const [dailySummaryConfig, setDailySummaryConfig] = useState<DailySummaryConfig>({
+    enabled: false,
+    times: ['09:00', '12:00', '18:00'],
+    includeMetrics: {
+      ideasCaptured: true,
+      ideasConverted: true,
+      tasksCompleted: true,
+      tasksDueToday: true,
+      tasksDueSoon: true,
+    },
+  })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -55,13 +66,15 @@ export const NotificationsTab: React.FC = () => {
 
   const loadSettings = async () => {
     try {
-      const [settingsResponse, reminderResponse] = await Promise.all([
+      const [settingsResponse, reminderResponse, aiFeaturesResponse] = await Promise.all([
         fetch('/api/settings'),
-        fetch('/api/settings/reminders')
+        fetch('/api/settings/reminders'),
+        fetch('/api/ai-features')
       ])
 
       const settingsData = await settingsResponse.json()
       const reminderData = await reminderResponse.json()
+      const aiFeaturesData = await aiFeaturesResponse.json()
 
       if (settingsData.settings?.ntfy_config) {
         setConfig(settingsData.settings.ntfy_config)
@@ -74,6 +87,22 @@ export const NotificationsTab: React.FC = () => {
       }
       if (reminderData.success && reminderData.config) {
         setReminderConfig(reminderData.config)
+      }
+
+      // Load daily summary config
+      if (settingsData.settings?.daily_summary_config) {
+        setDailySummaryConfig(settingsData.settings.daily_summary_config)
+      } else {
+        // Sync initial enabled state from ai_feature_settings if no config exists yet
+        const dailySummaryFeature = aiFeaturesData.features?.find(
+          (f: any) => f.feature_name === 'daily_summary'
+        )
+        if (dailySummaryFeature) {
+          setDailySummaryConfig(prev => ({
+            ...prev,
+            enabled: dailySummaryFeature.enabled === 1
+          }))
+        }
       }
     } catch (error) {
       console.error('Failed to load settings:', error)
@@ -124,8 +153,16 @@ export const NotificationsTab: React.FC = () => {
       }
     }
 
+    // Validate daily summary config - warn if enabled but no times selected
+    if (dailySummaryConfig.enabled && dailySummaryConfig.times.length === 0) {
+      setMessage('✗ At least one summary time must be selected')
+      setSaving(false)
+      setTimeout(() => setMessage(''), 3000)
+      return
+    }
+
     try {
-      const [settingsResponse, reminderResponse] = await Promise.all([
+      const [settingsResponse, reminderResponse, aiFeatureResponse] = await Promise.all([
         fetch('/api/settings', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -133,6 +170,7 @@ export const NotificationsTab: React.FC = () => {
             ntfy_config: config,
             notification_events: events,
             daily_review: dailyReview,
+            daily_summary_config: dailySummaryConfig,
           }),
         }),
         fetch('/api/settings/reminders', {
@@ -141,10 +179,21 @@ export const NotificationsTab: React.FC = () => {
           body: JSON.stringify({
             config: reminderConfig,
           }),
+        }),
+        // Sync the enabled flag with ai_feature_settings table
+        fetch('/api/ai-features', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            features: [{
+              feature_name: 'daily_summary',
+              enabled: dailySummaryConfig.enabled ? 1 : 0
+            }]
+          }),
         })
       ])
 
-      if (settingsResponse.ok && reminderResponse.ok) {
+      if (settingsResponse.ok && reminderResponse.ok && aiFeatureResponse.ok) {
         setMessage('✓ Settings saved successfully')
       } else {
         setMessage('✗ Failed to save settings')
@@ -578,6 +627,68 @@ export const NotificationsTab: React.FC = () => {
                 disabled={!reminderConfig.enabled}
               />
               {priority.label}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <hr className="retro-divider" />
+
+      <h3 className="retro-section-title">DAILY SUMMARY PREFERENCES</h3>
+
+      <label className="retro-checkbox-label">
+        <input
+          type="checkbox"
+          className="retro-checkbox"
+          checked={dailySummaryConfig.enabled}
+          onChange={(e) => setDailySummaryConfig({ ...dailySummaryConfig, enabled: e.target.checked })}
+          disabled={!config.enabled}
+        />
+        Enable daily summary notifications
+      </label>
+      <p style={{
+        fontSize: '11px',
+        color: 'var(--retro-text-secondary)',
+        marginTop: '4px',
+        marginLeft: '24px',
+        marginBottom: '16px'
+      }}>
+        Periodic digest of your daily activity. Requires AI features and notifications enabled.
+      </p>
+
+      <div className="retro-form-group">
+        <label className="retro-form-label">Summary times</label>
+        <p style={{
+          fontSize: '11px',
+          color: 'var(--retro-text-secondary)',
+          marginBottom: '8px'
+        }}>
+          Choose when to receive daily summaries
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {[
+            { value: '09:00', label: 'Morning (9:00 AM)' },
+            { value: '12:00', label: 'Midday (12:00 PM)' },
+            { value: '18:00', label: 'Evening (6:00 PM)' },
+          ].map((time) => (
+            <label
+              key={time.value}
+              className="retro-checkbox-label"
+              style={!dailySummaryConfig.enabled || !config.enabled ? { opacity: 0.5 } : {}}
+            >
+              <input
+                type="checkbox"
+                className="retro-checkbox"
+                checked={dailySummaryConfig.times.includes(time.value)}
+                onChange={(e) => {
+                  const newTimes = e.target.checked
+                    ? [...dailySummaryConfig.times, time.value]
+                    : dailySummaryConfig.times.filter(t => t !== time.value)
+                  setDailySummaryConfig({ ...dailySummaryConfig, times: newTimes })
+                }}
+                disabled={!dailySummaryConfig.enabled || !config.enabled}
+              />
+              {time.label}
             </label>
           ))}
         </div>

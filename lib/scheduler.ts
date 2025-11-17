@@ -301,9 +301,22 @@ class SchedulerService {
       const now = new Date()
       const currentTime = format(now, 'HH:mm')
 
-      // Check if it's one of the configured summary times (9am, 12pm, 6pm)
-      const summaryTimes = ['09:00', '12:00', '18:00']
+      // Load daily summary configuration from settings (Task 6.4)
+      // This allows users to customize which times they receive summaries
+      const dailySummarySettings = db.prepare('SELECT value FROM settings WHERE key = ?')
+        .get('daily_summary_config') as any
 
+      // Use configured times from settings, or fallback to defaults if config not found
+      const summaryTimes = dailySummarySettings
+        ? JSON.parse(dailySummarySettings.value).times
+        : ['09:00', '12:00', '18:00']  // Default times match original behavior
+
+      // Early return if times array is empty (user disabled all times)
+      if (!summaryTimes || summaryTimes.length === 0) {
+        return
+      }
+
+      // Check if current time matches any configured summary time
       if (!summaryTimes.includes(currentTime)) {
         return
       }
