@@ -1085,6 +1085,33 @@ body {
   flex-direction: column;
 }
 
+/* Markdown Viewer Modal - Desktop Centered */
+.retro-markdown-modal {
+  /* Mobile: Full-screen bottom sheet (default) */
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 90vh;
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+@media (min-width: 768px) {
+  /* Desktop: Centered modal */
+  .retro-markdown-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    bottom: auto;
+    right: auto;
+    max-width: 800px;
+    max-height: 80vh;
+    border-radius: 8px;
+  }
+}
+
 .retro-settings-header {
   display: flex;
   justify-content: space-between;

@@ -1303,7 +1303,7 @@ function HomePageContent() {
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: '100%', opacity: 0 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed inset-x-0 bottom-0 md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:bottom-auto md:w-[90%] md:max-w-[800px] z-[1003]"
+                className="retro-markdown-modal z-[1003]"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="h-full md:h-auto md:max-h-[80vh]" style={{
