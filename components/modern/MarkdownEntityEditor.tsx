@@ -32,6 +32,12 @@ interface MarkdownEntityEditorProps {
   onSave: (markdown: string) => Promise<void>
   onCancel: () => void
   isOpen: boolean
+  /**
+   * Pre-populate the title field with captured idea text.
+   * Only applies when creating new entities (item === null).
+   * Will not overwrite existing titles when editing.
+   */
+  initialText?: string
 }
 
 interface FormState {
@@ -45,7 +51,8 @@ export function MarkdownEntityEditor({
   template,
   onSave,
   onCancel,
-  isOpen
+  isOpen,
+  initialText
 }: MarkdownEntityEditorProps) {
   const [formState, setFormState] = useState<FormState>({
     title: '',
@@ -100,6 +107,16 @@ export function MarkdownEntityEditor({
     // Clear errors when modal opens
     setErrors([])
   }, [isOpen, item, template.id, fieldConfig])
+
+  // Pre-populate title from initial text if provided
+  useEffect(() => {
+    if (initialText && initialText.trim() && !formState.title) {
+      setFormState(prev => ({
+        ...prev,
+        title: initialText.trim()
+      }))
+    }
+  }, [initialText, formState.title])
 
   // Initialize empty form with default values
   const initializeEmptyForm = () => {

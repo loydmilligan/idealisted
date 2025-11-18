@@ -819,6 +819,9 @@ function HomePageContent() {
       const updatedData = await updatedResponse.json()
       setCurrentMarkdownItem(updatedData.item)
       setMarkdownViewerOpen(true)
+
+      // Clear to prevent stale data
+      setCapturedText('')
     } catch (error) {
       console.error('Failed to save markdown entity:', error)
       alert(error instanceof Error ? error.message : 'Failed to save entity')
@@ -873,6 +876,7 @@ function HomePageContent() {
     setMarkdownViewerOpen(currentMarkdownItem !== null) // Only reopen viewer if we were editing
     setCurrentMarkdownItem(null)
     setCurrentTemplate(null)
+    setCapturedText('') // Clear to prevent stale data
   }
 
   const handleMarkdownViewerClose = () => {
@@ -1410,6 +1414,7 @@ function HomePageContent() {
           onSave={currentMarkdownItem ? handleMarkdownSave : handleMarkdownCreate}
           onCancel={handleMarkdownCancel}
           isOpen={markdownEditorOpen}
+          initialText={capturedText}
         />
       )}
 
