@@ -12,6 +12,7 @@
 
 import React, { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import { GlobalHeader } from '@/components/modern/GlobalHeader'
 import { BottomTabNav, TabId, TabNavHandle } from '@/components/modern/BottomTabNav'
 import { CaptureScreen } from '@/components/modern/screens/CaptureScreen'
@@ -21,6 +22,10 @@ import { EntitiesScreen } from '@/components/modern/screens/EntitiesScreen'
 import { EntityModal, FormField } from '@/components/modern/EntityModal'
 import { SettingsModal } from '@/components/modern/SettingsModal'
 import { WelcomeModal } from '@/components/modern/WelcomeModal'
+import { MarkdownViewer } from '@/components/ui/MarkdownViewer'
+import { MarkdownEntityEditor } from '@/components/modern/MarkdownEntityEditor'
+import { TemplateSelector } from '@/components/modern/TemplateSelector'
+import type { Template } from '@/types'
 import { TourExample } from '@/components/ui/TourExample'
 import { TagInput } from '@/components/modern/TagInput'
 import { EntityType } from '@/lib/entity-colors'
@@ -59,6 +64,13 @@ function HomePageContent() {
   const [modalOpen, setModalOpen] = useState(false)
   const [modalEntity, setModalEntity] = useState<{ id?: string; type: Exclude<EntityType, 'idea'> } | null>(null)
   const [modalData, setModalData] = useState<Record<string, any>>({})
+
+  // Markdown entity modal state
+  const [markdownViewerOpen, setMarkdownViewerOpen] = useState(false)
+  const [markdownEditorOpen, setMarkdownEditorOpen] = useState(false)
+  const [templateSelectorOpen, setTemplateSelectorOpen] = useState(false)
+  const [currentMarkdownItem, setCurrentMarkdownItem] = useState<ItemWithRelations | null>(null)
+  const [currentTemplate, setCurrentTemplate] = useState<Template | null>(null)
 
   // Settings modal state
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -212,6 +224,38 @@ function HomePageContent() {
 
   // ===== Capture Handlers =====
   const handleCapture = async (text: string, entityType?: Exclude<EntityType, 'idea'> | null, subtype?: string) => {
+    // Determine if this should use markdown editor
+    let templateId: string | null = null
+
+    if (entityType === 'task') {
+      templateId = 'task'
+    } else if (entityType === 'note' && subtype === 'general') {
+      templateId = 'note-generic'
+    } else if (entityType === 'note' && subtype === 'youtube') {
+      templateId = 'note-youtube'
+    }
+
+    // If we have a template, open the MarkdownEntityEditor
+    if (templateId) {
+      try {
+        const response = await fetch(`/api/templates/${templateId}`)
+        const data = await response.json()
+
+        if (data.success && data.data) {
+          // Store the capture text for the editor to use
+          setCapturedText(text)
+          setCurrentTemplate(data.data)
+          setCurrentMarkdownItem(null) // null = create mode
+          setMarkdownEditorOpen(true)
+          return
+        }
+      } catch (error) {
+        console.error('Failed to load template:', error)
+        // Fall through to regular capture if template loading fails
+      }
+    }
+
+    // Regular capture (for idea, project, list, or if markdown failed)
     try {
       const metadata = entityType && subtype ? { subtype } : undefined
 
@@ -538,6 +582,24 @@ function HomePageContent() {
     const data = await response.json()
     const fullEntity = data.item
 
+    // Check if this is a markdown entity
+    if (fullEntity.markdown_content && fullEntity.template_id) {
+      // Markdown entity - fetch template and show viewer modal
+      const templateResponse = await fetch(`/api/templates/${fullEntity.template_id}`)
+      const templateData = await templateResponse.json()
+
+      if (templateData.success) {
+        setCurrentMarkdownItem(fullEntity)
+        setCurrentTemplate(templateData.data)
+        setMarkdownViewerOpen(true)
+      } else {
+        console.error('Failed to fetch template:', templateData.error)
+        alert('Error: Could not load entity template')
+      }
+      return
+    }
+
+    // Legacy entity - show traditional EntityModal
     // Prepare modal data
     const modalDataFields: Record<string, any> = {
       title: entity.text,
@@ -720,6 +782,103 @@ function HomePageContent() {
     } catch (error) {
       console.error('Failed to AI fill:', error)
     }
+  }
+
+  // ===== Markdown Entity Handlers =====
+  const handleMarkdownEdit = () => {
+    // Close viewer, open editor with same item/template
+    setMarkdownViewerOpen(false)
+    setMarkdownEditorOpen(true)
+  }
+
+  const handleMarkdownSave = async (markdown: string) => {
+    if (!currentMarkdownItem) return
+
+    try {
+      const response = await fetch(`/api/items/${currentMarkdownItem.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          markdown_content: markdown
+        })
+      })
+
+      const data = await response.json()
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to save')
+      }
+
+      // Refresh items list
+      await fetchItems()
+
+      // Close editor, reopen viewer with updated content
+      setMarkdownEditorOpen(false)
+
+      // Fetch updated item
+      const updatedResponse = await fetch(`/api/items/${currentMarkdownItem.id}`)
+      const updatedData = await updatedResponse.json()
+      setCurrentMarkdownItem(updatedData.item)
+      setMarkdownViewerOpen(true)
+    } catch (error) {
+      console.error('Failed to save markdown entity:', error)
+      alert(error instanceof Error ? error.message : 'Failed to save entity')
+    }
+  }
+
+  const handleMarkdownCreate = async (markdown: string) => {
+    if (!currentTemplate) return
+
+    try {
+      const entityType = currentTemplate.entity_type
+
+      const response = await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: entityType,
+          text: markdown.split('\n')[0].replace(/^#\s+/, ''), // Extract title from first line
+          markdown_content: markdown,
+          template_id: currentTemplate.id,
+          tags: [],
+          parsed: true,
+          entity_type: entityType
+        })
+      })
+
+      const data = await response.json()
+      if (!data.item) {
+        throw new Error(data.error || 'Failed to create entity')
+      }
+
+      // Refresh items list
+      await fetchItems()
+
+      // Close editor
+      setMarkdownEditorOpen(false)
+      setCurrentTemplate(null)
+
+      // Flash appropriate tab badge
+      tabNavRef.current?.triggerFlash('files', entityType)
+
+      // Clear capture input if we came from capture screen
+      setCapturedText('')
+    } catch (error) {
+      console.error('Failed to create markdown entity:', error)
+      alert(error instanceof Error ? error.message : 'Failed to create entity')
+    }
+  }
+
+  const handleMarkdownCancel = () => {
+    setMarkdownEditorOpen(false)
+    setMarkdownViewerOpen(currentMarkdownItem !== null) // Only reopen viewer if we were editing
+    setCurrentMarkdownItem(null)
+    setCurrentTemplate(null)
+  }
+
+  const handleMarkdownViewerClose = () => {
+    setMarkdownViewerOpen(false)
+    setCurrentMarkdownItem(null)
+    setCurrentTemplate(null)
   }
 
   if (loading) {
@@ -1117,6 +1276,141 @@ function HomePageContent() {
             </>
           )}
         </EntityModal>
+      )}
+
+      {/* Markdown Viewer Modal */}
+      {currentMarkdownItem && currentTemplate && (
+        <AnimatePresence>
+          {markdownViewerOpen && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={handleMarkdownViewerClose}
+                className="fixed inset-0 bg-black/60 z-[1002] flex items-center justify-center"
+              />
+
+              {/* Modal Content */}
+              <motion.div
+                initial={{ y: '100%', opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: '100%', opacity: 0 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="fixed inset-x-0 bottom-0 md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:bottom-auto md:w-[90%] md:max-w-[800px] z-[1003]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="h-full md:h-auto md:max-h-[80vh]" style={{
+                  background: 'var(--palm-bg-primary)',
+                  border: '3px solid var(--palm-border-dark)',
+                  boxShadow: '4px 4px 0 var(--palm-border-dark)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  borderRadius: 0,
+                }}>
+                  {/* Header */}
+                  <div className="retro-sheet-header" style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '12px 16px',
+                    background: 'var(--palm-screen-dark)',
+                    color: 'var(--palm-bg-primary)',
+                    borderBottom: '2px solid var(--palm-border-dark)',
+                    flexShrink: 0,
+                  }}>
+                    <h2 style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '16px',
+                      fontWeight: 'bold',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      margin: 0,
+                    }}>
+                      {currentTemplate.name}
+                    </h2>
+                    <button
+                      onClick={handleMarkdownViewerClose}
+                      className="retro-close-btn"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--palm-bg-primary)',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      aria-label="Close"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  {/* Scrollable Content */}
+                  <div className="retro-scrollable" style={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    padding: '16px',
+                  }}>
+                    <MarkdownViewer content={currentMarkdownItem.markdown_content || ''} />
+                  </div>
+
+                  {/* Footer Actions */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    borderTop: '1px solid var(--palm-border)',
+                    background: 'var(--palm-screen-base)',
+                    flexShrink: 0,
+                  }}>
+                    <button
+                      onClick={handleMarkdownViewerClose}
+                      className="retro-btn retro-btn-secondary"
+                      style={{
+                        padding: '8px 16px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={handleMarkdownEdit}
+                      className="retro-btn retro-btn-primary"
+                      style={{
+                        padding: '8px 16px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                      }}
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+      )}
+
+      {/* Markdown Entity Editor Modal */}
+      {currentTemplate && (
+        <MarkdownEntityEditor
+          item={currentMarkdownItem}
+          template={currentTemplate}
+          onSave={currentMarkdownItem ? handleMarkdownSave : handleMarkdownCreate}
+          onCancel={handleMarkdownCancel}
+          isOpen={markdownEditorOpen}
+        />
       )}
 
       {/* Settings Modal */}

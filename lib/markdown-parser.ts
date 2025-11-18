@@ -1,4 +1,3 @@
-import { db } from './db'
 import type { Template, FieldConfig, ParsedEntity } from '@/types'
 
 /**
@@ -12,11 +11,16 @@ export interface ValidationResult {
 }
 
 /**
- * Get a template by ID from the database
- * @param templateId - Template ID (e.g., 'task', 'note-generic', 'note-youtube')
- * @returns Template with field_config as JSON string, or null if not found
- * @throws Error if field_config JSON is invalid
+ * NOTE: getTemplate and validateMarkdown have been removed because they require database access
+ * and cannot be used in client components. The MarkdownEntityEditor receives the template
+ * as a prop from the server, so these functions are not needed on the client side.
+ *
+ * If server-side validation is needed, these functions should be moved to a separate
+ * server-only file (e.g., lib/markdown-parser-server.ts with 'use server' directive).
  */
+
+/*
+// Commented out - requires database access
 export function getTemplate(templateId: string): Template | null {
   try {
     const row = db.prepare('SELECT * FROM templates WHERE id = ?').get(templateId)
@@ -47,6 +51,7 @@ export function getTemplate(templateId: string): Template | null {
     throw new Error(`Failed to load template '${templateId}': ${errorMessage}`)
   }
 }
+*/
 
 /**
  * Parse markdown content into structured fields and sections
@@ -59,19 +64,102 @@ export function getTemplate(templateId: string): Template | null {
  * - Return a ParsedEntity with title, fields, sections, and raw markdown
  *
  * @param content - Raw markdown string
- * @param templateId - Template ID to use for parsing
+ * @param template - Template object with field_config
  * @returns Parsed entity with title, fields, sections, and raw markdown
- * @throws Error when called (not yet implemented)
+ * @throws Error if field_config is invalid JSON
  */
-export function parseMarkdown(content: string, templateId: string): ParsedEntity {
-  throw new Error('Not yet implemented - Task 2.2')
+export function parseMarkdown(content: string, template: Template): ParsedEntity {
+  // Step 1: Parse field_config JSON
+  let fieldConfig: FieldConfig
+  try {
+    fieldConfig = JSON.parse(template.field_config)
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    throw new Error(`Template '${template.id}' has invalid field_config JSON: ${errorMessage}`)
+  }
+
+  // Step 3: Initialize ParsedEntity
+  const parsed: ParsedEntity = {
+    title: '',
+    fields: {},
+    sections: {},
+    raw: content
+  }
+
+  // Step 4: Extract title from first H1 heading (# Title)
+  const titleMatch = content.match(/^#\s+(.+)$/m)
+  if (titleMatch) {
+    parsed.title = titleMatch[1].trim()
+  }
+
+  // Step 5: Extract field values
+  // Pattern: **Field Name**: value
+  // Handle templates with no fields (e.g., note-generic)
+  if (fieldConfig.fields) {
+    for (const fieldName in fieldConfig.fields) {
+      // Escape special regex characters in field name
+      const escapedFieldName = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+      // Match pattern: **Field Name**: value (capturing the value part)
+      const fieldRegex = new RegExp(`\\*\\*${escapedFieldName}\\*\\*:\\s*(.*)`, 'm')
+      const match = content.match(fieldRegex)
+
+      if (match) {
+        // Store the captured value (trimmed)
+        parsed.fields[fieldName] = match[1].trim()
+      } else {
+        // Field not found in markdown - store empty string
+        parsed.fields[fieldName] = ''
+      }
+    }
+  }
+
+  // Step 6: Extract sections
+  // Pattern: ## Section Name followed by content until next ## or end of file
+  // Handle templates with no sections (e.g., some custom templates)
+  if (fieldConfig.sections) {
+    for (const sectionName in fieldConfig.sections) {
+      // Escape special regex characters in section name
+      const escapedSectionName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+      // Match pattern: ## Section Name (on its own line)
+      // Then capture everything until we hit another ## at the start of a line, or EOF
+      // Split approach: find the section header, then extract content until next header
+      const headerPattern = new RegExp(`^##\\s+${escapedSectionName}[ \\t]*$`, 'gm')
+      const headerMatch = headerPattern.exec(content)
+
+      if (headerMatch) {
+        // Found the section header - now extract content after it until next section or EOF
+        const sectionStart = headerMatch.index + headerMatch[0].length + 1 // +1 for the newline
+        const remainingContent = content.substring(sectionStart)
+
+        // Find the next section header (## at start of line)
+        const nextSectionMatch = /^##\s/gm.exec(remainingContent)
+
+        let sectionContent: string
+        if (nextSectionMatch) {
+          // Extract from current position to next section header
+          sectionContent = remainingContent.substring(0, nextSectionMatch.index)
+        } else {
+          // Extract from current position to end of string
+          sectionContent = remainingContent
+        }
+
+        parsed.sections[sectionName] = sectionContent.trim()
+      } else {
+        // Section not found in markdown - store empty string
+        parsed.sections[sectionName] = ''
+      }
+    }
+  }
+
+  return parsed
 }
 
 /**
  * Render a ParsedEntity back into markdown format
  *
  * This function will:
- * - Load the template by templateId
  * - Reconstruct the markdown from the template structure
  * - Insert the title into the {title} placeholder
  * - Insert field values after their bold labels
@@ -79,30 +167,119 @@ export function parseMarkdown(content: string, templateId: string): ParsedEntity
  * - Return properly formatted markdown string
  *
  * @param parsed - Parsed entity object
- * @param templateId - Template ID to use for rendering
+ * @param template - Template object to use for rendering
  * @returns Markdown string
- * @throws Error when called (not yet implemented)
+ * @throws Error if field_config is invalid JSON
  */
-export function renderMarkdown(parsed: ParsedEntity, templateId: string): string {
-  throw new Error('Not yet implemented - Task 2.4')
-}
+export function renderMarkdown(parsed: ParsedEntity, template: Template): string {
+  // Step 1: Parse field_config JSON (for validation/reference)
+  let fieldConfig: FieldConfig
+  try {
+    fieldConfig = JSON.parse(template.field_config)
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    throw new Error(`Template '${template.id}' has invalid field_config JSON: ${errorMessage}`)
+  }
 
-/**
- * Validate markdown content against template requirements
- *
- * This function will:
- * - Parse the markdown content
- * - Check that all required fields are present and non-empty
- * - Check that all required sections are present and non-empty
- * - Validate field types (e.g., date format, URL format)
- * - Validate select field values are from allowed options
- * - Return ValidationResult with list of errors if invalid
- *
- * @param content - Raw markdown string
- * @param templateId - Template ID to validate against
- * @returns Validation result with errors if invalid
- * @throws Error when called (not yet implemented)
- */
-export function validateMarkdown(content: string, templateId: string): ValidationResult {
-  throw new Error('Not yet implemented - Task 2.5')
+  // Step 3: Start with the template's markdown_template
+  let markdown = template.markdown_template
+
+  // Step 4: Replace {title} placeholder with parsed.title
+  markdown = markdown.replace('{title}', parsed.title || '')
+
+  // Step 5: Replace field values
+  // Pattern: **Field Name**: (empty or old value) → **Field Name**: new value
+  if (fieldConfig.fields) {
+    for (const fieldName in fieldConfig.fields) {
+      // Escape special regex characters in field name
+      const escapedFieldName = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+      // Match pattern: **Field Name**: (value on same line only)
+      // Use [ \t]* instead of \s* to avoid matching newlines
+      // This prevents accidentally matching content on following lines
+      const fieldRegex = new RegExp(`(\\*\\*${escapedFieldName}\\*\\*:)[ \\t]*(.*)$`, 'm')
+      const fieldValue = parsed.fields[fieldName] || ''
+
+      markdown = markdown.replace(fieldRegex, `$1 ${fieldValue}`)
+    }
+  }
+
+  // Step 6: Replace section content
+  // Pattern: ## Section Name\n(old content) → ## Section Name\nnew content
+  // Process sections in a single pass to avoid position shifts
+  if (fieldConfig.sections) {
+    // Build a list of all section positions first
+    const sectionPositions: Array<{
+      name: string
+      headerStart: number
+      headerEnd: number
+      contentStart: number
+    }> = []
+
+    for (const sectionName in fieldConfig.sections) {
+      const escapedSectionName = sectionName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const headerPattern = new RegExp(`^##\\s+${escapedSectionName}[ \\t]*$`, 'gm')
+      const headerMatch = headerPattern.exec(markdown)
+
+      if (headerMatch) {
+        sectionPositions.push({
+          name: sectionName,
+          headerStart: headerMatch.index,
+          headerEnd: headerMatch.index + headerMatch[0].length,
+          contentStart: headerMatch.index + headerMatch[0].length + 1 // +1 for newline
+        })
+      }
+    }
+
+    // Sort by position (should already be in order, but just to be safe)
+    sectionPositions.sort((a, b) => a.headerStart - b.headerStart)
+
+    // Build new markdown by processing sections in order
+    if (sectionPositions.length > 0) {
+      let result = ''
+      let currentPos = 0
+
+      for (let i = 0; i < sectionPositions.length; i++) {
+        const section = sectionPositions[i]
+        const nextSection = sectionPositions[i + 1]
+
+        // Add everything before this section header
+        result += markdown.substring(currentPos, section.headerEnd)
+
+        // Add newline after header
+        result += '\n'
+
+        // Add section content (or just a blank line if empty)
+        const sectionContent = parsed.sections[section.name] || ''
+        if (sectionContent) {
+          result += sectionContent + '\n'
+        } else {
+          result += '\n'
+        }
+
+        // Add blank line before next section (for spacing)
+        if (nextSection) {
+          result += '\n'
+          currentPos = nextSection.headerStart
+        } else {
+          // Last section - add everything after this section's content area
+          // Skip the old content by finding the next section or EOF
+          const afterHeader = markdown.substring(section.contentStart)
+          const nextHeaderMatch = /^##\s/gm.exec(afterHeader)
+          if (nextHeaderMatch) {
+            currentPos = section.contentStart + nextHeaderMatch.index
+            result += markdown.substring(currentPos)
+          } else {
+            // No more sections, we're at EOF
+            // Don't add anything more (we already added the content)
+          }
+          break
+        }
+      }
+
+      markdown = result
+    }
+  }
+
+  return markdown
 }

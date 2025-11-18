@@ -42,7 +42,9 @@ export async function GET(
       updated_at: row.updated_at,
       metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
       tags: row.tags ? JSON.parse(row.tags) : [],
-      archived: row.archived === 1
+      archived: row.archived === 1,
+      markdown_content: row.markdown_content || undefined,
+      template_id: row.template_id || undefined
     }
 
     if (row.todo_id) {

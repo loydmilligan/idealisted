@@ -384,7 +384,7 @@ body {
 /* Bottom sheet modal */
 .retro-bottom-sheet {
   position: fixed;
-  bottom: 0;
+  bottom: 56px; /* Leave space for bottom tab bar */
   left: 0;
   right: 0;
   background: var(--palm-screen-light);
@@ -393,7 +393,7 @@ body {
   border-right: 1px solid var(--palm-border);
   border-radius: 0; /* Square corners */
   z-index: 1000;
-  max-height: 90vh;
+  max-height: calc(90vh - 56px); /* Adjust max-height to account for tab bar */
   overflow-y: auto;
 }
 
@@ -789,7 +789,7 @@ body {
   .retro-device-screen {
     background: var(--palm-screen-light);
     border-radius: 4px;
-    overflow: hidden;
+    overflow: visible;
     position: relative;
     min-height: 600px;
   }
@@ -1552,7 +1552,7 @@ body {
   box-shadow: 2px 2px 0 var(--palm-border-dark);
   max-height: 200px;
   overflow-y: auto;
-  z-index: 100;
+  z-index: 9999;
 }
 
 .retro-tag-dropdown-item {

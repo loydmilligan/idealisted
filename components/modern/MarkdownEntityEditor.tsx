@@ -72,7 +72,7 @@ export function MarkdownEntityEditor({
     // If editing existing item with markdown content
     if (item && item.markdown_content) {
       try {
-        const parsed = parseMarkdown(item.markdown_content, template.id)
+        const parsed = parseMarkdown(item.markdown_content, template)
 
         // Convert parsed sections to proper data types
         const typedSections: Record<string, any> = {}
@@ -305,7 +305,7 @@ export function MarkdownEntityEditor({
           sections: serializedSections,
           raw: ''
         },
-        template.id
+        template
       )
 
       await onSave(markdown)
