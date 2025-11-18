@@ -53,6 +53,40 @@ npm run start         # Start production server
 npm run lint          # Run ESLint
 ```
 
+### tmux-cli Integration
+
+**Claude Code can control tmux panes via `tmux-cli` tool** for running commands and capturing output:
+
+```bash
+# List available panes
+tmux-cli status              # Show current window panes
+tmux-cli list_panes          # JSON list of all panes
+
+# Launch shell (ALWAYS do this first to prevent losing output on errors)
+tmux-cli launch "zsh"        # Returns pane ID (e.g., "2" or "session:1.2")
+
+# Send commands to panes
+tmux-cli send "npm run dev" --pane=2
+tmux-cli send "git status" --pane=2 --delay-enter=0.5
+
+# Capture output
+tmux-cli capture --pane=2
+
+# Wait for command completion
+tmux-cli wait_idle --pane=2 --idle-time=3.0
+
+# Control flow
+tmux-cli interrupt --pane=2  # Send Ctrl+C
+tmux-cli escape --pane=2     # Send ESC key
+tmux-cli kill --pane=2       # Kill pane
+```
+
+**Important tmux-cli patterns:**
+- Always launch `zsh` first, then send commands to it (prevents losing output on errors)
+- Use `wait_idle` instead of polling with repeated `capture` calls
+- Pane IDs can be simple numbers (2, 3) for current window or full format (session:window.pane)
+- Cannot kill your own pane (safety feature)
+
 ## Architecture
 
 ### Data Model
