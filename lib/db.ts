@@ -124,6 +124,7 @@ function seedTemplates() {
 **Status**: Not Started
 **Priority**: Medium
 **Due Date**:
+**Reminder**:
 
 ## Description
 
@@ -139,7 +140,8 @@ function seedTemplates() {
     fields: {
       Status: { type: "select", options: ["Not Started", "In Progress", "Completed"], required: true },
       Priority: { type: "select", options: ["Low", "Medium", "High", "Urgent"], required: true },
-      "Due Date": { type: "date", required: false }
+      "Due Date": { type: "date", required: false },
+      "Reminder": { type: "datetime", required: false }
     },
     sections: {
       Description: { type: "textarea", required: false },

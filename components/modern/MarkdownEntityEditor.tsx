@@ -17,6 +17,7 @@ import { parseMarkdown, renderMarkdown } from '@/lib/markdown-parser'
 // Import field components
 import { TextField } from '@/components/ui/markdown-fields/TextField'
 import { DateField } from '@/components/ui/markdown-fields/DateField'
+import { DateTimeField } from '@/components/ui/markdown-fields/DateTimeField'
 import { SelectField } from '@/components/ui/markdown-fields/SelectField'
 import { URLField } from '@/components/ui/markdown-fields/URLField'
 
@@ -376,6 +377,17 @@ export function MarkdownEntityEditor({
       case 'date':
         return (
           <DateField
+            key={fieldName}
+            label={fieldName}
+            value={value}
+            onChange={(val) => updateField(fieldName, val)}
+            required={fieldDef.required}
+          />
+        )
+
+      case 'datetime':
+        return (
+          <DateTimeField
             key={fieldName}
             label={fieldName}
             value={value}

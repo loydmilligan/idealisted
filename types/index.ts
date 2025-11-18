@@ -65,7 +65,7 @@ export interface Template {
 }
 
 export interface FieldDef {
-  type: 'text' | 'date' | 'select' | 'url' | 'checkbox'
+  type: 'text' | 'date' | 'datetime' | 'select' | 'url' | 'checkbox'
   options?: string[] // For select fields
   required: boolean
   validation?: string // e.g., 'youtube' for URL fields
@@ -175,9 +175,16 @@ export interface Project {
 export interface Plan {
   id: string
   date: string // YYYY-MM-DD
-  todoIds: string[] // JSON array in database
+  todoIds?: string[] // Legacy field - JSON array in database
+  status?: string
+  journal_entry?: string | null
+  tasks_completed_count?: number
+  tasks_total_count?: number
+  completion_percentage?: number
   created_at: number
   updated_at: number
+  finalized_at?: number | null | undefined
+  completed_at?: number | null | undefined
 }
 
 export interface Setting {
@@ -270,6 +277,13 @@ export interface ItemWithRelations extends Item {
 
 export interface PlanWithTodos extends Plan {
   todos: (Todo & { item: Item })[]
+}
+
+export interface PlanWithEntities extends Plan {
+  tasks?: (Task & { item: Item })[]
+  notes?: (Note & { item: Item })[]
+  projects?: (Project & { item: Item })[]
+  lists?: (List & { item: Item; items: ListItem[] })[]
 }
 
 // API request/response types
