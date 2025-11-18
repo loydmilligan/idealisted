@@ -13,6 +13,10 @@ interface AISuggestionPanelProps {
   error?: string | null
   onApplySuggestion: (type: 'todo' | 'note' | 'task' | 'project' | 'list') => void
   onDismiss: () => void
+  onAcceptAndSave: (suggestion: AISuggestion) => Promise<void>
+  onAcceptAndEdit: (suggestion: AISuggestion) => void
+  onOverrideAndEdit: () => void
+  isProcessing?: boolean
 }
 
 export function AISuggestionPanel({
@@ -21,7 +25,11 @@ export function AISuggestionPanel({
   isCreating = false,
   error = null,
   onApplySuggestion,
-  onDismiss
+  onDismiss,
+  onAcceptAndSave,
+  onAcceptAndEdit,
+  onOverrideAndEdit,
+  isProcessing = false
 }: AISuggestionPanelProps) {
   const [featureEnabled, setFeatureEnabled] = useState(false)
   const [featureCheckComplete, setFeatureCheckComplete] = useState(false)
@@ -71,21 +79,6 @@ export function AISuggestionPanel({
 
   if (!suggestion) {
     return null
-  }
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'todo': return '✓'
-      case 'note': return '📝'
-      case 'task': return '✓'
-      case 'project': return '📁'
-      case 'list': return '📋'
-      default: return '💡'
-    }
-  }
-
-  const getTypeLabel = (type: string) => {
-    return type.charAt(0).toUpperCase() + type.slice(1)
   }
 
   return (
@@ -302,38 +295,35 @@ export function AISuggestionPanel({
 
         {/* Action Buttons */}
         <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-wide">Convert to:</p>
-          <div className="grid grid-cols-2 gap-2">
-            <RetroButton
-              onClick={() => onApplySuggestion(suggestion.suggested_type)}
-              variant="primary"
-              size="sm"
-              disabled={isCreating}
-              className="flex items-center justify-center gap-1"
-            >
-              <span className="flex items-center justify-center gap-1">
-                {getTypeIcon(suggestion.suggested_type)} {getTypeLabel(suggestion.suggested_type)}
-              </span>
-            </RetroButton>
+          <RetroButton
+            onClick={() => onAcceptAndSave(suggestion)}
+            variant="primary"
+            size="md"
+            disabled={isProcessing || isCreating}
+            className="w-full"
+          >
+            ✓ Accept & Save
+          </RetroButton>
 
-            {/* Other conversion options */}
-            {(['todo', 'note', 'task', 'project', 'list'] as const)
-              .filter(type => type !== suggestion.suggested_type)
-              .map(type => (
-                <RetroButton
-                  key={type}
-                  onClick={() => onApplySuggestion(type)}
-                  variant="secondary"
-                  size="sm"
-                  disabled={isCreating}
-                  className="flex items-center justify-center gap-1"
-                >
-                  <span className="flex items-center justify-center gap-1">
-                    {getTypeIcon(type)} {getTypeLabel(type)}
-                  </span>
-                </RetroButton>
-              ))}
-          </div>
+          <RetroButton
+            onClick={() => onAcceptAndEdit(suggestion)}
+            variant="secondary"
+            size="md"
+            disabled={isProcessing || isCreating}
+            className="w-full"
+          >
+            ✏️ Accept & Edit
+          </RetroButton>
+
+          <RetroButton
+            onClick={() => onOverrideAndEdit()}
+            variant="secondary"
+            size="md"
+            disabled={isProcessing || isCreating}
+            className="w-full"
+          >
+            🔄 Override & Edit
+          </RetroButton>
         </div>
       </div>
     </RetroCard>

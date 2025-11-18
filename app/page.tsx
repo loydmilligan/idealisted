@@ -71,6 +71,7 @@ function HomePageContent() {
   const [templateSelectorOpen, setTemplateSelectorOpen] = useState(false)
   const [currentMarkdownItem, setCurrentMarkdownItem] = useState<ItemWithRelations | null>(null)
   const [currentTemplate, setCurrentTemplate] = useState<Template | null>(null)
+  const [convertingItemId, setConvertingItemId] = useState<string | null>(null) // Track item being converted from Ready tab
 
   // Settings modal state
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -224,38 +225,8 @@ function HomePageContent() {
 
   // ===== Capture Handlers =====
   const handleCapture = async (text: string, entityType?: Exclude<EntityType, 'idea'> | null, subtype?: string) => {
-    // Determine if this should use markdown editor
-    let templateId: string | null = null
-
-    if (entityType === 'task') {
-      templateId = 'task'
-    } else if (entityType === 'note' && subtype === 'general') {
-      templateId = 'note-generic'
-    } else if (entityType === 'note' && subtype === 'youtube') {
-      templateId = 'note-youtube'
-    }
-
-    // If we have a template, open the MarkdownEntityEditor
-    if (templateId) {
-      try {
-        const response = await fetch(`/api/templates/${templateId}`)
-        const data = await response.json()
-
-        if (data.success && data.data) {
-          // Store the capture text for the editor to use
-          setCapturedText(text)
-          setCurrentTemplate(data.data)
-          setCurrentMarkdownItem(null) // null = create mode
-          setMarkdownEditorOpen(true)
-          return
-        }
-      } catch (error) {
-        console.error('Failed to load template:', error)
-        // Fall through to regular capture if template loading fails
-      }
-    }
-
-    // Regular capture (for idea, project, list, or if markdown failed)
+    // Quick sort buttons should create minimal entities (type='idea', parsed=true, entity_type=entityType)
+    // They should NOT open modals or create full entities
     try {
       const metadata = entityType && subtype ? { subtype } : undefined
 
@@ -264,9 +235,9 @@ function HomePageContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text,
-          type: entityType || 'idea',
-          parsed: !!entityType,
-          entity_type: entityType,
+          type: 'idea', // Always create as idea, even when entityType is specified
+          parsed: !!entityType, // Mark as categorized if entity type provided
+          entity_type: entityType, // Remember what it will become
           metadata,
         }),
       })
@@ -281,7 +252,7 @@ function HomePageContent() {
           // Captured to Unsorted (Inbox) - no color flash
           tabNavRef.current?.triggerFlash('unsorted', null)
         } else {
-          // Captured directly to Ready with entity type
+          // Captured to Ready with entity type (not Files tab)
           tabNavRef.current?.triggerFlash('ready', entityType)
         }
       }
@@ -562,7 +533,47 @@ function HomePageContent() {
     const item = items.find(i => i.id === itemId)
     if (!item || !item.entity_type) return
 
-    setModalEntity({ type: item.entity_type as Exclude<EntityType, 'idea'> })
+    const entityType = item.entity_type as Exclude<EntityType, 'idea'>
+
+    // Determine if this should use markdown editor
+    let templateId: string | null = null
+
+    if (entityType === 'task') {
+      templateId = 'task'
+    } else if (entityType === 'note') {
+      // Check for note subtype in metadata or note object
+      const subtype = item.metadata?.subtype || item.note?.subtype
+
+      if (subtype === 'general') {
+        templateId = 'note-generic'
+      } else if (subtype === 'youtube') {
+        templateId = 'note-youtube'
+      }
+    }
+
+    // If we have a template, open the MarkdownEntityEditor
+    if (templateId) {
+      try {
+        const response = await fetch(`/api/templates/${templateId}`)
+        const data = await response.json()
+
+        if (data.success && data.data) {
+          // Store the item text for the editor to use
+          setCapturedText(item.text)
+          setCurrentTemplate(data.data)
+          setCurrentMarkdownItem(null) // null = create mode
+          setConvertingItemId(itemId) // Track item to delete after conversion
+          setMarkdownEditorOpen(true)
+          return
+        }
+      } catch (error) {
+        console.error('Failed to load template:', error)
+        // Fall through to legacy modal if template loading fails
+      }
+    }
+
+    // Legacy modal for projects, lists, and non-markdown notes
+    setModalEntity({ type: entityType })
     setModalData({
       title: item.text,
       id: itemId,
@@ -853,12 +864,25 @@ function HomePageContent() {
         throw new Error(data.error || 'Failed to create entity')
       }
 
+      // If converting from Ready tab, delete the original idea item
+      if (convertingItemId) {
+        try {
+          await fetch(`/api/items/${convertingItemId}`, {
+            method: 'DELETE',
+          })
+        } catch (deleteError) {
+          console.error('Failed to delete original idea item:', deleteError)
+          // Continue anyway - the entity was created successfully
+        }
+      }
+
       // Refresh items list
       await fetchItems()
 
       // Close editor
       setMarkdownEditorOpen(false)
       setCurrentTemplate(null)
+      setConvertingItemId(null) // Clear converting item ID
 
       // Flash appropriate tab badge
       tabNavRef.current?.triggerFlash('files', entityType)
@@ -876,6 +900,7 @@ function HomePageContent() {
     setMarkdownViewerOpen(currentMarkdownItem !== null) // Only reopen viewer if we were editing
     setCurrentMarkdownItem(null)
     setCurrentTemplate(null)
+    setConvertingItemId(null) // Clear converting item ID
     setCapturedText('') // Clear to prevent stale data
   }
 

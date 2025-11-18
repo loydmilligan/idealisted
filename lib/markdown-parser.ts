@@ -250,7 +250,20 @@ export function renderMarkdown(parsed: ParsedEntity, template: Template): string
         result += '\n'
 
         // Add section content (or just a blank line if empty)
-        const sectionContent = parsed.sections[section.name] || ''
+        let sectionContent = parsed.sections[section.name] || ''
+
+        // Normalize whitespace for textarea sections
+        // This prevents cluttered markdown from preserving all textarea line breaks
+        const sectionConfig = fieldConfig.sections?.[section.name]
+        if (sectionConfig?.type === 'textarea' && sectionContent.trim()) {
+          // Replace 3+ consecutive newlines with exactly 2 newlines (paragraph break)
+          // Replace 1-2 newlines with single newline (normalize line breaks)
+          sectionContent = sectionContent
+            .trim()
+            .replace(/\n{3,}/g, '\n\n')  // 3+ newlines → 2 newlines (paragraph)
+            .replace(/\n{1,2}/g, '\n')    // 1-2 newlines → 1 newline
+        }
+
         if (sectionContent) {
           result += sectionContent + '\n'
         } else {
