@@ -250,12 +250,8 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
               boxShadow: '2px 2px 0 rgba(0,0,0,0.2)'
             }}>
               {[
-                { label: 'Note', subtype: 'general' },
-                { label: 'Research', subtype: 'research' },
-                { label: 'Video', subtype: 'video' },
-                { label: 'Link', subtype: 'link' },
-                { label: 'File', subtype: 'file' },
-                { label: 'Meeting', subtype: 'meeting' },
+                { label: 'Note', subtype: 'generic' },
+                { label: 'YouTube', subtype: 'youtube' },
               ].map((template, idx) => (
                 <button
                   key={template.label}
