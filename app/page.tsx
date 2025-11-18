@@ -584,7 +584,7 @@ function HomePageContent() {
         templateId = 'task'
       } else if (entityType === 'note') {
         const subtype = suggestion.additional_fields.category || 'general'
-        if (subtype === 'general') {
+        if (subtype === 'generic') {
           templateId = 'note-generic'
         } else if (subtype === 'youtube') {
           templateId = 'note-youtube'
@@ -741,7 +741,7 @@ function HomePageContent() {
       // Check for note subtype in metadata or note object
       const subtype = item.metadata?.subtype || item.note?.subtype
 
-      if (subtype === 'general') {
+      if (subtype === 'generic') {
         templateId = 'note-generic'
       } else if (subtype === 'youtube') {
         templateId = 'note-youtube'

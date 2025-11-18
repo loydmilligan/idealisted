@@ -131,15 +131,34 @@ export function MarkdownEntityEditor({
     setErrors([])
   }, [isOpen, item, template.id, fieldConfig, preFillData])
 
-  // Pre-populate title from initial text if provided
+  // Pre-populate fields from initial text if provided
   useEffect(() => {
     if (initialText && initialText.trim() && !formState.title) {
-      setFormState(prev => ({
-        ...prev,
-        title: initialText.trim()
-      }))
+      const text = initialText.trim()
+
+      // Detect if initialText is a URL
+      const isURL = /^https?:\/\//.test(text)
+
+      if (isURL && template.id === 'note-youtube') {
+        // For YouTube notes, populate URL field instead of title
+        setFormState(prev => ({
+          ...prev,
+          fields: {
+            ...prev.fields,
+            URL: text
+          },
+          // Keep title empty so user can enter meaningful title
+          title: ''
+        }))
+      } else {
+        // For all other cases, populate title
+        setFormState(prev => ({
+          ...prev,
+          title: text
+        }))
+      }
     }
-  }, [initialText, formState.title])
+  }, [initialText, formState.title, template.id])
 
   // Initialize empty form with default values
   const initializeEmptyForm = () => {

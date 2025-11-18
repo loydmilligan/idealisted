@@ -292,6 +292,8 @@ export interface CreateItemRequest {
   text: string
   metadata?: Record<string, any>
   tags?: string[]
+  markdown_content?: string
+  template_id?: string
   note?: Omit<Note, 'id' | 'item_id'>
   task?: Omit<Task, 'id' | 'item_id'>
   todo?: Omit<Todo, 'id' | 'item_id'> // For backward compatibility

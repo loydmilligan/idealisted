@@ -165,8 +165,8 @@ export async function POST(request: NextRequest) {
 
     // Start transaction
     const insertItem = db.prepare(`
-      INSERT INTO items (id, type, text, created_at, updated_at, metadata, tags, archived, parsed, entity_type)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+      INSERT INTO items (id, type, text, created_at, updated_at, metadata, tags, archived, parsed, entity_type, markdown_content, template_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
     `)
 
     const metadataJson = body.metadata ? JSON.stringify(body.metadata) : null
@@ -181,7 +181,9 @@ export async function POST(request: NextRequest) {
       metadataJson,
       tagsJson,
       (body as any).parsed ? 1 : 0,
-      (body as any).entity_type || null
+      (body as any).entity_type || null,
+      (body as any).markdown_content || null,
+      (body as any).template_id || null
     )
 
     // Insert type-specific data
