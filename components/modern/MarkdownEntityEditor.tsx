@@ -27,6 +27,14 @@ import { BulletListSection } from '@/components/ui/markdown-fields/BulletListSec
 import { ChecklistSection } from '@/components/ui/markdown-fields/ChecklistSection'
 import { TimestampListSection } from '@/components/ui/markdown-fields/TimestampListSection'
 
+// Task 4.3: Pre-fill data from AI suggestions
+export interface PreFillData {
+  title: string
+  fields: Record<string, string>
+  sections: Record<string, any>
+}
+
+
 interface MarkdownEntityEditorProps {
   item: Item | null // null for new entities
   template: Template
@@ -39,6 +47,11 @@ interface MarkdownEntityEditorProps {
    * Will not overwrite existing titles when editing.
    */
   initialText?: string
+  /**
+   * Pre-fill form data from AI suggestions (Task 4.3).
+   * Only applies when creating new entities (item === null).
+   */
+  preFillData?: PreFillData | null
 }
 
 interface FormState {
@@ -53,7 +66,8 @@ export function MarkdownEntityEditor({
   onSave,
   onCancel,
   isOpen,
-  initialText
+  initialText,
+  preFillData
 }: MarkdownEntityEditorProps) {
   const [formState, setFormState] = useState<FormState>({
     title: '',
@@ -100,6 +114,14 @@ export function MarkdownEntityEditor({
         console.error('Failed to parse markdown:', error)
         initializeEmptyForm()
       }
+    } else if (preFillData) {
+      // Task 4.3: Initialize from AI pre-fill data
+      console.log('[MarkdownEntityEditor] Initializing with pre-fill data:', preFillData)
+      setFormState({
+        title: preFillData.title,
+        fields: preFillData.fields,
+        sections: preFillData.sections
+      })
     } else {
       // New item - initialize with empty values
       initializeEmptyForm()
@@ -107,7 +129,7 @@ export function MarkdownEntityEditor({
 
     // Clear errors when modal opens
     setErrors([])
-  }, [isOpen, item, template.id, fieldConfig])
+  }, [isOpen, item, template.id, fieldConfig, preFillData])
 
   // Pre-populate title from initial text if provided
   useEffect(() => {

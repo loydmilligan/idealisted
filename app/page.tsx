@@ -23,7 +23,7 @@ import { EntityModal, FormField } from '@/components/modern/EntityModal'
 import { SettingsModal } from '@/components/modern/SettingsModal'
 import { WelcomeModal } from '@/components/modern/WelcomeModal'
 import { MarkdownViewer } from '@/components/ui/MarkdownViewer'
-import { MarkdownEntityEditor } from '@/components/modern/MarkdownEntityEditor'
+import { MarkdownEntityEditor, PreFillData } from '@/components/modern/MarkdownEntityEditor'
 import { TemplateSelector } from '@/components/modern/TemplateSelector'
 import type { Template } from '@/types'
 import { TourExample } from '@/components/ui/TourExample'
@@ -86,6 +86,13 @@ function HomePageContent() {
   const [capturedText, setCapturedText] = useState('')
   const [isCreatingItem, setIsCreatingItem] = useState(false)
   const [creationError, setCreationError] = useState<string | null>(null)
+  const [currentAIItem, setCurrentAIItem] = useState<AISuggestion | null>(null) // Track AI suggestion for override flow
+
+  // Convert All state (Task 3.2)
+  const [isConvertingAll, setIsConvertingAll] = useState(false)
+
+  // Task 4.3: Pre-fill data state for Accept & Edit flow
+  const [preFillData, setPreFillData] = useState<PreFillData | null>(null)
 
   // Load items on mount
   useEffect(() => {
@@ -290,6 +297,7 @@ function HomePageContent() {
 
       // Show suggestion panel with preview
       setAiSuggestion(data)
+      setCurrentAIItem(data) // Store for override flow
       setIsAnalyzing(false)
     } catch (error) {
       console.error('[AI Capture] Error getting AI suggestion:', error)
@@ -443,8 +451,197 @@ function HomePageContent() {
   // Handle user dismissing AI suggestion
   const handleDismissSuggestion = () => {
     setAiSuggestion(null)
+    setCurrentAIItem(null)
     setCapturedText('')
     setIsAnalyzing(false)
+  }
+
+  // Handle Override & Edit action (Task 4.4)
+  const handleOverrideAndEdit = () => {
+    if (!currentAIItem) {
+      console.warn('[Override & Edit] No AI suggestion available')
+      return
+    }
+
+    // Store original text for editor
+    setCapturedText(currentAIItem.processed_text)
+
+    // Dismiss AI panel
+    setAiSuggestion(null)
+
+    // Open template selector
+    setTemplateSelectorOpen(true)
+
+    // Note: currentAIItem and capturedText will be used when template is selected
+  }
+
+  // Task 4.3: Build pre-fill data from AI suggestion
+  const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFillData => {
+    const fields: Record<string, string> = {}
+    const sections: Record<string, any> = {}
+
+    // Parse field_config from template
+    const fieldConfig = JSON.parse(template.field_config)
+
+    // Extract from markdown_sections if available
+    if (suggestion.additional_fields.markdown_sections) {
+      Object.assign(sections, suggestion.additional_fields.markdown_sections)
+    }
+
+    // Map metadata to fields based on entity type
+    if (suggestion.suggested_type === 'task' && fieldConfig.fields) {
+      // Map Status field
+      if (fieldConfig.fields['Status'] && suggestion.additional_fields.status) {
+        // Convert AI status to template format
+        const statusMap: Record<string, string> = {
+          'pending': 'Not Started',
+          'in-progress': 'In Progress',
+          'completed': 'Completed'
+        }
+        fields['Status'] = statusMap[suggestion.additional_fields.status] || 'Not Started'
+      }
+
+      // Map Priority field
+      if (fieldConfig.fields['Priority'] && suggestion.additional_fields.priority) {
+        // Convert priority number to label
+        const priorityMap: Record<number, string> = {
+          1: 'Low',
+          2: 'Low',
+          3: 'Medium',
+          4: 'High',
+          5: 'Urgent'
+        }
+        fields['Priority'] = priorityMap[suggestion.additional_fields.priority] || 'Medium'
+      }
+
+      // Map Due Date field
+      if (fieldConfig.fields['Due Date'] && suggestion.additional_fields.due_date) {
+        // Convert date string to YYYY-MM-DD format
+        const date = new Date(suggestion.additional_fields.due_date)
+        if (!isNaN(date.getTime())) {
+          fields['Due Date'] = date.toISOString().split('T')[0]
+        }
+      }
+    }
+
+    // Initialize empty values for fields not provided by AI
+    if (fieldConfig.fields) {
+      for (const [fieldName, fieldDef] of Object.entries(fieldConfig.fields)) {
+        if (!fields[fieldName]) {
+          const def = fieldDef as any
+          if (def.type === 'select' && def.options) {
+            fields[fieldName] = def.options[0]
+          } else {
+            fields[fieldName] = ''
+          }
+        }
+      }
+    }
+
+    // Initialize empty sections for those not provided
+    if (fieldConfig.sections) {
+      for (const [sectionName, sectionDef] of Object.entries(fieldConfig.sections)) {
+        if (!sections[sectionName]) {
+          const def = sectionDef as any
+          switch (def.type) {
+            case 'textarea':
+              sections[sectionName] = ''
+              break
+            case 'bulletlist':
+            case 'timestamplist':
+            case 'checklist':
+            case 'taglist':
+              sections[sectionName] = []
+              break
+            default:
+              sections[sectionName] = ''
+          }
+        }
+      }
+    }
+
+    return {
+      title: suggestion.processed_text,
+      fields,
+      sections
+    }
+  }
+
+  // Task 4.3: Handle Accept & Edit action
+  const handleAcceptAndEdit = async (suggestion: AISuggestion) => {
+    if (!currentAIItem) {
+      console.warn('[Accept & Edit] No AI suggestion available')
+      return
+    }
+
+    try {
+      const entityType = suggestion.suggested_type
+
+      // Determine template ID
+      let templateId: string | null = null
+
+      if (entityType === 'task') {
+        templateId = 'task'
+      } else if (entityType === 'note') {
+        const subtype = suggestion.additional_fields.category || 'general'
+        if (subtype === 'general') {
+          templateId = 'note-generic'
+        } else if (subtype === 'youtube') {
+          templateId = 'note-youtube'
+        }
+      }
+
+      if (!templateId) {
+        console.warn('[Accept & Edit] No markdown template for type:', entityType)
+        // Fall back to regular accept flow
+        await handleAcceptSuggestion()
+        return
+      }
+
+      // Load template
+      const response = await fetch(`/api/templates/${templateId}`)
+      const data = await response.json()
+
+      if (!data.success || !data.data) {
+        throw new Error('Failed to load template')
+      }
+
+      // Build pre-fill data from AI suggestions
+      const preFill = buildPreFillData(suggestion, data.data)
+
+      // Set up editor state
+      setCurrentTemplate(data.data)
+      setCurrentMarkdownItem(null) // Create mode
+      setPreFillData(preFill) // Pre-filled data
+      setCapturedText(suggestion.processed_text)
+      setMarkdownEditorOpen(true)
+
+      // Dismiss AI panel
+      setAiSuggestion(null)
+
+      console.log('[Accept & Edit] Opening editor with pre-filled data:', preFill)
+    } catch (error) {
+      console.error('[Accept & Edit] Failed:', error)
+      setCreationError('Failed to open editor. Please try again.')
+    }
+  }
+
+  // Handle template selection (Task 4.4)
+  const handleTemplateSelected = (template: Template) => {
+    setCurrentTemplate(template)
+    setCurrentMarkdownItem(null) // Create mode
+    setTemplateSelectorOpen(false)
+    setMarkdownEditorOpen(true)
+
+    // capturedText and currentAIItem already set by handleOverrideAndEdit
+    // The MarkdownEntityEditor will read capturedText for title pre-population
+  }
+
+  const handleTemplateSelectorCancel = () => {
+    setTemplateSelectorOpen(false)
+    // Clear override flow state
+    setCurrentAIItem(null)
+    setCapturedText('')
   }
 
   // ===== Unsorted Handlers =====
@@ -581,6 +778,119 @@ function HomePageContent() {
       description: item.note?.content || item.project?.description || item.list?.description || ''
     })
     setModalOpen(true)
+  }
+
+  // Convert All Handler (Task 3.2)
+  // Converts all ready items directly to entities without opening modals
+  const handleConvertAll = async () => {
+    if (readyItems.length === 0) {
+      console.log('[Convert All] No items to convert')
+      return
+    }
+
+    // Optional: Show confirmation dialog
+    const confirmed = confirm(`Convert all ${readyItems.length} items to their final entity types?`)
+    if (!confirmed) return
+
+    setIsConvertingAll(true)
+
+    let successCount = 0
+    let failCount = 0
+    const entityTypes: Set<Exclude<EntityType, 'idea'>> = new Set()
+
+    try {
+      // Process items sequentially to avoid race conditions
+      for (const item of readyItems) {
+        try {
+          const entityType = item.entity_type as Exclude<EntityType, 'idea'>
+
+          // Build entity data with sensible defaults
+          const entityData: any = {
+            type: entityType,
+            text: item.text,
+            tags: item.tags || [],
+            parsed: true,
+            entity_type: entityType,
+          }
+
+          // Add type-specific default fields
+          if (entityType === 'task') {
+            entityData.task = {
+              status: 'pending',
+              priority: 1,
+              tags: item.tags || [],
+              estimated_time: null,
+              due_date: null,
+              project_id: null,
+            }
+          } else if (entityType === 'note') {
+            const subtype = item.metadata?.subtype || 'general'
+            entityData.note = {
+              subtype,
+              content: '',
+              url: null,
+              media_type: null,
+            }
+          } else if (entityType === 'project') {
+            entityData.project = {
+              status: 'planning',
+              tags: item.tags || [],
+              deadline: null,
+              description: '',
+              progress: 0,
+              start_date: null,
+              end_date: null,
+            }
+          } else if (entityType === 'list') {
+            entityData.list = {
+              name: item.text,
+              tags: item.tags || [],
+              description: '',
+              items: [],
+            }
+          }
+
+          // Update the item to convert it to the final entity type
+          const response = await fetch(`/api/items/${item.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(entityData),
+          })
+
+          if (response.ok) {
+            successCount++
+            entityTypes.add(entityType)
+          } else {
+            throw new Error(`API returned ${response.status}`)
+          }
+
+          // Small delay between conversions for better UX
+          await new Promise(resolve => setTimeout(resolve, 100))
+
+        } catch (error) {
+          console.error(`[Convert All] Failed to convert item ${item.id}:`, error)
+          failCount++
+          // Continue with remaining items instead of stopping
+        }
+      }
+
+      // Refresh the items list to update the Ready tab
+      await fetchItems()
+
+      // Log results
+      console.log(`[Convert All] Completed: ${successCount} successful, ${failCount} failed`)
+
+      // Flash the Files tab with the most common entity type
+      if (successCount > 0 && entityTypes.size > 0) {
+        const firstEntityType = Array.from(entityTypes)[0]
+        tabNavRef.current?.triggerFlash('files', firstEntityType)
+      }
+
+    } catch (error) {
+      console.error('[Convert All] Unexpected error:', error)
+    } finally {
+      setIsConvertingAll(false)
+    }
   }
 
   // ===== Entity Handlers =====
@@ -901,6 +1211,7 @@ function HomePageContent() {
     setCurrentMarkdownItem(null)
     setCurrentTemplate(null)
     setConvertingItemId(null) // Clear converting item ID
+    setPreFillData(null) // Task 4.3: Clear pre-fill data
     setCapturedText('') // Clear to prevent stale data
   }
 
@@ -952,6 +1263,9 @@ function HomePageContent() {
             creationError={creationError}
             onAcceptSuggestion={handleAcceptSuggestion}
             onDismissSuggestion={handleDismissSuggestion}
+            onOverrideAndEdit={handleOverrideAndEdit}
+            onAcceptAndEdit={handleAcceptAndEdit}
+            onAcceptAndSave={async (suggestion) => await handleAcceptSuggestion(suggestion.suggested_type)}
           />
         )}
 
@@ -979,8 +1293,10 @@ function HomePageContent() {
               createdAt: i.created_at,
             }))}
             onConvert={handleConvertFromReady}
+            onConvertAll={handleConvertAll}
             onDelete={handleDelete}
             onAIAction={handleAIAction}
+            isConvertingAll={isConvertingAll}
           />
         )}
 
@@ -1440,8 +1756,16 @@ function HomePageContent() {
           onCancel={handleMarkdownCancel}
           isOpen={markdownEditorOpen}
           initialText={capturedText}
+          preFillData={preFillData}
         />
       )}
+
+      {/* Template Selector Modal (Task 4.4) */}
+      <TemplateSelector
+        isOpen={templateSelectorOpen}
+        onSelect={handleTemplateSelected}
+        onCancel={handleTemplateSelectorCancel}
+      />
 
       {/* Settings Modal */}
       <SettingsModal

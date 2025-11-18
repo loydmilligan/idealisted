@@ -27,16 +27,20 @@ interface ReadyItem {
 interface ReadyInboxScreenProps {
   items: ReadyItem[]
   onConvert: (itemId: string) => void
+  onConvertAll?: () => void
   onDelete: (itemId: string) => void
   onAIAction: (itemId: string, action: 'convert' | 'full') => void
+  isConvertingAll?: boolean
   className?: string
 }
 
 export const ReadyInboxScreen: React.FC<ReadyInboxScreenProps> = ({
   items,
   onConvert,
+  onConvertAll,
   onDelete,
   onAIAction,
+  isConvertingAll = false,
   className = '',
 }) => {
   return (
@@ -55,8 +59,29 @@ export const ReadyInboxScreen: React.FC<ReadyInboxScreenProps> = ({
             </p>
           </div>
         ) : (
-          // Items List
-          <div className="space-y-3">
+          <>
+            {/* Header with Convert All Button */}
+            {onConvertAll && (
+              <div className="mb-4 flex justify-between items-center">
+                <h3 className="retro-section-title">
+                  Ready to Convert ({items.length})
+                </h3>
+                <button
+                  onClick={onConvertAll}
+                  disabled={isConvertingAll}
+                  className="retro-btn retro-btn-primary retro-btn-sm"
+                  style={{
+                    opacity: isConvertingAll ? 0.5 : 1,
+                    cursor: isConvertingAll ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {isConvertingAll ? '🔄 Converting...' : `🔄 Convert All (${items.length})`}
+                </button>
+              </div>
+            )}
+
+            {/* Items List */}
+            <div className="space-y-3">
             {items.map((item) => {
               return (
                 <SwipeableCard
@@ -78,7 +103,8 @@ export const ReadyInboxScreen: React.FC<ReadyInboxScreenProps> = ({
                 </SwipeableCard>
               )
             })}
-          </div>
+            </div>
+          </>
         )}
       </div>
     </div>

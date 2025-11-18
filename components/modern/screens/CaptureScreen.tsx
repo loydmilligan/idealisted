@@ -39,6 +39,10 @@ interface CaptureScreenProps {
   creationError?: string | null
   onAcceptSuggestion?: (overrideType?: Exclude<EntityType, 'idea'>) => void
   onDismissSuggestion?: () => void
+  // Task 4.4: Override & Edit handlers
+  onAcceptAndSave?: (suggestion: AISuggestion) => Promise<void>
+  onAcceptAndEdit?: (suggestion: AISuggestion) => void
+  onOverrideAndEdit?: () => void
 }
 
 export const CaptureScreen: React.FC<CaptureScreenProps> = ({
@@ -52,6 +56,9 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
   creationError,
   onAcceptSuggestion,
   onDismissSuggestion,
+  onAcceptAndSave,
+  onAcceptAndEdit,
+  onOverrideAndEdit,
 }) => {
   const [inputText, setInputText] = useState('')
   const [showNoteMenu, setShowNoteMenu] = useState(false)
@@ -293,6 +300,9 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
             onDismiss={() => {
               onDismissSuggestion?.()
             }}
+            onAcceptAndSave={onAcceptAndSave || (async () => {})}
+            onAcceptAndEdit={onAcceptAndEdit || (() => {})}
+            onOverrideAndEdit={onOverrideAndEdit || (() => {})}
           />
         </div>
       )}
