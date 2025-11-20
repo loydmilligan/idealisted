@@ -181,9 +181,22 @@ export async function GET(
         const totalTasks = projectTasks.length
         const completedTasks = projectTasks.filter(t => t.status === 'completed').length
         const completionRate = totalTasks === 0 ? 0 : completedTasks / totalTasks
-        const lastActivity = projectTasks.reduce<number | null>((acc, t) => {
+        const taskActivity = projectTasks.reduce<number | null>((acc, t) => {
           const ts = t.updated_at || t.created_at
           if (ts === undefined || ts === null) return acc
+          if (acc === null) return ts
+          return Math.max(acc, ts)
+        }, null)
+
+        const noteActivity = projectNotes.reduce<number | null>((acc, n) => {
+          const ts = n.updated_at || n.created_at
+          if (ts === undefined || ts === null) return acc
+          if (acc === null) return ts
+          return Math.max(acc, ts)
+        }, null)
+
+        const lastActivity = [taskActivity, noteActivity].reduce<number | null>((acc, ts) => {
+          if (ts === null || ts === undefined) return acc
           if (acc === null) return ts
           return Math.max(acc, ts)
         }, null)
