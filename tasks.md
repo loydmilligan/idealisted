@@ -4,14 +4,14 @@ Plan reference: NEXT_SPRINT_PLAN.md
 Scope: deliver markdown-driven Project and List experiences (Bulleted, Numbered, TaskList, Shopping) with project widgets and associations.
 
 ## Phase 1 — Templates & Data Surface
-- [ ] Add markdown templates for Lists (4 variants) and Projects; seed/register them alongside existing templates (`lib/db.ts` seeds, template registry, any template picker mappings).
-- [ ] Update types/contracts for new list type enum and project type field (e.g., `types/index.ts`, API request/response DTOs, zod/validation schemas if present).
-- [ ] Ensure create/edit flows can select new templates without colliding with legacy `todo` entity type; adjust template lookup logic to map entity_type → template_id for list/project.
+- [x] Add markdown templates for Lists (4 variants) and Projects; seed/register them alongside existing templates (`lib/db.ts` seeds, template registry, any template picker mappings).
+- [x] Update types/contracts for new list type enum and project type field (e.g., `types/index.ts`, API request/response DTOs, zod/validation schemas if present).
+- [x] Ensure create/edit flows can select new templates without colliding with legacy `todo` entity type; adjust template lookup logic to map entity_type → template_id for list/project.
 
 ## Phase 2 — List Authoring UX
-- [ ] Extend `components/modern/MarkdownEntityEditor` (and related state helpers) to support per-item inputs with Enter-to-add-next, `+ Add item`, and remove-on-empty/backspace behaviors.
-- [ ] Convert item arrays to markdown on save (bullet, numbered, tasklist `- [ ]`/`- [x]`, shopping lines) and parse from markdown when editing; keep markdown as single source of truth.
-- [ ] Ensure preview/render shows correct list formatting and handles empty states; guard against collisions with legacy todo entity naming (use “TaskList” label).
+- [x] Extend `components/modern/MarkdownEntityEditor` (and related state helpers) to support per-item inputs with Enter-to-add-next, `+ Add item`, and remove-on-empty/backspace behaviors.
+- [x] Convert item arrays to markdown on save (bullet, numbered, tasklist `- [ ]`/`- [x]`, shopping lines) and parse from markdown when editing; keep markdown as single source of truth.
+- [x] Ensure preview/render shows correct list formatting and handles empty states; guard against collisions with legacy todo entity naming (use “TaskList” label).
 - [ ] Add basic affordances for reorder/delete if existing patterns support it; otherwise, keep linear order stable.
 
 ## Phase 3 — Project Markdown Experience

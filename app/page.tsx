@@ -1323,6 +1323,11 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
     setCurrentTemplate(null)
   }
 
+  const handleRelatedEntityOpen = (entityId: string) => {
+    handleMarkdownViewerClose()
+    setTimeout(() => handleEntityTap(entityId), 50)
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -1803,6 +1808,75 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
                     overflowY: 'auto',
                     padding: '16px',
                   }}>
+                    {currentMarkdownItem.type === 'project' && (
+                      <div style={{ display: 'grid', gap: '12px', marginBottom: '16px' }}>
+                        <div style={{ display: 'grid', gap: '8px', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
+                          <StatCard
+                            label="Completion"
+                            value={`${Math.round(((currentMarkdownItem.project_summary?.completion_rate || 0) * 100))}%`}
+                            hint={`${currentMarkdownItem.project_summary?.completed_tasks || 0} of ${currentMarkdownItem.project_summary?.total_tasks || 0}`}
+                          />
+                          <StatCard
+                            label="Staleness"
+                            value={`${currentMarkdownItem.project_summary?.staleness_days ?? 0}d`}
+                            hint="Since project creation"
+                          />
+                          <StatCard
+                            label="Last Activity"
+                            value={currentMarkdownItem.project_summary?.last_activity ? new Date(currentMarkdownItem.project_summary.last_activity).toLocaleDateString() : '—'}
+                            hint="Latest task update"
+                          />
+                          <StatCard
+                            label="Priority"
+                            value={(currentMarkdownItem.project?.priority || 'medium').toUpperCase()}
+                            hint={(currentMarkdownItem.project?.project_type || 'personal').replace('-', ' ')}
+                          />
+                        </div>
+                        {currentMarkdownItem.project_summary?.danger_zone?.active && (
+                          <div style={{
+                            padding: '10px 12px',
+                            border: '2px dashed var(--entity-project)',
+                            background: 'var(--palm-bg-secondary)',
+                            color: 'var(--entity-project)'
+                          }}>
+                            ⚠️ Almost there! Don't let this stall. {currentMarkdownItem.project_summary.danger_zone.reason || ''}
+                          </div>
+                        )}
+                        <div style={{ border: '2px inset var(--palm-border-light)', padding: '12px', background: 'var(--palm-bg-secondary)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <h3 style={{ margin: 0 }}>Tasks</h3>
+                            <span style={{ fontSize: '12px', color: 'var(--palm-text-secondary)' }}>
+                              {currentMarkdownItem.project_tasks?.length || 0} linked
+                            </span>
+                          </div>
+                          {currentMarkdownItem.project_tasks && currentMarkdownItem.project_tasks.length > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              {currentMarkdownItem.project_tasks.map(task => (
+                                <button
+                                  key={task.id}
+                                  onClick={() => handleRelatedEntityOpen(task.id)}
+                                  className="retro-btn retro-btn-secondary"
+                                  style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    textAlign: 'left',
+                                    width: '100%'
+                                  }}
+                                >
+                                  <span>{task.title}</span>
+                                  <span style={{ fontSize: '12px', color: 'var(--palm-text-secondary)' }}>
+                                    {task.status}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '12px', color: 'var(--palm-text-secondary)' }}>No linked tasks yet.</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     <MarkdownViewer content={currentMarkdownItem.markdown_content || ''} />
                   </div>
 
@@ -1958,6 +2032,21 @@ const normalizeListPayloadFromTemplate = (template: Template, fields: Record<str
     list_type
   }
 }
+
+const StatCard = ({ label, value, hint }: { label: string; value: string; hint?: string }) => (
+  <div style={{
+    border: '2px inset var(--palm-border-light)',
+    background: 'var(--palm-bg-secondary)',
+    padding: '10px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px'
+  }}>
+    <span style={{ fontSize: '12px', color: 'var(--palm-text-secondary)' }}>{label}</span>
+    <span style={{ fontSize: '18px', fontWeight: 700 }}>{value}</span>
+    {hint && <span style={{ fontSize: '12px', color: 'var(--palm-text-secondary)' }}>{hint}</span>}
+  </div>
+)
 
 // Loading fallback component
 function LoadingFallback() {

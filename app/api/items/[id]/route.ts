@@ -158,6 +158,53 @@ export async function GET(
         start_date: row.start_date,
         end_date: row.end_date
       }
+
+      // Project task summary and associations
+      const projectTasks = db.prepare(`
+        SELECT i.id, i.text, i.created_at, i.updated_at, t.status
+        FROM tasks t
+        JOIN items i ON i.id = t.item_id
+        WHERE t.project_id = ?
+        ORDER BY i.created_at DESC
+      `).all(row.project_id) as { id: string; text: string; created_at: number; updated_at: number; status: string }[]
+
+      if (projectTasks) {
+        const totalTasks = projectTasks.length
+        const completedTasks = projectTasks.filter(t => t.status === 'completed').length
+        const completionRate = totalTasks === 0 ? 0 : completedTasks / totalTasks
+        const lastActivity = projectTasks.reduce<number | null>((acc, t) => {
+          const ts = t.updated_at || t.created_at
+          if (ts === undefined || ts === null) return acc
+          if (acc === null) return ts
+          return Math.max(acc, ts)
+        }, null)
+
+        const now = Date.now()
+        const createdAt = row.created_at || now
+        const stalenessDays = Math.max(0, Math.floor((now - createdAt) / (1000 * 60 * 60 * 24)))
+        const daysSinceActivity = lastActivity ? Math.floor((now - lastActivity) / (1000 * 60 * 60 * 24)) : stalenessDays
+        const dangerZoneActive = completionRate >= 0.7 && daysSinceActivity >= 7
+
+        item.project_tasks = projectTasks.map(t => ({
+          id: t.id,
+          title: t.text,
+          status: (t.status || 'pending') as any,
+          created_at: t.created_at,
+          updated_at: t.updated_at
+        }))
+
+        item.project_summary = {
+          total_tasks: totalTasks,
+          completed_tasks: completedTasks,
+          completion_rate: completionRate,
+          last_activity: lastActivity,
+          staleness_days: stalenessDays,
+          danger_zone: {
+            active: dangerZoneActive,
+            reason: dangerZoneActive ? '70%+ complete with 7+ days inactivity' : undefined
+          }
+        }
+      }
     }
 
     return NextResponse.json({ item })

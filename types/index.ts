@@ -283,6 +283,8 @@ export interface ItemWithRelations extends Item {
   }
   list?: List & { items: ListItem[] }
   project?: Project
+  project_tasks?: ProjectTaskSummary[]
+  project_summary?: ProjectSummary
   metadata?: Record<string, any>
 }
 
@@ -295,6 +297,26 @@ export interface PlanWithEntities extends Plan {
   notes?: (Note & { item: Item })[]
   projects?: (Project & { item: Item })[]
   lists?: (List & { item: Item; items: ListItem[] })[]
+}
+
+export interface ProjectTaskSummary {
+  id: string
+  title: string
+  status: Task['status']
+  created_at?: number
+  updated_at?: number
+}
+
+export interface ProjectSummary {
+  total_tasks: number
+  completed_tasks: number
+  completion_rate: number
+  last_activity?: number | null
+  staleness_days: number
+  danger_zone: {
+    active: boolean
+    reason?: string
+  }
 }
 
 // API request/response types
