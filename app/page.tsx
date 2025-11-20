@@ -1826,55 +1826,41 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
                             value={currentMarkdownItem.project_summary?.last_activity ? new Date(currentMarkdownItem.project_summary.last_activity).toLocaleDateString() : '—'}
                             hint="Latest task update"
                           />
-                          <StatCard
-                            label="Priority"
-                            value={(currentMarkdownItem.project?.priority || 'medium').toUpperCase()}
-                            hint={(currentMarkdownItem.project?.project_type || 'personal').replace('-', ' ')}
-                          />
-                        </div>
-                        {currentMarkdownItem.project_summary?.danger_zone?.active && (
-                          <div style={{
-                            padding: '10px 12px',
-                            border: '2px dashed var(--entity-project)',
-                            background: 'var(--palm-bg-secondary)',
-                            color: 'var(--entity-project)'
-                          }}>
-                            ⚠️ Almost there! Don't let this stall. {currentMarkdownItem.project_summary.danger_zone.reason || ''}
-                          </div>
-                        )}
-                        <div style={{ border: '2px inset var(--palm-border-light)', padding: '12px', background: 'var(--palm-bg-secondary)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                            <h3 style={{ margin: 0 }}>Tasks</h3>
-                            <span style={{ fontSize: '12px', color: 'var(--palm-text-secondary)' }}>
-                              {currentMarkdownItem.project_tasks?.length || 0} linked
-                            </span>
-                          </div>
-                          {currentMarkdownItem.project_tasks && currentMarkdownItem.project_tasks.length > 0 ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                              {currentMarkdownItem.project_tasks.map(task => (
-                                <button
-                                  key={task.id}
-                                  onClick={() => handleRelatedEntityOpen(task.id)}
-                                  className="retro-btn retro-btn-secondary"
-                                  style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    textAlign: 'left',
-                                    width: '100%'
-                                  }}
-                                >
-                                  <span>{task.title}</span>
-                                  <span style={{ fontSize: '12px', color: 'var(--palm-text-secondary)' }}>
-                                    {task.status}
-                                  </span>
-                                </button>
-                              ))}
-                            </div>
-                          ) : (
-                            <div style={{ fontSize: '12px', color: 'var(--palm-text-secondary)' }}>No linked tasks yet.</div>
-                          )}
-                        </div>
+            <StatCard
+              label="Priority"
+              value={(currentMarkdownItem.project?.priority || 'medium').toUpperCase()}
+              hint={(currentMarkdownItem.project?.project_type || 'personal').replace('-', ' ')}
+            />
+          </div>
+          {currentMarkdownItem.project_summary?.danger_zone?.active && (
+            <div style={{
+              padding: '10px 12px',
+              border: '2px dashed var(--entity-project)',
+              background: 'var(--palm-bg-secondary)',
+              color: 'var(--entity-project)'
+            }}>
+              ⚠️ Almost there! Don't let this stall. {currentMarkdownItem.project_summary.danger_zone.reason || ''}
+            </div>
+          )}
+                        <RelatedList
+                          title="Tasks"
+                          count={currentMarkdownItem.project_tasks?.length || 0}
+                          items={(currentMarkdownItem.project_tasks || []).map(t => ({
+                            id: t.id,
+                            title: t.title,
+                            meta: t.status
+                          }))}
+                          onOpen={handleRelatedEntityOpen}
+                        />
+                        <RelatedList
+                          title="Notes"
+                          count={currentMarkdownItem.project_notes?.length || 0}
+                          items={(currentMarkdownItem.project_notes || []).map(n => ({
+                            id: n.id,
+                            title: n.title
+                          }))}
+                          onOpen={handleRelatedEntityOpen}
+                        />
                       </div>
                     )}
                     <MarkdownViewer content={currentMarkdownItem.markdown_content || ''} />
@@ -2044,7 +2030,55 @@ const StatCard = ({ label, value, hint }: { label: string; value: string; hint?:
   }}>
     <span style={{ fontSize: '12px', color: 'var(--palm-text-secondary)' }}>{label}</span>
     <span style={{ fontSize: '18px', fontWeight: 700 }}>{value}</span>
-    {hint && <span style={{ fontSize: '12px', color: 'var(--palm-text-secondary)' }}>{hint}</span>}
+  {hint && <span style={{ fontSize: '12px', color: 'var(--palm-text-secondary)' }}>{hint}</span>}
+  </div>
+)
+
+const RelatedList = ({
+  title,
+  count,
+  items,
+  onOpen
+}: {
+  title: string
+  count: number
+  items: { id: string; title: string; meta?: string }[]
+  onOpen: (id: string) => void
+}) => (
+  <div style={{ border: '2px inset var(--palm-border-light)', padding: '12px', background: 'var(--palm-bg-secondary)' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+      <h3 style={{ margin: 0 }}>{title}</h3>
+      <span style={{ fontSize: '12px', color: 'var(--palm-text-secondary)' }}>
+        {count} linked
+      </span>
+    </div>
+    {items.length > 0 ? (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {items.map(item => (
+          <button
+            key={item.id}
+            onClick={() => onOpen(item.id)}
+            className="retro-btn retro-btn-secondary"
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              textAlign: 'left',
+              width: '100%'
+            }}
+          >
+            <span>{item.title}</span>
+            {item.meta && (
+              <span style={{ fontSize: '12px', color: 'var(--palm-text-secondary)' }}>
+                {item.meta}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+    ) : (
+      <div style={{ fontSize: '12px', color: 'var(--palm-text-secondary)' }}>No linked {title.toLowerCase()} yet.</div>
+    )}
   </div>
 )
 

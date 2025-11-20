@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
              task.id as task_id, task.status as task_status, task.priority as task_priority,
              task.tags as task_tags, task.estimated_time, task.project_id, task.due_date as task_due_date,
              task.reminder_datetime, task.last_notified_at,
-             n.id as note_id, n.subtype, n.content, n.url, n.media_type,
+             n.id as note_id, n.subtype, n.content, n.url, n.media_type, n.project_id as note_project_id,
              l.id as list_id, l.name as list_name, l.list_type as list_type, l.tags as list_tags, l.description as list_description,
              p.id as project_id, p.status as project_status, p.project_type as project_type, p.priority as project_priority, p.tags as project_tags,
              p.deadline, p.description as project_description, p.progress, p.start_date, p.end_date
@@ -126,7 +126,8 @@ export async function GET(request: NextRequest) {
           subtype: row.subtype,
           content: row.content,
           url: row.url,
-          media_type: row.media_type
+          media_type: row.media_type,
+          project_id: row.note_project_id
         }
       }
 
@@ -256,8 +257,8 @@ export async function POST(request: NextRequest) {
 
     if (body.type === 'note' && body.note) {
       const insertNote = db.prepare(`
-        INSERT INTO notes (id, item_id, subtype, content, url, media_type)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO notes (id, item_id, subtype, content, url, media_type, project_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `)
       insertNote.run(
         uuidv4(),
@@ -265,7 +266,8 @@ export async function POST(request: NextRequest) {
         body.note.subtype || 'general',
         body.note.content || null,
         body.note.url || null,
-        body.note.media_type || null
+        body.note.media_type || null,
+        body.note.project_id || null
       )
     }
 

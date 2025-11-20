@@ -42,7 +42,7 @@ export async function GET(
              task.id as task_id, task.status as task_status, task.priority as task_priority,
              task.tags as task_tags, task.estimated_time, task.project_id, task.due_date as task_due_date,
              task.reminder_datetime, task.last_notified_at,
-             n.id as note_id, n.subtype, n.content, n.url, n.media_type,
+             n.id as note_id, n.subtype, n.content, n.url, n.media_type, n.project_id as note_project_id,
              l.id as list_id, l.name as list_name, l.list_type as list_type, l.tags as list_tags, l.description as list_description,
              p.id as project_id, p.status as project_status, p.project_type as project_type, p.priority as project_priority, p.tags as project_tags,
              p.deadline, p.description as project_description, p.progress, p.start_date, p.end_date
@@ -102,16 +102,17 @@ export async function GET(
       }
     }
 
-    if (row.note_id) {
-      item.note = {
-        id: row.note_id,
-        item_id: row.id,
-        subtype: row.subtype,
-        content: row.content,
-        url: row.url,
-        media_type: row.media_type
+      if (row.note_id) {
+        item.note = {
+          id: row.note_id,
+          item_id: row.id,
+          subtype: row.subtype,
+          content: row.content,
+          url: row.url,
+          media_type: row.media_type,
+          project_id: row.note_project_id
+        }
       }
-    }
 
     if (row.list_id) {
       // Get list items
@@ -168,6 +169,14 @@ export async function GET(
         ORDER BY i.created_at DESC
       `).all(row.project_id) as { id: string; text: string; created_at: number; updated_at: number; status: string }[]
 
+      const projectNotes = db.prepare(`
+        SELECT i.id, i.text, i.created_at, i.updated_at
+        FROM notes n
+        JOIN items i ON i.id = n.item_id
+        WHERE n.project_id = ?
+        ORDER BY i.created_at DESC
+      `).all(row.project_id) as { id: string; text: string; created_at: number; updated_at: number }[]
+
       if (projectTasks) {
         const totalTasks = projectTasks.length
         const completedTasks = projectTasks.filter(t => t.status === 'completed').length
@@ -191,6 +200,13 @@ export async function GET(
           status: (t.status || 'pending') as any,
           created_at: t.created_at,
           updated_at: t.updated_at
+        }))
+
+        item.project_notes = projectNotes.map(n => ({
+          id: n.id,
+          title: n.text,
+          created_at: n.created_at,
+          updated_at: n.updated_at
         }))
 
         item.project_summary = {
@@ -435,11 +451,12 @@ export async function PUT(
 
     if (body.note) {
       const existingNote = db.prepare('SELECT id FROM notes WHERE item_id = ?').get(params.id)
+      const projectId = body.note.project_id || null
       
       if (existingNote) {
         const updateNote = db.prepare(`
           UPDATE notes 
-          SET subtype = ?, content = ?, url = ?, media_type = ?
+          SET subtype = ?, content = ?, url = ?, media_type = ?, project_id = ?
           WHERE item_id = ?
         `)
         updateNote.run(
@@ -447,12 +464,13 @@ export async function PUT(
           body.note.content || null,
           body.note.url || null,
           body.note.media_type || null,
+          projectId,
           params.id
         )
       } else {
         const insertNote = db.prepare(`
-          INSERT INTO notes (id, item_id, subtype, content, url, media_type)
-          VALUES (?, ?, ?, ?, ?, ?)
+          INSERT INTO notes (id, item_id, subtype, content, url, media_type, project_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
         `)
         insertNote.run(
           `note_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -460,7 +478,8 @@ export async function PUT(
           body.note.subtype || 'general',
           body.note.content || null,
           body.note.url || null,
-          body.note.media_type || null
+          body.note.media_type || null,
+          projectId
         )
       }
     }

@@ -15,9 +15,9 @@ Scope: deliver markdown-driven Project and List experiences (Bulleted, Numbered,
 - [ ] Add basic affordances for reorder/delete if existing patterns support it; otherwise, keep linear order stable.
 
 ## Phase 3 — Project Markdown Experience
-- [ ] Add project template with core fields and fixed type dropdown {Personal, Coding, Smart Home, Work, Apartment}; wire into entity creation/edit flows.
-- [ ] Build project detail markdown sections (description/goals/checkpoints) and surface associated tasks/notes lists with click-to-preview modal and jump-to-edit.
-- [ ] Implement widgets: completion ratio (tasks done/total for project), staleness (age since creation), recent activity (latest task/note timestamp), priority indicator (reuse existing priority if available), and “Danger Zone” alert (≥70% complete AND ≥7 days inactivity).
+- [x] Add project template with core fields and fixed type dropdown {Personal, Coding, Smart Home, Work, Apartment}; wire into entity creation/edit flows.
+- [ ] Build project detail markdown sections (description/goals/checkpoints) and surface associated tasks/notes lists with click-to-preview modal and jump-to-edit (notes linkage pending).
+- [ ] Implement widgets: completion ratio (tasks done/total for project), staleness (age since creation), recent activity (latest task/note timestamp), priority indicator (reuse existing priority if available), and “Danger Zone” alert (≥70% complete AND ≥7 days inactivity) (tasks metrics done; notes and final polish pending).
 
 ## Phase 4 — Integration & State Coherence
 - [ ] Thread new templates/types through capture flows (JumpTheLine, LetAIDoIt, Ready → Convert) and ensure AI/feature gating remains intact; avoid touching legacy todo entity.

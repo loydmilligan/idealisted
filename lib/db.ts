@@ -439,6 +439,7 @@ export function initializeDatabase() {
       id TEXT PRIMARY KEY,
       item_id TEXT NOT NULL,
       subtype TEXT DEFAULT 'general' CHECK (subtype IN ('general', 'research', 'video', 'link', 'file', 'contact', 'meeting')),
+      project_id TEXT,
       content TEXT,
       url TEXT,
       media_type TEXT,
@@ -446,6 +447,15 @@ export function initializeDatabase() {
       FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
     )
   `)
+
+  try {
+    db.exec(`ALTER TABLE notes ADD COLUMN project_id TEXT`)
+  } catch (e) {
+    if (!e.message?.includes('duplicate column name')) {
+      console.error('Failed to add project_id to notes:', e)
+      throw e
+    }
+  }
 
   // Lists table
   db.exec(`

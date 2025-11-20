@@ -145,6 +145,7 @@ export interface Note {
   id: string
   item_id: string
   subtype: 'general' | 'research' | 'video' | 'link' | 'file' | 'contact' | 'meeting'
+  project_id?: string
   content?: string
   url?: string
   media_type?: string
@@ -284,6 +285,7 @@ export interface ItemWithRelations extends Item {
   list?: List & { items: ListItem[] }
   project?: Project
   project_tasks?: ProjectTaskSummary[]
+  project_notes?: ProjectNoteSummary[]
   project_summary?: ProjectSummary
   metadata?: Record<string, any>
 }
@@ -317,6 +319,13 @@ export interface ProjectSummary {
     active: boolean
     reason?: string
   }
+}
+
+export interface ProjectNoteSummary {
+  id: string
+  title: string
+  created_at?: number
+  updated_at?: number
 }
 
 // API request/response types
