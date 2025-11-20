@@ -34,6 +34,8 @@ export async function POST(request: NextRequest) {
     // Call AI API for intelligent suggestion
     const prompt = `Analyze this text and suggest the best way to process it in a productivity app. 
 
+Return a tight, human-friendly title (avoid echoing the whole input; prefer concise names like "Packing list", "Workshop notes", "Project kickoff"). Titles should be capitalized and 3-6 words max where possible.
+
 Text: "${text}"
 
 Respond with a JSON object containing:
@@ -41,6 +43,7 @@ Respond with a JSON object containing:
   "suggested_type": "note|task|project|list",
   "confidence": 0.0-1.0,
   "processed_text": "cleaned and improved version of the text",
+  "title": "concise, improved title for the entity",
   "tags": ["tag1", "tag2", "tag3"],
   "additional_fields": {
     "priority": 1-3,
@@ -62,6 +65,7 @@ Rules:
 - Use "project" for multi-step endeavors with deadlines
 - For lists: extract list name if "add X to Y list" format, otherwise create new list
 - For lists: split comma-separated items into list_items array
+- For lists/projects/notes: generate a concise title; if text says "add ... to packing list", title should be "Packing list"
 - Extract relevant tags from context
 - Set priority 3 for urgent, 2 for important, 1 for normal
 - Include due dates/deadlines only if explicitly mentioned

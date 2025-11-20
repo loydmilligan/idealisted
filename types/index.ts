@@ -102,6 +102,7 @@ export interface AISuggestion {
   suggested_template?: string  // e.g., 'note-youtube', 'note-generic'
   confidence: number
   processed_text: string
+  title?: string
   tags: string[]
   additional_fields: {
     priority?: number

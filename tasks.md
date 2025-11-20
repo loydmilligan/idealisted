@@ -36,3 +36,4 @@ Scope: deliver markdown-driven Project and List experiences (Bulleted, Numbered,
 - [ ] Ensure tags are present/editable on all markdown entities and integrated with the Files tag filters; fix tag filters on Files screen.
 - [ ] Add AI tag suggestion button in all markdown editor/creator modals.
 - [ ] Restore/confirm project edit buttons and flow in viewer.
+- [ ] Enhance AI suggestion prompt to generate concise/improved titles (especially lists/projects/notes) rather than echoing full input text.
