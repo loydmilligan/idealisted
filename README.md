@@ -80,6 +80,19 @@ AI-driven conversion with automatic type detection and detail extraction:
 | **Markdown** | ✅ Task, Note | ✅ Task, Note | ✅ Task, Note |
 | **Modal** | Always (in Ready) | Currently yes (should be optional) | Optional (to be added) |
 
+## Development
+
+Local dev (direct):
+```bash
+npm run dev -- --hostname 0.0.0.0 --port 3300
+```
+
+PM2 (recommended for a stable dev instance on port 3300):
+```bash
+pm2 start ecosystem.config.js --only idealisted --update-env
+pm2 reload idealisted --update-env
+```
+
 ## Daily Review Feature
 
 The Daily Review system automatically tracks your productivity and sends daily summaries via push notifications.
