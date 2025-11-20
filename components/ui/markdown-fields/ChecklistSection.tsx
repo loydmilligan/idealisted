@@ -8,7 +8,7 @@
 
 'use client'
 
-import React from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { X, Plus } from 'lucide-react'
 
 export interface ChecklistItem {
@@ -31,6 +31,18 @@ export function ChecklistSection({
   required = false,
   placeholder = 'Enter subtask...'
 }: ChecklistSectionProps) {
+  const [pendingFocusIndex, setPendingFocusIndex] = useState<number | null>(null)
+  const inputRefs = useRef<Record<number, HTMLInputElement | null>>({})
+
+  useEffect(() => {
+    if (pendingFocusIndex === null) return
+    const ref = inputRefs.current[pendingFocusIndex]
+    if (ref) {
+      ref.focus()
+    }
+    setPendingFocusIndex(null)
+  }, [items, pendingFocusIndex])
+
   const handleItemChange = (index: number, field: 'text' | 'checked', value: string | boolean) => {
     const newItems = [...items]
     newItems[index] = {
@@ -40,13 +52,31 @@ export function ChecklistSection({
     onChange(newItems)
   }
 
-  const handleAddItem = () => {
-    onChange([...items, { text: '', checked: false }])
+  const addItemAfter = (index: number | null) => {
+    const insertionIndex = index === null ? items.length : index + 1
+    const newItems = [...items]
+    newItems.splice(insertionIndex, 0, { text: '', checked: false })
+    onChange(newItems)
+    setPendingFocusIndex(insertionIndex)
   }
 
   const handleRemoveItem = (index: number) => {
     const newItems = items.filter((_, i) => i !== index)
     onChange(newItems)
+    const nextIndex = Math.max(0, index - 1)
+    if (newItems.length > 0) {
+      setPendingFocusIndex(nextIndex)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      addItemAfter(index)
+    } else if (e.key === 'Backspace' && items[index].text.trim() === '' && items.length > 1) {
+      e.preventDefault()
+      handleRemoveItem(index)
+    }
   }
 
   return (
@@ -97,7 +127,9 @@ export function ChecklistSection({
                   type="text"
                   className="retro-input"
                   value={item.text}
+                  ref={(el) => { inputRefs.current[index] = el }}
                   onChange={(e) => handleItemChange(index, 'text', e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e, index)}
                   placeholder={placeholder}
                   style={{
                     flex: 1,
@@ -130,7 +162,7 @@ export function ChecklistSection({
 
         <button
           type="button"
-          onClick={handleAddItem}
+          onClick={() => addItemAfter(items.length - 1)}
           className="retro-btn retro-btn-secondary"
           style={{
             marginTop: 'var(--space-sm)',

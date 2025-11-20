@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 
 export async function GET() {
   try {
-    const templates = db.prepare('SELECT id, name, markdown_template, field_config FROM templates ORDER BY id').all()
+    const templates = db.prepare('SELECT id, name, entity_type, subtype, markdown_template, field_config FROM templates ORDER BY name').all()
 
     return NextResponse.json({
       success: true,

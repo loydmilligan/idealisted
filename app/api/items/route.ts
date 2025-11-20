@@ -3,6 +3,34 @@ import { db, updateTagUsage } from '@/lib/db'
 import { Item, CreateItemRequest, ItemWithRelations } from '@/types'
 import { v4 as uuidv4 } from 'uuid'
 
+const mapPriorityNumberToLabel = (priority?: number | null): 'low' | 'medium' | 'high' | undefined => {
+  if (priority === 1) return 'low'
+  if (priority === 3) return 'high'
+  if (priority === 2) return 'medium'
+  return undefined
+}
+
+const mapPriorityLabelToNumber = (priority?: string | number | null): number => {
+  if (priority === 'high' || priority === 3) return 3
+  if (priority === 'low' || priority === 1) return 1
+  return 2
+}
+
+const normalizeProjectType = (projectType?: string | null): string | null => {
+  if (!projectType) return null
+  const normalized = projectType.toLowerCase()
+  if (normalized === 'smart home') return 'smart-home'
+  return normalized
+}
+
+const normalizeListType = (listType?: string | null): string => {
+  const normalized = (listType || '').toLowerCase()
+  if (['bulleted', 'numbered', 'tasklist', 'shopping'].includes(normalized)) {
+    return normalized
+  }
+  return 'bulleted'
+}
+
 // GET /api/items - Get all items with optional filtering
 export async function GET(request: NextRequest) {
   try {
@@ -19,8 +47,8 @@ export async function GET(request: NextRequest) {
              task.tags as task_tags, task.estimated_time, task.project_id, task.due_date as task_due_date,
              task.reminder_datetime, task.last_notified_at,
              n.id as note_id, n.subtype, n.content, n.url, n.media_type,
-             l.id as list_id, l.name as list_name, l.tags as list_tags, l.description as list_description,
-             p.id as project_id, p.status as project_status, p.tags as project_tags,
+             l.id as list_id, l.name as list_name, l.list_type as list_type, l.tags as list_tags, l.description as list_description,
+             p.id as project_id, p.status as project_status, p.project_type as project_type, p.priority as project_priority, p.tags as project_tags,
              p.deadline, p.description as project_description, p.progress, p.start_date, p.end_date
       FROM items i
       LEFT JOIN todos t ON i.id = t.item_id
@@ -119,6 +147,7 @@ export async function GET(request: NextRequest) {
           id: row.list_id,
           item_id: row.id,
           name: row.list_name,
+          list_type: row.list_type || 'bulleted',
           tags: row.list_tags ? JSON.parse(row.list_tags) : [],
           description: row.list_description,
           items: listItems.map(li => ({
@@ -137,6 +166,8 @@ export async function GET(request: NextRequest) {
           id: row.project_id,
           item_id: row.id,
           status: row.project_status || 'planning',
+          project_type: row.project_type || 'personal',
+          priority: mapPriorityNumberToLabel(row.project_priority),
           tags: row.project_tags ? JSON.parse(row.project_tags) : [],
           deadline: row.deadline,
           description: row.project_description,
@@ -240,14 +271,16 @@ export async function POST(request: NextRequest) {
 
     if (body.type === 'list' && body.list) {
       const listId = uuidv4()
+      const listType = normalizeListType(body.list.list_type)
       const insertList = db.prepare(`
-        INSERT INTO lists (id, item_id, name, tags, description)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO lists (id, item_id, name, list_type, tags, description)
+        VALUES (?, ?, ?, ?, ?, ?)
       `)
       insertList.run(
         listId, 
         id, 
         body.list.name,
+        listType,
         body.list.tags ? JSON.stringify(body.list.tags) : null,
         body.list.description || null
       )
@@ -274,13 +307,15 @@ export async function POST(request: NextRequest) {
 
     if (body.type === 'project' && body.project) {
       const insertProject = db.prepare(`
-        INSERT INTO projects (id, item_id, status, tags, deadline, description, progress, start_date, end_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO projects (id, item_id, status, project_type, priority, tags, deadline, description, progress, start_date, end_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       insertProject.run(
         uuidv4(),
         id,
         body.project.status || 'planning',
+        normalizeProjectType(body.project.project_type) || 'personal',
+        mapPriorityLabelToNumber(body.project.priority),
         body.project.tags ? JSON.stringify(body.project.tags) : null,
         body.project.deadline || null,
         body.project.description || null,

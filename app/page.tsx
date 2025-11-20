@@ -538,24 +538,26 @@ function HomePageContent() {
       }
     }
 
-    // Initialize empty sections for those not provided
-    if (fieldConfig.sections) {
-      for (const [sectionName, sectionDef] of Object.entries(fieldConfig.sections)) {
-        if (!sections[sectionName]) {
-          const def = sectionDef as any
-          switch (def.type) {
-            case 'textarea':
-              sections[sectionName] = ''
-              break
-            case 'bulletlist':
-            case 'timestamplist':
-            case 'checklist':
-            case 'taglist':
-              sections[sectionName] = []
-              break
-            default:
-              sections[sectionName] = ''
-          }
+      // Initialize empty sections for those not provided
+      if (fieldConfig.sections) {
+        for (const [sectionName, sectionDef] of Object.entries(fieldConfig.sections)) {
+          if (!sections[sectionName]) {
+            const def = sectionDef as any
+            switch (def.type) {
+              case 'textarea':
+                sections[sectionName] = ''
+                break
+              case 'bulletlist':
+              case 'orderedlist':
+              case 'timestamplist':
+              case 'checklist':
+              case 'taglist':
+              case 'shoppinglist':
+                sections[sectionName] = []
+                break
+              default:
+                sections[sectionName] = ''
+            }
         }
       }
     }
@@ -844,6 +846,7 @@ function HomePageContent() {
           } else if (entityType === 'list') {
             entityData.list = {
               name: item.text,
+              list_type: 'bulleted',
               tags: item.tags || [],
               description: '',
               items: [],

@@ -8,7 +8,7 @@
 
 'use client'
 
-import React from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { X, Plus } from 'lucide-react'
 
 interface BulletListSectionProps {
@@ -17,6 +17,7 @@ interface BulletListSectionProps {
   onChange: (items: string[]) => void
   required?: boolean
   placeholder?: string
+  variant?: 'bullet' | 'ordered' | 'shopping'
 }
 
 export function BulletListSection({
@@ -24,21 +25,64 @@ export function BulletListSection({
   items,
   onChange,
   required = false,
-  placeholder = 'Enter item...'
+  placeholder,
+  variant = 'bullet'
 }: BulletListSectionProps) {
+  const [pendingFocusIndex, setPendingFocusIndex] = useState<number | null>(null)
+  const inputRefs = useRef<Record<number, HTMLInputElement | null>>({})
+
+  const resolvedPlaceholder = placeholder || (variant === 'shopping' ? 'Add item (e.g., eggs - 1 dozen)' : 'Enter item...')
+
+  useEffect(() => {
+    if (pendingFocusIndex === null) return
+    const ref = inputRefs.current[pendingFocusIndex]
+    if (ref) {
+      ref.focus()
+    }
+    setPendingFocusIndex(null)
+  }, [items, pendingFocusIndex])
+
   const handleItemChange = (index: number, value: string) => {
     const newItems = [...items]
     newItems[index] = value
     onChange(newItems)
   }
 
-  const handleAddItem = () => {
-    onChange([...items, ''])
+  const addItemAfter = (index: number | null) => {
+    const insertionIndex = index === null ? items.length : index + 1
+    const newItems = [...items]
+    newItems.splice(insertionIndex, 0, '')
+    onChange(newItems)
+    setPendingFocusIndex(insertionIndex)
   }
 
   const handleRemoveItem = (index: number) => {
     const newItems = items.filter((_, i) => i !== index)
     onChange(newItems)
+    const nextIndex = Math.max(0, index - 1)
+    if (newItems.length > 0) {
+      setPendingFocusIndex(nextIndex)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      addItemAfter(index)
+    } else if (e.key === 'Backspace' && items[index].trim() === '' && items.length > 1) {
+      e.preventDefault()
+      handleRemoveItem(index)
+    }
+  }
+
+  const renderPrefix = (index: number) => {
+    if (variant === 'ordered') {
+      return `${index + 1}.`
+    }
+    if (variant === 'shopping') {
+      return '◦'
+    }
+    return '•'
   }
 
   return (
@@ -80,14 +124,16 @@ export function BulletListSection({
                   color: 'var(--palm-text-primary)',
                   minWidth: '20px'
                 }}>
-                  •
+                  {renderPrefix(index)}
                 </span>
                 <input
                   type="text"
                   className="retro-input"
                   value={item}
+                  ref={(el) => { inputRefs.current[index] = el }}
                   onChange={(e) => handleItemChange(index, e.target.value)}
-                  placeholder={placeholder}
+                  onKeyDown={(e) => handleKeyDown(e, index)}
+                  placeholder={resolvedPlaceholder}
                   style={{ flex: 1 }}
                 />
                 <button
@@ -115,7 +161,7 @@ export function BulletListSection({
 
         <button
           type="button"
-          onClick={handleAddItem}
+          onClick={() => addItemAfter(items.length - 1)}
           className="retro-btn retro-btn-secondary"
           style={{
             marginTop: 'var(--space-sm)',

@@ -199,6 +199,102 @@ function seedTemplates() {
     }
   })
 
+  const listBulletedMarkdown = `# {title}
+
+## Items
+- 
+
+## Notes
+`
+
+  const listBulletedFieldConfig = JSON.stringify({
+    sections: {
+      Items: { type: "bulletlist", required: true },
+      Notes: { type: "textarea", required: false }
+    }
+  })
+
+  const listNumberedMarkdown = `# {title}
+
+## Items
+1. 
+
+## Notes
+`
+
+  const listNumberedFieldConfig = JSON.stringify({
+    sections: {
+      Items: { type: "orderedlist", required: true },
+      Notes: { type: "textarea", required: false }
+    }
+  })
+
+  const listTaskMarkdown = `# {title}
+
+## Tasks
+- [ ] First task
+
+## Notes
+`
+
+  const listTaskFieldConfig = JSON.stringify({
+    sections: {
+      Tasks: { type: "checklist", required: false },
+      Notes: { type: "textarea", required: false }
+    }
+  })
+
+  const listShoppingMarkdown = `# {title}
+
+## Shopping List
+- [ ] Item
+
+## Notes
+`
+
+  const listShoppingFieldConfig = JSON.stringify({
+    sections: {
+      "Shopping List": { type: "shoppinglist", required: true },
+      Notes: { type: "textarea", required: false }
+    }
+  })
+
+  const projectMarkdown = `# {title}
+
+**Type**: 
+**Status**: Planning
+**Priority**: Medium
+**Deadline**:
+
+## Overview
+
+
+## Goals
+- 
+
+
+## Checkpoints
+- [ ]
+
+
+## Notes
+`
+
+  const projectFieldConfig = JSON.stringify({
+    fields: {
+      Type: { type: "select", options: ["Personal", "Coding", "Smart Home", "Work", "Apartment"], required: true },
+      Status: { type: "select", options: ["Planning", "Active", "Completed"], required: true },
+      Priority: { type: "select", options: ["Low", "Medium", "High"], required: false },
+      Deadline: { type: "date", required: false }
+    },
+    sections: {
+      Overview: { type: "textarea", required: false },
+      Goals: { type: "bulletlist", required: false },
+      Checkpoints: { type: "checklist", required: false },
+      Notes: { type: "textarea", required: false }
+    }
+  })
+
   try {
     const insert = db.prepare(`
       INSERT OR IGNORE INTO templates (id, name, entity_type, subtype, markdown_template, field_config, is_system, created_at, updated_at)
@@ -208,6 +304,11 @@ function seedTemplates() {
     insert.run('task', 'Task', 'task', null, taskMarkdown, taskFieldConfig, 1, now, now)
     insert.run('note-generic', 'Generic Note', 'note', 'generic', noteGenericMarkdown, noteGenericFieldConfig, 1, now, now)
     insert.run('note-youtube', 'YouTube Learning Note', 'note', 'youtube', noteYoutubeMarkdown, noteYoutubeFieldConfig, 1, now, now)
+    insert.run('list-bulleted', 'Bulleted List', 'list', 'bulleted', listBulletedMarkdown, listBulletedFieldConfig, 1, now, now)
+    insert.run('list-numbered', 'Numbered List', 'list', 'numbered', listNumberedMarkdown, listNumberedFieldConfig, 1, now, now)
+    insert.run('list-tasklist', 'TaskList', 'list', 'tasklist', listTaskMarkdown, listTaskFieldConfig, 1, now, now)
+    insert.run('list-shopping', 'Shopping List', 'list', 'shopping', listShoppingMarkdown, listShoppingFieldConfig, 1, now, now)
+    insert.run('project-standard', 'Project', 'project', 'standard', projectMarkdown, projectFieldConfig, 1, now, now)
 
     console.log('Seeded system templates')
   } catch (error) {
@@ -352,11 +453,21 @@ export function initializeDatabase() {
       id TEXT PRIMARY KEY,
       item_id TEXT NOT NULL,
       name TEXT,
+      list_type TEXT DEFAULT 'bulleted' CHECK (list_type IN ('bulleted', 'numbered', 'tasklist', 'shopping')),
       tags TEXT, -- JSON array of tags
       description TEXT,
       FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
     )
   `)
+
+  try {
+    db.exec(`ALTER TABLE lists ADD COLUMN list_type TEXT DEFAULT 'bulleted'`)
+  } catch (e) {
+    if (!e.message?.includes('duplicate column name')) {
+      console.error('Failed to add list_type column:', e)
+      throw e
+    }
+  }
 
   // List items table
   db.exec(`
@@ -377,6 +488,8 @@ export function initializeDatabase() {
       id TEXT PRIMARY KEY,
       item_id TEXT NOT NULL,
       status TEXT DEFAULT 'planning' CHECK (status IN ('planning', 'active', 'completed')),
+      project_type TEXT DEFAULT 'personal' CHECK (project_type IN ('personal', 'coding', 'smart-home', 'work', 'apartment')),
+      priority INTEGER DEFAULT 2 CHECK (priority IN (1, 2, 3)),
       tags TEXT, -- JSON array of tags
       deadline INTEGER,
       description TEXT,
@@ -386,6 +499,24 @@ export function initializeDatabase() {
       FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
     )
   `)
+
+  try {
+    db.exec(`ALTER TABLE projects ADD COLUMN project_type TEXT DEFAULT 'personal'`)
+  } catch (e) {
+    if (!e.message?.includes('duplicate column name')) {
+      console.error('Failed to add project_type column:', e)
+      throw e
+    }
+  }
+
+  try {
+    db.exec(`ALTER TABLE projects ADD COLUMN priority INTEGER DEFAULT 2`)
+  } catch (e) {
+    if (!e.message?.includes('duplicate column name')) {
+      console.error('Failed to add project priority column:', e)
+      throw e
+    }
+  }
 
   // Templates table - stores markdown templates for tasks and notes
   db.exec(`

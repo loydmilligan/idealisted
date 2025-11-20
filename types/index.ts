@@ -1,3 +1,7 @@
+export type ListType = 'bulleted' | 'numbered' | 'tasklist' | 'shopping'
+export type ProjectType = 'personal' | 'coding' | 'smart-home' | 'work' | 'apartment'
+export type ProjectPriority = 'low' | 'medium' | 'high'
+
 export interface Item {
   id: string
   type: 'idea' | 'note' | 'task' | 'project' | 'list'
@@ -30,12 +34,15 @@ export interface Item {
   }
   project?: {
     status: 'planning' | 'active' | 'completed'
+    project_type?: ProjectType
+    priority?: ProjectPriority
     tags?: string[]
     deadline?: number
     description?: string
   }
   list?: {
     name: string
+    list_type?: ListType
     tags?: string[]
     description?: string
   }
@@ -73,7 +80,7 @@ export interface FieldDef {
 }
 
 export interface SectionDef {
-  type: 'textarea' | 'bulletlist' | 'checklist' | 'timestamplist' | 'taglist'
+  type: 'textarea' | 'bulletlist' | 'orderedlist' | 'checklist' | 'timestamplist' | 'taglist' | 'shoppinglist'
   required: boolean
   readonly?: boolean
 }
@@ -147,6 +154,7 @@ export interface List {
   id: string
   item_id: string
   name: string
+  list_type?: ListType
   tags?: string[]
   description?: string
 }
@@ -164,6 +172,8 @@ export interface Project {
   id: string
   item_id: string
   status: 'planning' | 'active' | 'completed'
+  project_type?: ProjectType
+  priority?: ProjectPriority
   tags?: string[]
   deadline?: number
   description?: string

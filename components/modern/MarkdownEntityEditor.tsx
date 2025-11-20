@@ -192,11 +192,14 @@ export function MarkdownEntityEditor({
       case 'textarea':
         return ''
       case 'bulletlist':
+      case 'orderedlist':
       case 'timestamplist':
         return []
       case 'checklist':
         return []
       case 'taglist':
+        return []
+      case 'shoppinglist':
         return []
       default:
         return ''
@@ -214,11 +217,18 @@ export function MarkdownEntityEditor({
         return content
 
       case 'bulletlist':
+      case 'shoppinglist':
         // Parse lines starting with - or *
         return content
           .split('\n')
           .filter(line => line.trim().match(/^[-*]\s+/))
           .map(line => line.replace(/^[-*]\s+/, '').trim())
+
+      case 'orderedlist':
+        return content
+          .split('\n')
+          .filter(line => line.trim().match(/^\d+[\.\)]\s+/))
+          .map(line => line.replace(/^\d+[\.\)]\s+/, '').trim())
 
       case 'checklist':
         // Parse lines with - [ ] or - [x]
@@ -276,6 +286,12 @@ export function MarkdownEntityEditor({
           .map(item => `- ${item}`)
           .join('\n')
 
+      case 'orderedlist':
+        return (data as string[])
+          .filter(item => item.trim())
+          .map((item, index) => `${index + 1}. ${item}`)
+          .join('\n')
+
       case 'checklist':
         return (data as Array<{ text: string; checked: boolean }>)
           .filter(item => item.text.trim())
@@ -292,6 +308,12 @@ export function MarkdownEntityEditor({
         return (data as string[])
           .filter(tag => tag.trim())
           .join(', ')
+
+      case 'shoppinglist':
+        return (data as string[])
+          .filter(item => item.trim())
+          .map(item => `- ${item}`)
+          .join('\n')
 
       default:
         return String(data || '')
@@ -494,6 +516,18 @@ export function MarkdownEntityEditor({
           />
         )
 
+      case 'orderedlist':
+        return (
+          <BulletListSection
+            key={sectionName}
+            label={sectionName}
+            items={value || []}
+            onChange={(val) => updateSection(sectionName, val)}
+            required={sectionDef.required}
+            variant="ordered"
+          />
+        )
+
       case 'checklist':
         return (
           <ChecklistSection
@@ -513,6 +547,18 @@ export function MarkdownEntityEditor({
             items={value || []}
             onChange={(val) => updateSection(sectionName, val)}
             required={sectionDef.required}
+          />
+        )
+
+      case 'shoppinglist':
+        return (
+          <BulletListSection
+            key={sectionName}
+            label={sectionName}
+            items={value || []}
+            onChange={(val) => updateSection(sectionName, val)}
+            required={sectionDef.required}
+            variant="shopping"
           />
         )
 
