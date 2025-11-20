@@ -70,6 +70,7 @@ function HomePageContent() {
   const [markdownEditorOpen, setMarkdownEditorOpen] = useState(false)
   const [templateSelectorOpen, setTemplateSelectorOpen] = useState(false)
   const [templateSelectorEntityType, setTemplateSelectorEntityType] = useState<'task' | 'note' | 'project' | 'list' | undefined>(undefined)
+  const [projectContextId, setProjectContextId] = useState<string | null>(null)
   const [currentMarkdownItem, setCurrentMarkdownItem] = useState<ItemWithRelations | null>(null)
   const [currentTemplate, setCurrentTemplate] = useState<Template | null>(null)
   const [convertingItemId, setConvertingItemId] = useState<string | null>(null) // Track item being converted from Ready tab
@@ -688,6 +689,10 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
     setCurrentMarkdownItem(null) // Create mode
     setTemplateSelectorOpen(false)
     setTemplateSelectorEntityType(undefined)
+    // If we were adding a note to a project, keep projectContextId set; otherwise clear
+    if (template.entity_type !== 'note') {
+      setProjectContextId(null)
+    }
     setMarkdownEditorOpen(true)
 
     // capturedText and currentAIItem already set by handleOverrideAndEdit
@@ -698,6 +703,7 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
     setTemplateSelectorOpen(false)
     setTemplateSelectorEntityType(undefined)
     setConvertingItemId(null)
+    setProjectContextId(null)
     // Clear override flow state
     setCurrentAIItem(null)
     setCapturedText('')
@@ -1254,6 +1260,7 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
       const entityType = currentTemplate.entity_type
       const projectPayload = entityType === 'project' ? normalizeProjectPayloadFromFields(fields) : undefined
       const listPayload = entityType === 'list' ? normalizeListPayloadFromTemplate(currentTemplate, fields, markdown) : undefined
+      const notePayload = entityType === 'note' && projectContextId ? { project_id: projectContextId } : undefined
 
       const response = await fetch('/api/items', {
         method: 'POST',
@@ -1267,7 +1274,8 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
           parsed: true,
           entity_type: entityType,
           project: projectPayload,
-          list: listPayload
+          list: listPayload,
+          note: notePayload
         })
       })
 
@@ -1313,6 +1321,7 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
     setCurrentMarkdownItem(null)
     setCurrentTemplate(null)
     setConvertingItemId(null) // Clear converting item ID
+    setProjectContextId(null)
     setPreFillData(null) // Task 4.3: Clear pre-fill data
     setCapturedText('') // Clear to prevent stale data
   }
@@ -1888,6 +1897,26 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
                     >
                       Close
                     </button>
+                    {currentMarkdownItem.type === 'project' && (
+                      <button
+                        onClick={() => {
+                          setProjectContextId(currentMarkdownItem.project?.id || null)
+                          setTemplateSelectorEntityType('note')
+                          setTemplateSelectorOpen(true)
+                          setMarkdownViewerOpen(false)
+                        }}
+                        className="retro-btn retro-btn-secondary"
+                        style={{
+                          padding: '8px 16px',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                        }}
+                      >
+                        Add Note
+                      </button>
+                    )}
                     <button
                       onClick={handleMarkdownEdit}
                       className="retro-btn retro-btn-primary"
