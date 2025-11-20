@@ -38,7 +38,7 @@ export interface PreFillData {
 interface MarkdownEntityEditorProps {
   item: Item | null // null for new entities
   template: Template
-  onSave: (markdown: string) => Promise<void>
+  onSave: (payload: { markdown: string; fields: Record<string, string>; sections: Record<string, any>; rawSections?: Record<string, any> }) => Promise<void>
   onCancel: () => void
   isOpen: boolean
   /**
@@ -389,7 +389,17 @@ export function MarkdownEntityEditor({
         template
       )
 
-      await onSave(markdown)
+      await onSave({
+        markdown,
+        fields: formState.fields,
+        sections: serializedSections,
+        rawSections: formState.sections
+      } as any)
+      await onSave({
+        markdown,
+        fields: formState.fields,
+        sections: formState.sections
+      } as any)
     } catch (error) {
       console.error('Failed to save:', error)
       setErrors([error instanceof Error ? error.message : 'Failed to save entity'])

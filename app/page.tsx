@@ -476,7 +476,7 @@ function HomePageContent() {
   }
 
   // Task 4.3: Build pre-fill data from AI suggestion
-  const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFillData => {
+const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFillData => {
     const fields: Record<string, string> = {}
     const sections: Record<string, any> = {}
 
@@ -1115,15 +1115,19 @@ function HomePageContent() {
     setMarkdownEditorOpen(true)
   }
 
-  const handleMarkdownSave = async (markdown: string) => {
-    if (!currentMarkdownItem) return
+  const handleMarkdownSave = async (payload: { markdown: string; fields: Record<string, string>; sections: Record<string, any>; rawSections?: Record<string, any> }) => {
+    if (!currentMarkdownItem || !currentTemplate) return
+
+    const { markdown, fields } = payload
 
     try {
       const response = await fetch(`/api/items/${currentMarkdownItem.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          markdown_content: markdown
+          markdown_content: markdown,
+          project: currentTemplate.entity_type === 'project' ? normalizeProjectPayloadFromFields(fields) : undefined,
+          list: currentTemplate.entity_type === 'list' ? normalizeListPayloadFromTemplate(currentTemplate, fields, markdown) : undefined
         })
       })
 
@@ -1152,11 +1156,15 @@ function HomePageContent() {
     }
   }
 
-  const handleMarkdownCreate = async (markdown: string) => {
+  const handleMarkdownCreate = async (payload: { markdown: string; fields: Record<string, string>; sections: Record<string, any>; rawSections?: Record<string, any> }) => {
     if (!currentTemplate) return
+
+    const { markdown, fields } = payload
 
     try {
       const entityType = currentTemplate.entity_type
+      const projectPayload = entityType === 'project' ? normalizeProjectPayloadFromFields(fields) : undefined
+      const listPayload = entityType === 'list' ? normalizeListPayloadFromTemplate(currentTemplate, fields, markdown) : undefined
 
       const response = await fetch('/api/items', {
         method: 'POST',
@@ -1168,7 +1176,9 @@ function HomePageContent() {
           template_id: currentTemplate.id,
           tags: [],
           parsed: true,
-          entity_type: entityType
+          entity_type: entityType,
+          project: projectPayload,
+          list: listPayload
         })
       })
 
@@ -1796,6 +1806,42 @@ function HomePageContent() {
       <div className="retro-device-button"></div>
     </div>
   )
+}
+
+const extractTitleFromMarkdown = (markdown: string): string => {
+  const match = markdown.match(/^#\s+(.+)$/m)
+  return match ? match[1].trim() : ''
+}
+
+const normalizeProjectPayloadFromFields = (fields: Record<string, string>) => {
+  const rawStatus = (fields['Status'] || 'Planning').toLowerCase()
+  const status = ['planning', 'active', 'completed'].includes(rawStatus) ? rawStatus : 'planning'
+  const rawType = (fields['Type'] || 'personal').toLowerCase().replace(/\s+/g, '-')
+  const project_type = ['personal', 'coding', 'smart-home', 'work', 'apartment'].includes(rawType) ? rawType : 'personal'
+  const rawPriority = (fields['Priority'] || 'medium').toLowerCase()
+  let priority: 'low' | 'medium' | 'high' = 'medium'
+  if (rawPriority === 'high') priority = 'high'
+  if (rawPriority === 'low') priority = 'low'
+  const deadline = fields['Deadline'] ? new Date(fields['Deadline']).getTime() : null
+
+  return {
+    status,
+    project_type,
+    priority,
+    deadline
+  }
+}
+
+const normalizeListPayloadFromTemplate = (template: Template, fields: Record<string, string>, markdown: string) => {
+  let list_type: 'bulleted' | 'numbered' | 'tasklist' | 'shopping' = 'bulleted'
+  if (template.subtype === 'numbered') list_type = 'numbered'
+  if (template.subtype === 'tasklist') list_type = 'tasklist'
+  if (template.subtype === 'shopping') list_type = 'shopping'
+
+  return {
+    name: extractTitleFromMarkdown(markdown) || fields['Title'] || 'Untitled List',
+    list_type
+  }
 }
 
 // Loading fallback component
