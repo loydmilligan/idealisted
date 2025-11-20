@@ -395,11 +395,6 @@ export function MarkdownEntityEditor({
         sections: serializedSections,
         rawSections: formState.sections
       } as any)
-      await onSave({
-        markdown,
-        fields: formState.fields,
-        sections: formState.sections
-      } as any)
     } catch (error) {
       console.error('Failed to save:', error)
       setErrors([error instanceof Error ? error.message : 'Failed to save entity'])
