@@ -27,3 +27,12 @@ Scope: deliver markdown-driven Project and List experiences (Bulleted, Numbered,
 ## Phase 5 — Validation & QA
 - [ ] Manual pass on desktop/mobile: list entry ergonomics, markdown preview fidelity, project widgets/alerts, and modal previews.
 - [ ] Regression spot-checks: Task/Note markdown flows, AI suggestion panel, tag suggestions, entity conversion paths, and data integrity in `items` + type tables.
+
+## Phase 6 — Issues Found / UX Polish
+- [ ] Make list Template Selector use the mobile bottom-sheet/full-screen pattern (match markdown editor) when in small viewports.
+- [ ] Swap AI/mic buttons to monochrome icons (no color) to keep entity colors + logo as the only color pops.
+- [ ] Add note-type picker modal (like lists) for note templates.
+- [ ] Link “Recently Captured” items to jump to the appropriate tab/viewer (open viewer in Files).
+- [ ] Ensure tags are present/editable on all markdown entities and integrated with the Files tag filters; fix tag filters on Files screen.
+- [ ] Add AI tag suggestion button in all markdown editor/creator modals.
+- [ ] Restore/confirm project edit buttons and flow in viewer.

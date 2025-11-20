@@ -9,7 +9,7 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
-import { X, Plus } from 'lucide-react'
+import { X, Plus, ArrowUp, ArrowDown } from 'lucide-react'
 
 interface BulletListSectionProps {
   label: string
@@ -63,6 +63,16 @@ export function BulletListSection({
     if (newItems.length > 0) {
       setPendingFocusIndex(nextIndex)
     }
+  }
+
+  const handleMoveItem = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction
+    if (targetIndex < 0 || targetIndex >= items.length) return
+    const newItems = [...items]
+    const [moved] = newItems.splice(index, 1)
+    newItems.splice(targetIndex, 0, moved)
+    onChange(newItems)
+    setPendingFocusIndex(targetIndex)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
@@ -136,6 +146,42 @@ export function BulletListSection({
                   placeholder={resolvedPlaceholder}
                   style={{ flex: 1 }}
                 />
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleMoveItem(index, -1)}
+                    className="retro-btn-icon"
+                    disabled={index === 0}
+                    title="Move up"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: index === 0 ? 'not-allowed' : 'pointer',
+                      color: 'var(--palm-text-secondary)',
+                      padding: '4px',
+                      opacity: index === 0 ? 0.4 : 1
+                    }}
+                  >
+                    <ArrowUp size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleMoveItem(index, 1)}
+                    className="retro-btn-icon"
+                    disabled={index === items.length - 1}
+                    title="Move down"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: index === items.length - 1 ? 'not-allowed' : 'pointer',
+                      color: 'var(--palm-text-secondary)',
+                      padding: '4px',
+                      opacity: index === items.length - 1 ? 0.4 : 1
+                    }}
+                  >
+                    <ArrowDown size={14} />
+                  </button>
+                </div>
                 <button
                   type="button"
                   onClick={() => handleRemoveItem(index)}
