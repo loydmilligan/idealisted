@@ -112,6 +112,7 @@ export interface AISuggestion {
     status?: string
     list_name?: string
     list_items?: string[]
+    list_type?: string
     markdown_sections?: Record<string, string>  // Pre-filled sections
   }
   reasoning: string

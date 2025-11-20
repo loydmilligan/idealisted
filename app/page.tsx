@@ -69,6 +69,7 @@ function HomePageContent() {
   const [markdownViewerOpen, setMarkdownViewerOpen] = useState(false)
   const [markdownEditorOpen, setMarkdownEditorOpen] = useState(false)
   const [templateSelectorOpen, setTemplateSelectorOpen] = useState(false)
+  const [templateSelectorEntityType, setTemplateSelectorEntityType] = useState<'task' | 'note' | 'project' | 'list' | undefined>(undefined)
   const [currentMarkdownItem, setCurrentMarkdownItem] = useState<ItemWithRelations | null>(null)
   const [currentTemplate, setCurrentTemplate] = useState<Template | null>(null)
   const [convertingItemId, setConvertingItemId] = useState<string | null>(null) // Track item being converted from Ready tab
@@ -470,6 +471,7 @@ function HomePageContent() {
     setAiSuggestion(null)
 
     // Open template selector
+    setTemplateSelectorEntityType(undefined)
     setTemplateSelectorOpen(true)
 
     // Note: currentAIItem and capturedText will be used when template is selected
@@ -477,97 +479,158 @@ function HomePageContent() {
 
   // Task 4.3: Build pre-fill data from AI suggestion
 const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFillData => {
-    const fields: Record<string, string> = {}
-    const sections: Record<string, any> = {}
+  const fields: Record<string, string> = {}
+  const sections: Record<string, any> = {}
 
-    // Parse field_config from template
-    const fieldConfig = JSON.parse(template.field_config)
+  // Parse field_config from template
+  const fieldConfig = JSON.parse(template.field_config)
 
-    // Extract from markdown_sections if available
-    if (suggestion.additional_fields.markdown_sections) {
-      Object.assign(sections, suggestion.additional_fields.markdown_sections)
+  // Extract from markdown_sections if available
+  if (suggestion.additional_fields.markdown_sections) {
+    Object.assign(sections, suggestion.additional_fields.markdown_sections)
+  }
+
+  // Map metadata to fields based on entity type
+  if (suggestion.suggested_type === 'task' && fieldConfig.fields) {
+    // Map Status field
+    if (fieldConfig.fields['Status'] && suggestion.additional_fields.status) {
+      // Convert AI status to template format
+      const statusMap: Record<string, string> = {
+        'pending': 'Not Started',
+        'in-progress': 'In Progress',
+        'completed': 'Completed'
+      }
+      fields['Status'] = statusMap[suggestion.additional_fields.status] || 'Not Started'
     }
 
-    // Map metadata to fields based on entity type
-    if (suggestion.suggested_type === 'task' && fieldConfig.fields) {
-      // Map Status field
-      if (fieldConfig.fields['Status'] && suggestion.additional_fields.status) {
-        // Convert AI status to template format
-        const statusMap: Record<string, string> = {
-          'pending': 'Not Started',
-          'in-progress': 'In Progress',
-          'completed': 'Completed'
-        }
-        fields['Status'] = statusMap[suggestion.additional_fields.status] || 'Not Started'
+    // Map Priority field
+    if (fieldConfig.fields['Priority'] && suggestion.additional_fields.priority) {
+      // Convert priority number to label
+      const priorityMap: Record<number, string> = {
+        1: 'Low',
+        2: 'Low',
+        3: 'Medium',
+        4: 'High',
+        5: 'Urgent'
       }
-
-      // Map Priority field
-      if (fieldConfig.fields['Priority'] && suggestion.additional_fields.priority) {
-        // Convert priority number to label
-        const priorityMap: Record<number, string> = {
-          1: 'Low',
-          2: 'Low',
-          3: 'Medium',
-          4: 'High',
-          5: 'Urgent'
-        }
-        fields['Priority'] = priorityMap[suggestion.additional_fields.priority] || 'Medium'
-      }
-
-      // Map Due Date field
-      if (fieldConfig.fields['Due Date'] && suggestion.additional_fields.due_date) {
-        // Convert date string to YYYY-MM-DD format
-        const date = new Date(suggestion.additional_fields.due_date)
-        if (!isNaN(date.getTime())) {
-          fields['Due Date'] = date.toISOString().split('T')[0]
-        }
-      }
+      fields['Priority'] = priorityMap[suggestion.additional_fields.priority] || 'Medium'
     }
 
-    // Initialize empty values for fields not provided by AI
-    if (fieldConfig.fields) {
-      for (const [fieldName, fieldDef] of Object.entries(fieldConfig.fields)) {
-        if (!fields[fieldName]) {
-          const def = fieldDef as any
-          if (def.type === 'select' && def.options) {
-            fields[fieldName] = def.options[0]
-          } else {
-            fields[fieldName] = ''
-          }
-        }
+    // Map Due Date field
+    if (fieldConfig.fields['Due Date'] && suggestion.additional_fields.due_date) {
+      // Convert date string to YYYY-MM-DD format
+      const date = new Date(suggestion.additional_fields.due_date)
+      if (!isNaN(date.getTime())) {
+        fields['Due Date'] = date.toISOString().split('T')[0]
       }
-    }
-
-      // Initialize empty sections for those not provided
-      if (fieldConfig.sections) {
-        for (const [sectionName, sectionDef] of Object.entries(fieldConfig.sections)) {
-          if (!sections[sectionName]) {
-            const def = sectionDef as any
-            switch (def.type) {
-              case 'textarea':
-                sections[sectionName] = ''
-                break
-              case 'bulletlist':
-              case 'orderedlist':
-              case 'timestamplist':
-              case 'checklist':
-              case 'taglist':
-              case 'shoppinglist':
-                sections[sectionName] = []
-                break
-              default:
-                sections[sectionName] = ''
-            }
-        }
-      }
-    }
-
-    return {
-      title: suggestion.processed_text,
-      fields,
-      sections
     }
   }
+
+  if (suggestion.suggested_type === 'project' && fieldConfig.fields) {
+    if (fieldConfig.fields['Status'] && suggestion.additional_fields.status) {
+      const status = suggestion.additional_fields.status.toLowerCase()
+      const statusMap: Record<string, string> = {
+        'planning': 'Planning',
+        'active': 'Active',
+        'completed': 'Completed'
+      }
+      fields['Status'] = statusMap[status] || 'Planning'
+    }
+
+    if (fieldConfig.fields['Type'] && suggestion.additional_fields.category) {
+      const rawType = suggestion.additional_fields.category.toLowerCase()
+      const typeMap: Record<string, string> = {
+        'personal': 'Personal',
+        'coding': 'Coding',
+        'smart-home': 'Smart Home',
+        'smart home': 'Smart Home',
+        'work': 'Work',
+        'apartment': 'Apartment'
+      }
+      fields['Type'] = typeMap[rawType] || 'Personal'
+    }
+
+    if (fieldConfig.fields['Priority']) {
+      const priorityRaw = (suggestion.additional_fields.priority as number | undefined) || 2
+      const priorityMap: Record<number, string> = {
+        1: 'Low',
+        2: 'Medium',
+        3: 'High',
+        4: 'High',
+        5: 'High'
+      }
+      fields['Priority'] = priorityMap[priorityRaw] || 'Medium'
+    }
+
+    if (fieldConfig.fields['Deadline'] && suggestion.additional_fields.deadline) {
+      const date = new Date(suggestion.additional_fields.deadline)
+      if (!isNaN(date.getTime())) {
+        fields['Deadline'] = date.toISOString().split('T')[0]
+      }
+    }
+  }
+
+  if (suggestion.suggested_type === 'list' && fieldConfig.sections) {
+    const listItems = suggestion.additional_fields.list_items
+    if (Array.isArray(listItems) && listItems.length > 0) {
+      const target = Object.entries(fieldConfig.sections).find(([, def]) =>
+        ['bulletlist', 'orderedlist', 'checklist', 'shoppinglist'].includes(def.type)
+      )
+      if (target) {
+        const [sectionName, def] = target
+        if (def.type === 'checklist') {
+          sections[sectionName] = listItems.map(text => ({ text, checked: false }))
+        } else {
+          sections[sectionName] = listItems.map(text => text)
+        }
+      }
+    }
+  }
+
+  // Initialize empty values for fields not provided by AI
+  if (fieldConfig.fields) {
+    for (const [fieldName, fieldDef] of Object.entries(fieldConfig.fields)) {
+      if (!fields[fieldName]) {
+        const def = fieldDef as any
+        if (def.type === 'select' && def.options) {
+          fields[fieldName] = def.options[0]
+        } else {
+          fields[fieldName] = ''
+        }
+      }
+    }
+  }
+
+  // Initialize empty sections for those not provided
+  if (fieldConfig.sections) {
+    for (const [sectionName, sectionDef] of Object.entries(fieldConfig.sections)) {
+      if (!sections[sectionName]) {
+        const def = sectionDef as any
+        switch (def.type) {
+          case 'textarea':
+            sections[sectionName] = ''
+            break
+          case 'bulletlist':
+          case 'orderedlist':
+          case 'timestamplist':
+          case 'checklist':
+          case 'taglist':
+          case 'shoppinglist':
+            sections[sectionName] = []
+            break
+          default:
+            sections[sectionName] = ''
+        }
+      }
+    }
+  }
+
+  return {
+    title: suggestion.processed_text,
+    fields,
+    sections
+  }
+}
 
   // Task 4.3: Handle Accept & Edit action
   const handleAcceptAndEdit = async (suggestion: AISuggestion) => {
@@ -579,19 +642,10 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
     try {
       const entityType = suggestion.suggested_type
 
-      // Determine template ID
-      let templateId: string | null = null
-
-      if (entityType === 'task') {
-        templateId = 'task'
-      } else if (entityType === 'note') {
-        const subtype = suggestion.additional_fields.category || 'general'
-        if (subtype === 'generic') {
-          templateId = 'note-generic'
-        } else if (subtype === 'youtube') {
-          templateId = 'note-youtube'
-        }
-      }
+      const templateId = getTemplateIdForEntityType(entityType, {
+        subtype: suggestion.additional_fields.category || suggestion.additional_fields.list_name || null,
+        listType: suggestion.additional_fields.list_type
+      })
 
       if (!templateId) {
         console.warn('[Accept & Edit] No markdown template for type:', entityType)
@@ -633,6 +687,7 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
     setCurrentTemplate(template)
     setCurrentMarkdownItem(null) // Create mode
     setTemplateSelectorOpen(false)
+    setTemplateSelectorEntityType(undefined)
     setMarkdownEditorOpen(true)
 
     // capturedText and currentAIItem already set by handleOverrideAndEdit
@@ -641,6 +696,8 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
 
   const handleTemplateSelectorCancel = () => {
     setTemplateSelectorOpen(false)
+    setTemplateSelectorEntityType(undefined)
+    setConvertingItemId(null)
     // Clear override flow state
     setCurrentAIItem(null)
     setCapturedText('')
@@ -687,6 +744,29 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
     // Open modal for conversion
     const item = items.find(i => i.id === itemId)
     if (!item) return
+    if (entityType === 'list') {
+      setCapturedText(item.text)
+      setConvertingItemId(itemId)
+      setTemplateSelectorEntityType('list')
+      setTemplateSelectorOpen(true)
+      return
+    }
+    if (entityType === 'project') {
+      try {
+        const response = await fetch('/api/templates/project-standard')
+        const data = await response.json()
+        if (data.success && data.data) {
+          setCapturedText(item.text)
+          setCurrentTemplate(data.data)
+          setCurrentMarkdownItem(null)
+          setConvertingItemId(itemId)
+          setMarkdownEditorOpen(true)
+          return
+        }
+      } catch (err) {
+        console.error('Failed to load project template:', err)
+      }
+    }
 
     setModalEntity({ type: entityType })
     setModalData({
@@ -748,6 +828,15 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
       } else if (subtype === 'youtube') {
         templateId = 'note-youtube'
       }
+    } else if (entityType === 'project') {
+      templateId = 'project-standard'
+    } else if (entityType === 'list') {
+      // Open template selector filtered to lists
+      setCapturedText(item.text)
+      setTemplateSelectorEntityType('list')
+      setTemplateSelectorOpen(true)
+      setConvertingItemId(itemId)
+      return
     }
 
     // If we have a template, open the MarkdownEntityEditor
@@ -1778,6 +1867,7 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
         isOpen={templateSelectorOpen}
         onSelect={handleTemplateSelected}
         onCancel={handleTemplateSelectorCancel}
+        entityType={templateSelectorEntityType}
       />
 
       {/* Settings Modal */}
@@ -1806,6 +1896,31 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
       <div className="retro-device-button"></div>
     </div>
   )
+}
+
+const listTypeToTemplateId = (listType?: string | null): string => {
+  const normalized = (listType || '').toLowerCase()
+  if (normalized === 'numbered') return 'list-numbered'
+  if (normalized === 'tasklist') return 'list-tasklist'
+  if (normalized === 'shopping') return 'list-shopping'
+  return 'list-bulleted'
+}
+
+const getTemplateIdForEntityType = (
+  entityType: AISuggestion['suggested_type'],
+  opts?: { subtype?: string | null; listType?: string | null }
+): string | null => {
+  if (entityType === 'task') return 'task'
+  if (entityType === 'project') return 'project-standard'
+  if (entityType === 'note') {
+    const subtype = opts?.subtype || 'generic'
+    if (subtype === 'youtube') return 'note-youtube'
+    return 'note-generic'
+  }
+  if (entityType === 'list') {
+    return listTypeToTemplateId(opts?.listType)
+  }
+  return null
 }
 
 const extractTitleFromMarkdown = (markdown: string): string => {
