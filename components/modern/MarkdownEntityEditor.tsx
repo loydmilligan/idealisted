@@ -13,6 +13,8 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Item, Template, FieldConfig, FieldDef, SectionDef } from '@/types'
 import { parseMarkdown, renderMarkdown } from '@/lib/markdown-parser'
+import { TagInput } from '@/components/modern/TagInput'
+import { BadgeCheck, Loader2 } from 'lucide-react'
 
 // Import field components
 import { TextField } from '@/components/ui/markdown-fields/TextField'
@@ -38,7 +40,7 @@ export interface PreFillData {
 interface MarkdownEntityEditorProps {
   item: Item | null // null for new entities
   template: Template
-  onSave: (payload: { markdown: string; fields: Record<string, string>; sections: Record<string, any>; rawSections?: Record<string, any> }) => Promise<void>
+  onSave: (payload: { markdown: string; fields: Record<string, string>; sections: Record<string, any>; rawSections?: Record<string, any>; tags: string[] }) => Promise<void>
   onCancel: () => void
   isOpen: boolean
   /**
@@ -76,6 +78,11 @@ export function MarkdownEntityEditor({
   })
   const [errors, setErrors] = useState<string[]>([])
   const [isSaving, setIsSaving] = useState(false)
+  const [tags, setTags] = useState<string[]>([])
+  const [aiEnabled, setAiEnabled] = useState(false)
+  const [tagSuggestionsEnabled, setTagSuggestionsEnabled] = useState(false)
+  const [tagSuggestions, setTagSuggestions] = useState<Array<{ name: string; confidence: number; source?: string; usage_count?: number }>>([])
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
 
   // Parse field_config from template
   const fieldConfig: FieldConfig = React.useMemo(() => {
@@ -86,6 +93,24 @@ export function MarkdownEntityEditor({
       return { fields: {}, sections: {} }
     }
   }, [template.field_config])
+
+  // AI/tag feature flags
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(data => setAiEnabled(data.settings?.ai_config?.enabled ?? false))
+      .catch(() => setAiEnabled(false))
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/ai-features')
+      .then(res => res.json())
+      .then(data => {
+        const feature = data.features?.find((f: any) => f.feature_name === 'tag_suggestions')
+        setTagSuggestionsEnabled(feature?.enabled === 1)
+      })
+      .catch(() => setTagSuggestionsEnabled(false))
+  }, [])
 
   // Initialize form state when modal opens or item changes
   useEffect(() => {
@@ -110,6 +135,7 @@ export function MarkdownEntityEditor({
           fields: parsed.fields,
           sections: typedSections
         })
+        setTags(Array.isArray(item.tags) ? item.tags : [])
       } catch (error) {
         console.error('Failed to parse markdown:', error)
         initializeEmptyForm()
@@ -122,14 +148,54 @@ export function MarkdownEntityEditor({
         fields: preFillData.fields,
         sections: preFillData.sections
       })
+      setTags([])
     } else {
       // New item - initialize with empty values
       initializeEmptyForm()
+      setTags([])
     }
 
     // Clear errors when modal opens
     setErrors([])
   }, [isOpen, item, template.id, fieldConfig, preFillData])
+
+  const handleSuggestTags = async () => {
+    if (!aiEnabled || !tagSuggestionsEnabled || !formState.title.trim()) return
+    setLoadingSuggestions(true)
+    setTagSuggestions([])
+
+    try {
+      const response = await fetch('/api/ai/suggest-tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: formState.title,
+          entityType: template.entity_type
+        })
+      })
+      const data = await response.json()
+      if (data.success && data.tags) {
+        setTagSuggestions(data.tags)
+      }
+    } catch (error) {
+      console.error('Failed to suggest tags:', error)
+    } finally {
+      setLoadingSuggestions(false)
+    }
+  }
+
+  const handleAddSuggestedTag = (name: string) => {
+    setTags(prev => prev.includes(name) ? prev : [...prev, name])
+    setTagSuggestions(prev => prev.filter(t => t.name !== name))
+  }
+
+  const handleAcceptAllSuggested = () => {
+    const names = tagSuggestions.map(t => t.name)
+    setTags(prev => [...prev, ...names.filter(n => !prev.includes(n))])
+    setTagSuggestions([])
+  }
+
+  const handleDismissSuggestions = () => setTagSuggestions([])
 
   // Pre-populate fields from initial text if provided
   useEffect(() => {
@@ -366,6 +432,15 @@ export function MarkdownEntityEditor({
     }
 
     setIsSaving(true)
+    const sanitizeTag = (tag: string) =>
+      tag.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-_]/g, '')
+    const sanitizedTags = Array.from(
+      new Set(
+        (tags || [])
+          .map(t => sanitizeTag(t))
+          .filter(t => t.length > 0 && t.length <= 50)
+      )
+    )
     try {
       // Convert sections to markdown strings
       const serializedSections: Record<string, string> = {}
@@ -393,7 +468,8 @@ export function MarkdownEntityEditor({
         markdown,
         fields: formState.fields,
         sections: serializedSections,
-        rawSections: formState.sections
+        rawSections: formState.sections,
+        tags: sanitizedTags
       } as any)
     } catch (error) {
       console.error('Failed to save:', error)
@@ -633,6 +709,59 @@ export function MarkdownEntityEditor({
                   onChange={(e) => setFormState(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="Enter title..."
                 />
+              </div>
+
+              {/* Tags + AI tag suggestions */}
+              <div className="retro-form-group">
+                <TagInput value={tags} onChange={setTags} entityType={template.entity_type} />
+                {aiEnabled && tagSuggestionsEnabled && (
+                  <div style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="retro-btn retro-btn-secondary"
+                      onClick={handleSuggestTags}
+                      disabled={loadingSuggestions || !formState.title.trim()}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      {loadingSuggestions ? <Loader2 size={14} className="animate-spin" /> : <BadgeCheck size={14} />}
+                      {loadingSuggestions ? 'Analyzing...' : 'Suggest Tags'}
+                    </button>
+                    {tagSuggestions.length > 0 && (
+                      <>
+                        <button
+                          type="button"
+                          className="retro-btn retro-btn-secondary"
+                          onClick={handleAcceptAllSuggested}
+                        >
+                          Accept All
+                        </button>
+                        <button
+                          type="button"
+                          className="retro-btn retro-btn-secondary"
+                          onClick={handleDismissSuggestions}
+                        >
+                          Dismiss
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+                {tagSuggestions.length > 0 && (
+                  <div className="mt-2" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {tagSuggestions.map((tag) => (
+                      <button
+                        key={tag.name}
+                        type="button"
+                        className="retro-tag-chip"
+                        onClick={() => handleAddSuggestedTag(tag.name)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                      >
+                        <span>{tag.name}</span>
+                        <span style={{ fontSize: '10px', opacity: 0.7 }}>{Math.round(tag.confidence * 100)}%</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Dynamic Fields */}

@@ -51,6 +51,7 @@ interface EntitiesScreenProps {
   onDelete: (entityId: string) => void
   onSwipeRightAction: (entityId: string, entityType: Exclude<EntityType, 'idea'>) => void
   className?: string
+  tagsEnabled?: boolean
 }
 
 export const EntitiesScreen: React.FC<EntitiesScreenProps> = ({
@@ -59,6 +60,7 @@ export const EntitiesScreen: React.FC<EntitiesScreenProps> = ({
   onDelete,
   onSwipeRightAction,
   className = '',
+  tagsEnabled = true,
 }) => {
   const [activeFilter, setActiveFilter] = useState<EntityFilter>('all')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
@@ -202,7 +204,7 @@ export const EntitiesScreen: React.FC<EntitiesScreenProps> = ({
       </div>
 
       {/* Tag Filter Chips */}
-      {availableTags.length > 0 && (
+      {tagsEnabled && availableTags.length > 0 && (
         <div className="retro-tag-filter-section">
           <div className="retro-tag-filter-header">
             <span className="retro-tag-filter-label">FILTER BY TAGS:</span>

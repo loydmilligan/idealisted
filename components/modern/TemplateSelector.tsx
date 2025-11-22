@@ -44,6 +44,18 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Simple viewport check to toggle bottom sheet behavior on mobile
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768)
+    }
+
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   // Fetch templates on mount
   useEffect(() => {
@@ -120,6 +132,9 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
 
   // Sort entity types for consistent rendering
   const entityTypes = Object.keys(groupedTemplates).sort() as Array<'task' | 'note' | 'project' | 'list'>
+  const containerClass = isMobile
+    ? 'fixed left-0 right-0 bottom-0 w-full max-h-[80vh] z-[1003]'
+    : 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[600px] max-h-[80vh] z-[1003]'
 
   return (
     <AnimatePresence mode="wait">
@@ -137,21 +152,28 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
 
           {/* Modal Content */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            initial={isMobile ? { opacity: 0, y: 40 } : { opacity: 0, scale: 0.95 }}
+            animate={isMobile ? { opacity: 1, y: 0 } : { opacity: 1, scale: 1 }}
+            exit={isMobile ? { opacity: 0, y: 40 } : { opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[600px] max-h-[80vh] z-[1003]"
+            className={containerClass}
             onClick={(e) => e.stopPropagation()}
+            style={isMobile ? {
+              transform: 'none',
+            } : undefined}
           >
-            <div className="retro-card" style={{
-              background: 'var(--palm-bg-primary)',
-              border: '3px solid var(--palm-border-dark)',
-              boxShadow: '4px 4px 0 var(--palm-border-dark)',
-              display: 'flex',
-              flexDirection: 'column',
-              maxHeight: '80vh',
-            }}>
+            <div
+              className="retro-card"
+              style={{
+                background: 'var(--palm-bg-primary)',
+                border: '3px solid var(--palm-border-dark)',
+                boxShadow: '4px 4px 0 var(--palm-border-dark)',
+                display: 'flex',
+                flexDirection: 'column',
+                maxHeight: '80vh',
+                borderRadius: isMobile ? '16px 16px 0 0' : undefined,
+              }}
+            >
               {/* Header */}
               <div className="retro-sheet-header" style={{
                 display: 'flex',

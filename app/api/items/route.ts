@@ -218,6 +218,11 @@ export async function POST(request: NextRequest) {
       (body as any).template_id || null
     )
 
+    // Update tag usage counts on create
+    if (body.tags && Array.isArray(body.tags) && body.tags.length > 0) {
+      updateTagUsage(body.tags, [])
+    }
+
     // Insert type-specific data
     if ((body.type as any) === 'todo' && body.todo) {
       // Handle legacy todo type - convert to task

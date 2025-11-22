@@ -224,7 +224,7 @@ function HomePageContent() {
       id: i.id,
       title: i.text,
       entityType: i.type as Exclude<EntityType, 'idea'>,
-      tags: [],
+      tags: Array.isArray(i.tags) ? i.tags : [],
       createdAt: i.created_at,
     }))
 
@@ -833,6 +833,12 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
         templateId = 'note-generic'
       } else if (subtype === 'youtube') {
         templateId = 'note-youtube'
+      } else if (subtype === 'meeting') {
+        templateId = 'note-meeting'
+      } else if (subtype === 'research') {
+        templateId = 'note-research'
+      } else if (subtype === 'media') {
+        templateId = 'note-media'
       }
     } else if (entityType === 'project') {
       templateId = 'project-standard'
@@ -1210,10 +1216,10 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
     setMarkdownEditorOpen(true)
   }
 
-  const handleMarkdownSave = async (payload: { markdown: string; fields: Record<string, string>; sections: Record<string, any>; rawSections?: Record<string, any> }) => {
+  const handleMarkdownSave = async (payload: { markdown: string; fields: Record<string, string>; sections: Record<string, any>; rawSections?: Record<string, any>; tags: string[] }) => {
     if (!currentMarkdownItem || !currentTemplate) return
 
-    const { markdown, fields } = payload
+    const { markdown, fields, tags } = payload
 
     try {
       const response = await fetch(`/api/items/${currentMarkdownItem.id}`, {
@@ -1221,6 +1227,7 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           markdown_content: markdown,
+          tags,
           project: currentTemplate.entity_type === 'project' ? normalizeProjectPayloadFromFields(fields) : undefined,
           list: currentTemplate.entity_type === 'list' ? normalizeListPayloadFromTemplate(currentTemplate, fields, markdown) : undefined
         })
@@ -1251,10 +1258,10 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
     }
   }
 
-  const handleMarkdownCreate = async (payload: { markdown: string; fields: Record<string, string>; sections: Record<string, any>; rawSections?: Record<string, any> }) => {
+  const handleMarkdownCreate = async (payload: { markdown: string; fields: Record<string, string>; sections: Record<string, any>; rawSections?: Record<string, any>; tags: string[] }) => {
     if (!currentTemplate) return
 
-    const { markdown, fields } = payload
+    const { markdown, fields, tags } = payload
 
     try {
       const entityType = currentTemplate.entity_type
@@ -1270,7 +1277,7 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
           text: markdown.split('\n')[0].replace(/^#\s+/, ''), // Extract title from first line
           markdown_content: markdown,
           template_id: currentTemplate.id,
-          tags: [],
+          tags: tags || [],
           parsed: true,
           entity_type: entityType,
           project: projectPayload,
@@ -1312,6 +1319,61 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
     } catch (error) {
       console.error('Failed to create markdown entity:', error)
       alert(error instanceof Error ? error.message : 'Failed to create entity')
+    }
+  }
+
+  // Journal quick-save (Capture Today surface)
+  const handleJournalSave = async (text: string) => {
+    try {
+      await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'note',
+          text: text.slice(0, 64) || 'Journal Entry',
+          markdown_content: `# Journal Entry\n\n${text}`,
+          template_id: 'note-generic',
+          tags: [],
+          parsed: true,
+          entity_type: 'note',
+          metadata: { subtype: 'journal' },
+          note: { subtype: 'journal', content: text }
+        })
+      })
+      await fetchItems()
+      setCapturedText('')
+    } catch (error) {
+      console.error('Failed to save journal', error)
+      alert('Failed to save journal')
+    }
+  }
+
+  // Media quick-save (Capture Today surface)
+  const handleMediaSave = async (payload: { url: string; type: 'Image' | 'Audio' | 'Video'; caption: string }) => {
+    const { url, type, caption } = payload
+    const title = caption || 'Media Note'
+    const markdown = `# ${title}\n\n**Media URL**: ${url}\n**Type**: ${type}\n\n## Details\n`
+    try {
+      await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'note',
+          text: title,
+          markdown_content: markdown,
+          template_id: 'note-media',
+          tags: [],
+          parsed: true,
+          entity_type: 'note',
+          metadata: { subtype: 'media' },
+          note: { subtype: 'media', url, media_type: type.toLowerCase(), content: caption }
+        })
+      })
+      await fetchItems()
+      setCapturedText('')
+    } catch (error) {
+      console.error('Failed to save media note', error)
+      alert('Failed to save media note')
     }
   }
 
@@ -1373,6 +1435,12 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
               entityType: i.type !== 'idea' ? (i.type as Exclude<EntityType, 'idea'>) : null,
               createdAt: i.created_at,
             }))}
+            onRecentItemClick={(id) => handleEntityTap(id)}
+            unsortedItems={unsortedItems.map(i => ({ id: i.id, text: i.text, createdAt: i.created_at }))}
+            onUnsortedConvert={handleConvertFromUnsorted}
+            onUnsortedDelete={handleDelete}
+            onJournalSave={handleJournalSave}
+            onMediaSave={handleMediaSave}
             aiSuggestion={aiSuggestion}
             isAnalyzing={isAnalyzing}
             isCreatingItem={isCreatingItem}
@@ -1422,6 +1490,7 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
             onEntityTap={handleEntityTap}
             onDelete={handleDelete}
             onSwipeRightAction={handleSwipeRightAction}
+            tagsEnabled
           />
         )}
       </div>
@@ -2004,6 +2073,9 @@ const getTemplateIdForEntityType = (
   if (entityType === 'note') {
     const subtype = opts?.subtype || 'generic'
     if (subtype === 'youtube') return 'note-youtube'
+    if (subtype === 'meeting') return 'note-meeting'
+    if (subtype === 'research') return 'note-research'
+    if (subtype === 'media') return 'note-media'
     return 'note-generic'
   }
   if (entityType === 'list') {

@@ -199,6 +199,85 @@ function seedTemplates() {
     }
   })
 
+  // Template 4: Meeting Note
+  const noteMeetingMarkdown = `# {title}
+
+**Date**:
+**Attendees**:
+**Decisions**:
+
+## Agenda
+- 
+
+## Notes
+
+
+## Action Items
+- [ ]`
+
+  const noteMeetingFieldConfig = JSON.stringify({
+    fields: {
+      Date: { type: "date", required: false },
+      Attendees: { type: "text", required: false },
+      Decisions: { type: "textarea", required: false }
+    },
+    sections: {
+      Agenda: { type: "bulletlist", required: false },
+      Notes: { type: "textarea", required: false },
+      "Action Items": { type: "checklist", required: false }
+    }
+  })
+
+  // Template 5: Research Note
+  const noteResearchMarkdown = `# {title}
+
+**Question**:
+**Status**: In Progress
+**Source URL**:
+
+## Findings
+- 
+
+## Next Actions
+- [ ]
+
+## Notes
+`
+
+  const noteResearchFieldConfig = JSON.stringify({
+    fields: {
+      Question: { type: "text", required: true },
+      Status: { type: "select", options: ["In Progress", "Completed", "Blocked"], required: true },
+      "Source URL": { type: "url", required: false }
+    },
+    sections: {
+      Findings: { type: "bulletlist", required: false },
+      "Next Actions": { type: "checklist", required: false },
+      Notes: { type: "textarea", required: false }
+    }
+  })
+
+  // Template 6: Media Note (attachment-first)
+  const noteMediaMarkdown = `# {title}
+
+**Media URL**:
+**Type**: Image
+**Caption**:
+
+## Details
+`
+
+  const noteMediaFieldConfig = JSON.stringify({
+    fields: {
+      "Media URL": { type: "url", required: true },
+      Type: { type: "select", options: ["Image", "Audio", "Video"], required: true },
+      Caption: { type: "text", required: false }
+    },
+    sections: {
+      Details: { type: "textarea", required: false }
+    }
+  })
+
   const listBulletedMarkdown = `# {title}
 
 ## Items
@@ -304,6 +383,9 @@ function seedTemplates() {
     insert.run('task', 'Task', 'task', null, taskMarkdown, taskFieldConfig, 1, now, now)
     insert.run('note-generic', 'Generic Note', 'note', 'generic', noteGenericMarkdown, noteGenericFieldConfig, 1, now, now)
     insert.run('note-youtube', 'YouTube Learning Note', 'note', 'youtube', noteYoutubeMarkdown, noteYoutubeFieldConfig, 1, now, now)
+    insert.run('note-meeting', 'Meeting Note', 'note', 'meeting', noteMeetingMarkdown, noteMeetingFieldConfig, 1, now, now)
+    insert.run('note-research', 'Research Note', 'note', 'research', noteResearchMarkdown, noteResearchFieldConfig, 1, now, now)
+    insert.run('note-media', 'Media Note', 'note', 'media', noteMediaMarkdown, noteMediaFieldConfig, 1, now, now)
     insert.run('list-bulleted', 'Bulleted List', 'list', 'bulleted', listBulletedMarkdown, listBulletedFieldConfig, 1, now, now)
     insert.run('list-numbered', 'Numbered List', 'list', 'numbered', listNumberedMarkdown, listNumberedFieldConfig, 1, now, now)
     insert.run('list-tasklist', 'TaskList', 'list', 'tasklist', listTaskMarkdown, listTaskFieldConfig, 1, now, now)
