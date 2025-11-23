@@ -32,6 +32,7 @@ import { TagInput } from '@/components/modern/TagInput'
 import { EntityType } from '@/lib/entity-colors'
 import { ItemWithRelations, AISuggestion } from '@/types'
 import { FrondNutLogo } from '@/components/ui/FrondNutLogo'
+import { getEntityColor, getEntityBackgroundColor } from '@/lib/entity-colors'
 // DISABLED (causes build error - server-side only): import { ntfyService } from '@/lib/notify'
 
 // Types
@@ -295,6 +296,37 @@ function HomePageContent() {
     const base = new Date(plannerDate + 'T00:00:00')
     base.setUTCDate(base.getUTCDate() + delta * 7)
     setPlannerDate(getDateKey(base))
+  }
+
+  const toggleTaskStatus = async (itemId: string, nextStatus: 'pending' | 'completed') => {
+    const ent = items.find(i => i.id === itemId)
+    if (!ent || !ent.task) return
+    try {
+      await fetch(`/api/items/${itemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: ent.type,
+          text: ent.text,
+          tags: ent.tags || [],
+          archived: ent.archived || false,
+          parsed: ent.parsed || false,
+          entity_type: ent.entity_type,
+          task: {
+            status: nextStatus,
+            priority: ent.task.priority || 1,
+            tags: ent.task.tags || [],
+            estimated_time: ent.task.estimated_time || null,
+            due_date: ent.task.due_date || null,
+            project_id: ent.task.project_id || null,
+            reminder_datetime: ent.task.reminder_datetime || null
+          }
+        }),
+      })
+      await fetchItems()
+    } catch (error) {
+      console.error('Failed to toggle task status', error)
+    }
   }
 
   const journalEntry = useMemo(() => {
@@ -1681,9 +1713,27 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
                   {assignmentsForDay(plannerDate).map(id => {
                     const ent = items.find(i => i.id === id)
                     if (!ent) return null
+                    const cardStyle = {
+                      borderLeft: `4px solid ${getEntityColor(ent.type)}`,
+                      background: getEntityBackgroundColor(ent.type, 'muted', 0.08),
+                    }
                     return (
-                      <div key={id} className="flex items-center justify-between retro-card p-2">
-                        <span className="text-sm">{ent.text}</span>
+                      <div key={id} className="flex items-center justify-between retro-card p-2" style={cardStyle}>
+                        <div>
+                          <div className="text-sm font-semibold">{ent.text}</div>
+                          <div className="text-[10px] opacity-60 uppercase">{ent.type}</div>
+                          {ent.type === 'task' && (
+                            <div className="text-[10px] mt-1">
+                              Status: {ent.task?.status || 'pending'}
+                              <button
+                                className="retro-btn retro-btn-secondary retro-btn-sm ml-2"
+                                onClick={() => toggleTaskStatus(id, ent.task?.status === 'completed' ? 'pending' : 'completed')}
+                              >
+                                {ent.task?.status === 'completed' ? 'Mark pending' : 'Mark done'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
                         <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => removeFromDay(id, plannerDate)}>Remove</button>
                       </div>
                     )
@@ -1695,15 +1745,24 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
               <div className="retro-card p-3">
                 <div className="text-xs font-mono opacity-70 uppercase mb-2">Add items</div>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {plannerCandidates.map(ent => (
-                    <div key={ent.id} className="flex items-center justify-between retro-card p-2">
-                      <div>
-                        <div className="text-sm font-semibold">{ent.text}</div>
-                        <div className="text-[10px] opacity-60 uppercase">{ent.type}</div>
+                  {plannerCandidates.map(ent => {
+                    const cardStyle = {
+                      borderLeft: `4px solid ${getEntityColor(ent.type)}`,
+                      background: getEntityBackgroundColor(ent.type, 'muted', 0.08),
+                    }
+                    return (
+                      <div key={ent.id} className="flex items-center justify-between retro-card p-2" style={cardStyle}>
+                        <div>
+                          <div className="text-sm font-semibold">{ent.text}</div>
+                          <div className="text-[10px] opacity-60 uppercase">{ent.type}</div>
+                          {ent.type === 'task' && (
+                            <div className="text-[10px] mt-1">Status: {ent.task?.status || 'pending'}</div>
+                          )}
+                        </div>
+                        <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => assignToDay(ent.id, plannerDate)}>Add</button>
                       </div>
-                      <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => assignToDay(ent.id, plannerDate)}>Add</button>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
 
@@ -1720,7 +1779,8 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
                         <ul className="text-[11px] space-y-1">
                           {assignmentsForDay(dayKey).slice(0,3).map(id => {
                             const ent = items.find(i => i.id === id)
-                            return <li key={id}>{ent?.text || id}</li>
+                            const color = getEntityColor(ent?.type as EntityType)
+                            return <li key={id} style={{ color }}>{ent?.text || id}</li>
                           })}
                           {assignmentsForDay(dayKey).length > 3 && <li className="opacity-60">+ more</li>}
                         </ul>
