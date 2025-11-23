@@ -1560,21 +1560,6 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
           />
         )}
 
-        {activeTab === 'unsorted' && (
-          <UnsortedInboxScreen
-            items={unsortedItems.map(i => ({
-              id: i.id,
-              text: i.text,
-              createdAt: i.created_at,
-            }))}
-            onSort={handleSort}
-            onConvert={handleConvertFromUnsorted}
-            onDelete={handleDelete}
-            onAIAction={handleAIAction}
-            defaultSwipeAction="task"
-          />
-        )}
-
         {activeTab === 'ready' && (
           <ReadyInboxScreen
             items={readyItems.map(i => ({

@@ -1,9 +1,8 @@
 /**
  * Bottom Tab Navigation Component - Retro Palm Pilot Style
  *
- * 4-tab mobile-first navigation:
+ * 3-tab mobile-first navigation:
  * - 📥 Capture
- * - ⚡ Unsorted (with badge)
  * - ✓ Ready (with badge)
  * - 📁 Files (opens drawer)
  *
@@ -24,7 +23,7 @@ import { TabIcons } from './TabIcons'
 import { TabBadge } from './TabBadge'
 import { EntityType } from '@/lib/entity-colors'
 
-export type TabId = 'capture' | 'unsorted' | 'ready' | 'files'
+export type TabId = 'capture' | 'ready' | 'files'
 
 interface Tab {
   id: TabId
@@ -36,7 +35,6 @@ interface Tab {
 interface BottomTabNavProps {
   activeTab: TabId
   onTabChange: (tab: TabId) => void
-  unsortedCount?: number
   readyCount?: number
   className?: string
 }
@@ -53,12 +51,6 @@ const tabs: Tab[] = [
     hasBadge: false,
   },
   {
-    id: 'unsorted',
-    label: 'Unsorted',
-    icon: TabIcons.Unsorted,
-    hasBadge: true,
-  },
-  {
     id: 'ready',
     label: 'Ready',
     icon: TabIcons.Ready,
@@ -73,7 +65,7 @@ const tabs: Tab[] = [
 ]
 
 export const BottomTabNav = forwardRef<TabNavHandle, BottomTabNavProps>(
-  ({ activeTab, onTabChange, unsortedCount = 0, readyCount = 0, className = '' }, ref) => {
+  ({ activeTab, onTabChange, readyCount = 0, className = '' }, ref) => {
     const [flashingTab, setFlashingTab] = useState<TabId | null>(null)
     const [flashColor, setFlashColor] = useState<Exclude<EntityType, 'idea'> | null>(null)
 
@@ -95,7 +87,6 @@ export const BottomTabNav = forwardRef<TabNavHandle, BottomTabNavProps>(
     }
 
     const getBadgeCount = (tabId: TabId) => {
-      if (tabId === 'unsorted') return unsortedCount
       if (tabId === 'ready') return readyCount
       return 0
     }
