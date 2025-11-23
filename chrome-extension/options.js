@@ -1,17 +1,17 @@
 // IdeaListed Capture Extension - Options Script
 
 const MODEL_INFO = {
+  'z-ai/glm-4.5-air:free': {
+    name: 'GLM 4.5 Air',
+    desc: 'Free tier, good quality, same as IdeaListed free model.'
+  },
+  'x-ai/grok-code-fast-1': {
+    name: 'Grok Code Fast',
+    desc: 'Paid, fast and capable, same as IdeaListed paid model. (Recommended)'
+  },
   'google/gemini-2.0-flash-exp:free': {
     name: 'Gemini 2.0 Flash',
     desc: 'Free tier, fast responses, good for structured extraction.'
-  },
-  'meta-llama/llama-3.2-3b-instruct:free': {
-    name: 'Llama 3.2 3B',
-    desc: 'Free tier, lightweight model, basic extraction.'
-  },
-  'qwen/qwen-2-7b-instruct:free': {
-    name: 'Qwen 2 7B',
-    desc: 'Free tier, good reasoning, multilingual support.'
   },
   'anthropic/claude-3.5-sonnet': {
     name: 'Claude 3.5 Sonnet',
@@ -20,14 +20,6 @@ const MODEL_INFO = {
   'openai/gpt-4o-mini': {
     name: 'GPT-4o Mini',
     desc: 'Paid, fast and capable, good balance of speed/quality.'
-  },
-  'anthropic/claude-3-haiku': {
-    name: 'Claude 3 Haiku',
-    desc: 'Paid, very fast, good for quick extraction.'
-  },
-  'google/gemini-pro': {
-    name: 'Gemini Pro',
-    desc: 'Paid, balanced performance, good for general use.'
   }
 };
 
@@ -53,7 +45,7 @@ async function loadSettings() {
 
   document.getElementById('serverUrl').value = result.idealistedUrl || '';
   document.getElementById('apiKey').value = result.openrouterApiKey || '';
-  document.getElementById('aiModel').value = result.aiModel || 'google/gemini-2.0-flash-exp:free';
+  document.getElementById('aiModel').value = result.aiModel || 'x-ai/grok-code-fast-1';
   document.getElementById('defaultAction').value = result.defaultAction || 'popup';
   document.getElementById('useAI').checked = result.useAI !== false;
 

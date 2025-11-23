@@ -160,7 +160,7 @@ async function callOpenRouter(prompt, config) {
         'X-Title': 'IdeaListed Capture'
       },
       body: JSON.stringify({
-        model: config.aiModel || 'google/gemini-2.0-flash-exp:free',
+        model: config.aiModel || 'x-ai/grok-code-fast-1',
         messages: [
           {
             role: 'user',

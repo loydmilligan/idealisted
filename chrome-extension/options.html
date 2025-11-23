@@ -287,20 +287,18 @@
       <div class="field">
         <label for="aiModel">AI Model</label>
         <select id="aiModel">
-          <optgroup label="Free Models">
-            <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (Free)</option>
-            <option value="meta-llama/llama-3.2-3b-instruct:free">Llama 3.2 3B (Free)</option>
-            <option value="qwen/qwen-2-7b-instruct:free">Qwen 2 7B (Free)</option>
+          <optgroup label="IdeaListed Models (Recommended)">
+            <option value="x-ai/grok-code-fast-1" selected>Grok Code Fast (Paid - Recommended)</option>
+            <option value="z-ai/glm-4.5-air:free">GLM 4.5 Air (Free)</option>
           </optgroup>
-          <optgroup label="Paid Models (Better Quality)">
-            <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
-            <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
-            <option value="anthropic/claude-3-haiku">Claude 3 Haiku</option>
-            <option value="google/gemini-pro">Gemini Pro</option>
+          <optgroup label="Other Models">
+            <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (Free)</option>
+            <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (Paid)</option>
+            <option value="openai/gpt-4o-mini">GPT-4o Mini (Paid)</option>
           </optgroup>
         </select>
         <div class="model-info" id="modelInfo">
-          <strong>Gemini 2.0 Flash</strong> - Free tier, fast responses, good for structured extraction.
+          <strong>Grok Code Fast</strong> - Paid, fast and capable, same as IdeaListed paid model. (Recommended)
         </div>
       </div>
     </div>
