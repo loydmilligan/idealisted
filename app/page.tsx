@@ -1585,6 +1585,15 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
             tagsEnabled
           />
         )}
+
+        {activeTab === 'planner' && (
+          <div className="p-4">
+            <div className="retro-card p-4">
+              <h2 className="retro-header retro-header-sm mb-2">Planner</h2>
+              <p className="text-sm opacity-70">Planner implementation pending (Phase 5).</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Bottom Navigation */}
@@ -1592,7 +1601,6 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
         ref={tabNavRef}
         activeTab={activeTab}
         onTabChange={handleTabChange}
-        unsortedCount={unsortedCount}
         readyCount={readyCount}
       />
 

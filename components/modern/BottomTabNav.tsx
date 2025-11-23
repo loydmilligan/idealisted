@@ -23,7 +23,7 @@ import { TabIcons } from './TabIcons'
 import { TabBadge } from './TabBadge'
 import { EntityType } from '@/lib/entity-colors'
 
-export type TabId = 'capture' | 'ready' | 'files'
+export type TabId = 'capture' | 'ready' | 'planner' | 'files'
 
 interface Tab {
   id: TabId
@@ -55,6 +55,12 @@ const tabs: Tab[] = [
     label: 'Ready',
     icon: TabIcons.Ready,
     hasBadge: true,
+  },
+  {
+    id: 'planner',
+    label: 'Planner',
+    icon: TabIcons.Planner,
+    hasBadge: false,
   },
   {
     id: 'files',
