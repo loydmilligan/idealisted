@@ -7,12 +7,10 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { EntityType } from '@/lib/entity-colors'
 import { formatDistanceToNow } from 'date-fns'
-import { motion } from 'framer-motion'
 import { useSpeechRecognition } from '@/lib/useSpeechRecognition'
 import { AISuggestion } from '@/types'
 import { AISuggestionPanel } from '@/components/ui/AISuggestionPanel'
 import { Bot, Loader2, Mic } from 'lucide-react'
-import { Template } from '@/types'
 
 interface RecentItem {
   id: string
@@ -27,7 +25,7 @@ interface CaptureScreenProps {
   recentItems?: RecentItem[]
   onRecentItemClick?: (id: string) => void
   unsortedItems?: { id: string; text: string; createdAt: Date | string }[]
-  onUnsortedConvert?: (id: string) => void
+  onUnsortedConvert?: (id: string, targetType: Exclude<EntityType, 'idea'>, subtype?: string) => void
   onUnsortedDelete?: (id: string) => void
   onJournalSave?: (text: string) => void
   onMediaSave?: (payload: { url: string; type: 'Image' | 'Audio' | 'Video'; caption: string }) => void
@@ -69,15 +67,16 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
   onOverrideAndEdit,
 }) => {
   const [inputText, setInputText] = useState('')
-  const [notePickerOpen, setNotePickerOpen] = useState(false)
-  const [noteTemplates, setNoteTemplates] = useState<Template[]>([])
-  const [loadingNotes, setLoadingNotes] = useState(false)
   const [aiEnabled, setAiEnabled] = useState(false)
   const [isUnsortedOpen, setIsUnsortedOpen] = useState(false)
   const [journalText, setJournalText] = useState('')
   const [mediaUrl, setMediaUrl] = useState('')
   const [mediaType, setMediaType] = useState<'Image' | 'Audio' | 'Video'>('Image')
   const [mediaCaption, setMediaCaption] = useState('')
+  const [noteMenuOpen, setNoteMenuOpen] = useState(false)
+  const [listMenuOpen, setListMenuOpen] = useState(false)
+  const [inlineNoteMenuId, setInlineNoteMenuId] = useState<string | null>(null)
+  const [inlineListMenuId, setInlineListMenuId] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const streakStyle = useMemo(() => {
@@ -99,24 +98,6 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
       .then(res => res.json())
       .then(data => setAiEnabled(data.settings?.ai_config?.enabled ?? false))
       .catch(() => setAiEnabled(false))
-  }, [])
-
-  useEffect(() => {
-    const fetchNoteTemplates = async () => {
-      try {
-        setLoadingNotes(true)
-        const res = await fetch('/api/templates')
-        const data = await res.json()
-        if (data.success && Array.isArray(data.data)) {
-          setNoteTemplates(data.data.filter((t: Template) => t.entity_type === 'note'))
-        }
-      } catch (err) {
-        console.error('Failed to load note templates', err)
-      } finally {
-        setLoadingNotes(false)
-      }
-    }
-    fetchNoteTemplates()
   }, [])
 
   useEffect(() => {
@@ -343,12 +324,115 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
         <div className="flex justify-end mt-2">
           <button
             className="retro-btn retro-btn-secondary retro-btn-sm"
-            onClick={() => setNotePickerOpen(true)}
+            onClick={() => setNoteMenuOpen(prev => !prev)}
           >
             Pick note type
           </button>
         </div>
       </div>
+
+      {/* Quick sort buttons */}
+      <div className="px-4 pb-3">
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          {[
+            { type: 'task', label: 'Task' },
+            { type: 'note', label: 'Note ▾' },
+            { type: 'project', label: 'Project' },
+            { type: 'list', label: 'List ▾' },
+          ].map((btn) => {
+            const accentClass = btn.type ? `retro-btn-accent-${btn.type}` : ''
+            const disabled = !inputText.trim() || isAnalyzing || isCreatingItem
+            return (
+              <button
+                key={btn.label}
+                onClick={() => {
+                  if (btn.type === 'note') {
+                    setNoteMenuOpen(prev => !prev)
+                  } else if (btn.type === 'list') {
+                    setListMenuOpen(prev => !prev)
+                  } else {
+                    handleCapture(btn.type as Exclude<EntityType, 'idea'>)
+                  }
+                }}
+                disabled={disabled}
+                className={`retro-btn retro-btn-secondary ${accentClass} whitespace-nowrap flex-shrink-0`}
+              >
+                {btn.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Note subtype dropdown */}
+      {noteMenuOpen && (
+        <div className="px-4 pb-3">
+          <div className="retro-card" style={{ padding: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {[
+              { label: 'Note', subtype: 'generic' },
+              { label: 'Meeting', subtype: 'meeting' },
+              { label: 'Research', subtype: 'research' },
+              { label: 'Media', subtype: 'media' },
+              { label: 'YouTube', subtype: 'youtube' },
+            ].map(opt => (
+              <button
+                key={opt.label}
+                className="retro-btn retro-btn-secondary retro-btn-sm"
+                onClick={() => {
+                  handleCapture('note', opt.subtype)
+                  setNoteMenuOpen(false)
+                }}
+                disabled={!inputText.trim()}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* List subtype dropdown */}
+      {listMenuOpen && (
+        <div className="px-4 pb-3">
+          <div className="retro-card" style={{ padding: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {[
+              { label: 'Bulleted', subtype: 'bulleted' },
+              { label: 'Numbered', subtype: 'numbered' },
+              { label: 'TaskList', subtype: 'tasklist' },
+              { label: 'Shopping', subtype: 'shopping' },
+            ].map(opt => (
+              <button
+                key={opt.label}
+                className="retro-btn retro-btn-secondary retro-btn-sm"
+                onClick={() => {
+                  handleCapture('list', opt.subtype)
+                  setListMenuOpen(false)
+                }}
+                disabled={!inputText.trim()}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* AI suggestion panel (inline near capture) */}
+      {(aiSuggestion || isAnalyzing) && (
+        <div className="px-4 pb-3">
+          <AISuggestionPanel
+            suggestion={aiSuggestion}
+            isLoading={isAnalyzing || false}
+            isCreating={isCreatingItem}
+            error={creationError}
+            onApplySuggestion={(type) => onAcceptSuggestion?.(type as Exclude<EntityType, 'idea'>)}
+            onDismiss={() => onDismissSuggestion?.()}
+            onAcceptAndSave={onAcceptAndSave || (async () => {})}
+            onAcceptAndEdit={onAcceptAndEdit || (() => {})}
+            onOverrideAndEdit={onOverrideAndEdit || (() => {})}
+          />
+        </div>
+      )}
 
       {/* Unsorted Inbox (collapsed by default) */}
       <div className="px-4">
@@ -364,19 +448,96 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
               <div className="text-xs opacity-60">No unsorted items.</div>
             )}
             {unsortedItems.map(item => (
-              <div key={item.id} className="flex items-center justify-between py-1 border-b border-dashed border-black/10 last:border-none">
-                <div>
-                  <div className="text-sm font-semibold">{item.text}</div>
-                  <div className="text-[10px] opacity-60">
-                    {typeof item.createdAt === 'string'
-                      ? item.createdAt
-                      : new Date(item.createdAt).toLocaleString()}
+              <div key={item.id} className="py-2 border-b border-dashed border-black/10 last:border-none">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-semibold">{item.text}</div>
+                    <div className="text-[10px] opacity-60">
+                      {typeof item.createdAt === 'string'
+                        ? item.createdAt
+                        : new Date(item.createdAt).toLocaleString()}
+                    </div>
                   </div>
+                  <button
+                    className="retro-btn retro-btn-secondary retro-btn-sm"
+                    onClick={() => onUnsortedDelete?.(item.id)}
+                    aria-label="Delete"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <div className="flex gap-2">
-                  <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => onUnsortedConvert?.(item.id)}>Convert</button>
-                  <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => onUnsortedDelete?.(item.id)}>Delete</button>
+                <div className="flex gap-2 flex-wrap mt-2">
+                  {[
+                    { type: 'task', label: 'Task' },
+                    { type: 'note', label: 'Note ▾' },
+                    { type: 'project', label: 'Project' },
+                    { type: 'list', label: 'List ▾' },
+                  ].map((btn) => {
+                    const accentClass = btn.type ? `retro-btn-accent-${btn.type}` : ''
+                    return (
+                      <button
+                        key={`${item.id}-${btn.type}`}
+                        className={`retro-btn retro-btn-secondary retro-btn-sm ${accentClass}`}
+                        onClick={() => {
+                          if (btn.type === 'note') {
+                            setInlineNoteMenuId(prev => (prev === item.id ? null : item.id))
+                            setInlineListMenuId(null)
+                          } else if (btn.type === 'list') {
+                            setInlineListMenuId(prev => (prev === item.id ? null : item.id))
+                            setInlineNoteMenuId(null)
+                          } else {
+                            onUnsortedConvert?.(item.id, btn.type as Exclude<EntityType, 'idea'>)
+                          }
+                        }}
+                      >
+                        {btn.label}
+                      </button>
+                    )
+                  })}
                 </div>
+                {inlineNoteMenuId === item.id && (
+                  <div className="mt-2 flex gap-2 flex-wrap">
+                    {[
+                      { label: 'Note', subtype: 'generic' },
+                      { label: 'Meeting', subtype: 'meeting' },
+                      { label: 'Research', subtype: 'research' },
+                      { label: 'Media', subtype: 'media' },
+                      { label: 'YouTube', subtype: 'youtube' },
+                    ].map(opt => (
+                      <button
+                        key={opt.label}
+                        className="retro-btn retro-btn-secondary retro-btn-sm"
+                        onClick={() => {
+                          onUnsortedConvert?.(item.id, 'note', opt.subtype)
+                          setInlineNoteMenuId(null)
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {inlineListMenuId === item.id && (
+                  <div className="mt-2 flex gap-2 flex-wrap">
+                    {[
+                      { label: 'Bulleted', subtype: 'bulleted' },
+                      { label: 'Numbered', subtype: 'numbered' },
+                      { label: 'TaskList', subtype: 'tasklist' },
+                      { label: 'Shopping', subtype: 'shopping' },
+                    ].map(opt => (
+                      <button
+                        key={opt.label}
+                        className="retro-btn retro-btn-secondary retro-btn-sm"
+                        onClick={() => {
+                          onUnsortedConvert?.(item.id, 'list', opt.subtype)
+                          setInlineListMenuId(null)
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -400,22 +561,6 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
           <p className="text-xs opacity-60 mt-2">AI-generated recap placeholder (non-blocking).</p>
         </div>
       </div>
-
-      {(aiSuggestion || isAnalyzing) && (
-        <div className="px-4 mb-4">
-          <AISuggestionPanel
-            suggestion={aiSuggestion}
-            isLoading={isAnalyzing || false}
-            isCreating={isCreatingItem}
-            error={creationError}
-            onApplySuggestion={(type) => onAcceptSuggestion?.(type as Exclude<EntityType, 'idea'>)}
-            onDismiss={() => onDismissSuggestion?.()}
-            onAcceptAndSave={onAcceptAndSave || (async () => {})}
-            onAcceptAndEdit={onAcceptAndEdit || (() => {})}
-            onOverrideAndEdit={onOverrideAndEdit || (() => {})}
-          />
-        </div>
-      )}
 
       <hr className="retro-separator" style={{ marginLeft: '16px', marginRight: '16px' }} />
 
@@ -465,76 +610,7 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
         )}
       </div>
 
-      {notePickerOpen && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/60 z-[1002]"
-            onClick={() => setNotePickerOpen(false)}
-          />
-          <motion.div
-            initial={{ y: 40, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 40, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed left-0 right-0 bottom-0 z-[1003]"
-          >
-            <div
-              className="retro-card"
-              style={{
-                background: 'var(--palm-bg-primary)',
-                border: '3px solid var(--palm-border-dark)',
-                boxShadow: '4px 4px 0 var(--palm-border-dark)',
-                borderRadius: '16px 16px 0 0',
-                overflow: 'hidden',
-              }}
-            >
-              <div
-                className="retro-sheet-header"
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '12px 16px',
-                }}
-              >
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', letterSpacing: '0.05em' }}>
-                  Select Note Type
-                </span>
-                <button
-                  onClick={() => setNotePickerOpen(false)}
-                  className="retro-close-btn"
-                  aria-label="Close"
-                >
-                  ×
-                </button>
-              </div>
-              <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {(noteTemplates.length ? noteTemplates : [
-                  { id: 'note-generic', name: 'Note', subtype: 'generic' } as Template,
-                  { id: 'note-youtube', name: 'YouTube', subtype: 'youtube' } as Template,
-                ]).map((template) => (
-                  <button
-                    key={template.id}
-                    onClick={() => {
-                      handleCapture('note', (template as any).subtype || 'generic')
-                      setNotePickerOpen(false)
-                    }}
-                    className="retro-btn retro-btn-secondary w-full"
-                    style={{ justifyContent: 'flex-start' }}
-                  >
-                    {template.name}
-                  </button>
-                ))}
-                {loadingNotes && (
-                  <div className="text-xs opacity-60" style={{ fontFamily: 'var(--font-mono)' }}>
-                    Loading note templates...
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        </>
-      )}
+      {/* Note picker modal removed; note/list subtypes handled inline */}
     </div>
   )
 }

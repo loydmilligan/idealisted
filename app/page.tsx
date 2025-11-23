@@ -477,8 +477,8 @@ function HomePageContent() {
 
         // Tag usage is automatically tracked by /api/items POST endpoint
 
-        // Flash appropriate tab
-        tabNavRef.current?.triggerFlash('ready', entityType)
+        // Flash appropriate tab (AI creates final entities → Files)
+        tabNavRef.current?.triggerFlash('files', entityType)
 
         // Show success feedback
         console.log(`[Accept Suggestion] ${entityType.charAt(0).toUpperCase() + entityType.slice(1)} created successfully`)
@@ -1490,7 +1490,7 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
             }))}
             onRecentItemClick={(id) => handleEntityTap(id)}
             unsortedItems={unsortedItems.map(i => ({ id: i.id, text: i.text, createdAt: i.created_at }))}
-            onUnsortedConvert={handleConvertFromUnsorted}
+            onUnsortedConvert={handleSort}
             onUnsortedDelete={handleDelete}
             onJournalSave={handleJournalSave}
             onMediaSave={handleMediaSave}
