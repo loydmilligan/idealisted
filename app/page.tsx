@@ -247,6 +247,56 @@ function HomePageContent() {
       createdAt: i.created_at,
     }))
 
+  // Planner state (local only)
+  const todayKey = getDateKey(Date.now())
+  const [plannerDate, setPlannerDate] = useState<string>(todayKey)
+  const [plannerAssignments, setPlannerAssignments] = useState<Record<string, string[]>>({})
+  const [plannerFilter, setPlannerFilter] = useState<'all' | 'task' | 'note' | 'list'>('all')
+
+  const plannerWeek = useMemo(() => {
+    const base = new Date(plannerDate + 'T00:00:00')
+    const day = base.getUTCDay()
+    const start = new Date(base)
+    start.setUTCDate(start.getUTCDate() - day)
+    return Array.from({ length: 7 }).map((_, idx) => {
+      const d = new Date(start)
+      d.setUTCDate(start.getUTCDate() + idx)
+      return getDateKey(d)
+    })
+  }, [plannerDate])
+
+  const plannerCandidates = useMemo(() => {
+    return items.filter(i => i.type !== 'idea' && (plannerFilter === 'all' || i.type === plannerFilter))
+  }, [items, plannerFilter])
+
+  const assignmentsForDay = (dayKey: string) => plannerAssignments[dayKey] || []
+
+  const assignToDay = (itemId: string, dayKey: string) => {
+    setPlannerAssignments(prev => {
+      const next = { ...prev }
+      const list = new Set(next[dayKey] || [])
+      list.add(itemId)
+      next[dayKey] = Array.from(list)
+      return next
+    })
+  }
+
+  const removeFromDay = (itemId: string, dayKey: string) => {
+    setPlannerAssignments(prev => {
+      const next = { ...prev }
+      const list = new Set(next[dayKey] || [])
+      list.delete(itemId)
+      next[dayKey] = Array.from(list)
+      return next
+    })
+  }
+
+  const goWeek = (delta: number) => {
+    const base = new Date(plannerDate + 'T00:00:00')
+    base.setUTCDate(base.getUTCDate() + delta * 7)
+    setPlannerDate(getDateKey(base))
+  }
+
   const journalEntry = useMemo(() => {
     const notes = items.filter(i => i.type === 'note' && ((i.metadata as any)?.subtype === 'journal' || i.note?.subtype === 'journal'))
     if (!notes.length) return null
@@ -1587,10 +1637,98 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
         )}
 
         {activeTab === 'planner' && (
-          <div className="p-4">
-            <div className="retro-card p-4">
-              <h2 className="retro-header retro-header-sm mb-2">Planner</h2>
-              <p className="text-sm opacity-70">Planner implementation pending (Phase 5).</p>
+          <div className="p-4 space-y-4">
+            <div className="retro-card p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="retro-header retro-header-sm">Planner</h2>
+                <div className="flex gap-2">
+                  <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => goWeek(-1)}>⟵ Week</button>
+                  <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => setPlannerDate(todayKey)}>Today</button>
+                  <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => goWeek(1)}>Week ⟶</button>
+                </div>
+              </div>
+              <div className="flex gap-2 flex-wrap items-center text-xs">
+                <span className="font-mono opacity-70">Filter:</span>
+                {['all','task','note','list'].map(f => (
+                  <button
+                    key={f}
+                    className={`retro-btn retro-btn-sm ${plannerFilter === f ? 'retro-btn-primary' : 'retro-btn-secondary'}`}
+                    onClick={() => setPlannerFilter(f as any)}
+                  >
+                    {f.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+
+              {/* AI Suggestions rail placeholder */}
+              <div className="retro-card p-3" style={{ background: 'var(--palm-screen-base)' }}>
+                <div className="text-xs font-mono opacity-70 uppercase mb-1">AI Suggestions</div>
+                <p className="text-xs opacity-70">Coming soon: suggested items for today.</p>
+              </div>
+
+              {/* Today assignments */}
+              <div className="retro-card p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <div className="text-xs font-mono opacity-70 uppercase">Today</div>
+                    <div className="text-sm font-semibold">{plannerDate}</div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {assignmentsForDay(plannerDate).length === 0 && (
+                    <p className="text-xs opacity-60">No items assigned.</p>
+                  )}
+                  {assignmentsForDay(plannerDate).map(id => {
+                    const ent = items.find(i => i.id === id)
+                    if (!ent) return null
+                    return (
+                      <div key={id} className="flex items-center justify-between retro-card p-2">
+                        <span className="text-sm">{ent.text}</span>
+                        <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => removeFromDay(id, plannerDate)}>Remove</button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Candidates */}
+              <div className="retro-card p-3">
+                <div className="text-xs font-mono opacity-70 uppercase mb-2">Add items</div>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {plannerCandidates.map(ent => (
+                    <div key={ent.id} className="flex items-center justify-between retro-card p-2">
+                      <div>
+                        <div className="text-sm font-semibold">{ent.text}</div>
+                        <div className="text-[10px] opacity-60 uppercase">{ent.type}</div>
+                      </div>
+                      <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => assignToDay(ent.id, plannerDate)}>Add</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Week grid */}
+              <div className="retro-card p-3">
+                <div className="text-xs font-mono opacity-70 uppercase mb-2">Week</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {plannerWeek.map(dayKey => (
+                    <div key={dayKey} className="retro-card p-2">
+                      <div className="text-xs font-semibold mb-1">{dayKey}</div>
+                      {assignmentsForDay(dayKey).length === 0 ? (
+                        <p className="text-[10px] opacity-60">Empty</p>
+                      ) : (
+                        <ul className="text-[11px] space-y-1">
+                          {assignmentsForDay(dayKey).slice(0,3).map(id => {
+                            const ent = items.find(i => i.id === id)
+                            return <li key={id}>{ent?.text || id}</li>
+                          })}
+                          {assignmentsForDay(dayKey).length > 3 && <li className="opacity-60">+ more</li>}
+                        </ul>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}
