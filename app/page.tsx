@@ -10,7 +10,7 @@
 
 'use client'
 
-import React, { useState, useEffect, useRef, Suspense } from 'react'
+import React, { useState, useEffect, useRef, Suspense, useMemo } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GlobalHeader } from '@/components/modern/GlobalHeader'
@@ -27,6 +27,7 @@ import { MarkdownEntityEditor, PreFillData } from '@/components/modern/MarkdownE
 import { TemplateSelector } from '@/components/modern/TemplateSelector'
 import type { Template } from '@/types'
 import { TourExample } from '@/components/ui/TourExample'
+import { subDays } from 'date-fns'
 import { TagInput } from '@/components/modern/TagInput'
 import { EntityType } from '@/lib/entity-colors'
 import { ItemWithRelations, AISuggestion } from '@/types'
@@ -95,6 +96,24 @@ function HomePageContent() {
 
   // Task 4.3: Pre-fill data state for Accept & Edit flow
   const [preFillData, setPreFillData] = useState<PreFillData | null>(null)
+  const getDateKey = (value: string | number | Date): string => {
+    const d = typeof value === 'string' ? new Date(value) : new Date(value)
+    if (Number.isNaN(d.getTime())) return ''
+    return d.toISOString().slice(0, 10)
+  }
+
+  const computeStreak = (dates: string[]): number => {
+    const set = new Set(dates.filter(Boolean))
+    let streak = 0
+    let cursor = getDateKey(Date.now())
+    while (set.has(cursor)) {
+      streak += 1
+      const d = new Date(cursor + 'T00:00:00Z')
+      d.setUTCDate(d.getUTCDate() - 1)
+      cursor = d.toISOString().slice(0, 10)
+    }
+    return streak
+  }
 
   // Load items on mount
   useEffect(() => {
@@ -227,6 +246,40 @@ function HomePageContent() {
       tags: Array.isArray(i.tags) ? i.tags : [],
       createdAt: i.created_at,
     }))
+
+  const journalEntry = useMemo(() => {
+    const notes = items.filter(i => i.type === 'note' && ((i.metadata as any)?.subtype === 'journal' || i.note?.subtype === 'journal'))
+    if (!notes.length) return null
+    const todayKey = getDateKey(Date.now())
+    const today = notes.find(n => getDateKey(n.created_at) === todayKey)
+    const dates = notes.map(n => getDateKey(n.created_at)).filter(Boolean)
+    const streak = computeStreak(dates)
+    if (!today) return null
+    return {
+      text: today.note?.content || today.text,
+      date: todayKey,
+      streak
+    }
+  }, [items])
+
+  const mediaEntry = useMemo(() => {
+    const notes = items.filter(i => i.type === 'note' && ((i.metadata as any)?.subtype === 'media' || i.note?.subtype === 'media'))
+    if (!notes.length) return null
+    const todayKey = getDateKey(Date.now())
+    const today = notes.find(n => getDateKey(n.created_at) === todayKey)
+    const dates = notes.map(n => getDateKey(n.created_at)).filter(Boolean)
+    const streak = computeStreak(dates)
+    if (!today) return null
+    const rawType = (today.note?.media_type || 'image').toString()
+    const normalizedType = (rawType.charAt(0).toUpperCase() + rawType.slice(1)) as 'Image' | 'Audio' | 'Video'
+    return {
+      url: today.note?.url || '',
+      type: normalizedType,
+      caption: today.note?.content || today.text,
+      date: todayKey,
+      streak
+    }
+  }, [items])
 
   // Badge counts
   const unsortedCount = unsortedItems.length
@@ -1441,6 +1494,8 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
             onUnsortedDelete={handleDelete}
             onJournalSave={handleJournalSave}
             onMediaSave={handleMediaSave}
+            journalEntry={journalEntry || undefined}
+            mediaEntry={mediaEntry || undefined}
             aiSuggestion={aiSuggestion}
             isAnalyzing={isAnalyzing}
             isCreatingItem={isCreatingItem}
