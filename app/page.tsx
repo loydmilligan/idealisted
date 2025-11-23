@@ -1088,20 +1088,44 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
     const fullEntity = data.item
 
     // Check if this is a markdown entity
-    if (fullEntity.markdown_content && fullEntity.template_id) {
-      // Markdown entity - fetch template and show viewer modal
-      const templateResponse = await fetch(`/api/templates/${fullEntity.template_id}`)
-      const templateData = await templateResponse.json()
-
-      if (templateData.success) {
-        setCurrentMarkdownItem(fullEntity)
-        setCurrentTemplate(templateData.data)
-        setMarkdownViewerOpen(true)
-      } else {
-        console.error('Failed to fetch template:', templateData.error)
-        alert('Error: Could not load entity template')
+    if (fullEntity.markdown_content) {
+      const inferTemplateId = () => {
+        if (fullEntity.template_id) return fullEntity.template_id
+        if (fullEntity.type === 'list') {
+          const lt = (fullEntity.list?.list_type || 'bulleted').toLowerCase()
+          if (lt === 'numbered') return 'list-numbered'
+          if (lt === 'tasklist') return 'list-tasklist'
+          if (lt === 'shopping') return 'list-shopping'
+          return 'list-bulleted'
+        }
+        if (fullEntity.type === 'note') {
+          const st = (fullEntity.note?.subtype || (fullEntity.metadata as any)?.subtype || 'generic').toLowerCase()
+          if (st === 'youtube') return 'note-youtube'
+          if (st === 'meeting') return 'note-meeting'
+          if (st === 'research') return 'note-research'
+          if (st === 'media') return 'note-media'
+          return 'note-generic'
+        }
+        if (fullEntity.type === 'project') return 'project-standard'
+        if (fullEntity.type === 'task') return 'task'
+        return null
       }
-      return
+
+      const templateId = inferTemplateId()
+      if (templateId) {
+        const templateResponse = await fetch(`/api/templates/${templateId}`)
+        const templateData = await templateResponse.json()
+
+        if (templateData.success) {
+          setCurrentMarkdownItem(fullEntity)
+          setCurrentTemplate(templateData.data)
+          setMarkdownViewerOpen(true)
+          return
+        } else {
+          console.error('Failed to fetch template:', templateData.error)
+        }
+      }
+      // If we couldn't resolve a template, fall through to legacy modal
     }
 
     // Legacy entity - show traditional EntityModal
@@ -1523,6 +1547,7 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
             onMediaSave={handleMediaSave}
             journalEntry={journalEntry || undefined}
             mediaEntry={mediaEntry || undefined}
+            recap={recap || undefined}
             aiSuggestion={aiSuggestion}
             isAnalyzing={isAnalyzing}
             isCreatingItem={isCreatingItem}

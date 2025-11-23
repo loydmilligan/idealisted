@@ -79,6 +79,8 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
   const [listMenuOpen, setListMenuOpen] = useState(false)
   const [inlineNoteMenuId, setInlineNoteMenuId] = useState<string | null>(null)
   const [inlineListMenuId, setInlineListMenuId] = useState<string | null>(null)
+  const [unsortedFlash, setUnsortedFlash] = useState(false)
+  const prevUnsortedCount = useRef<number>(unsortedItems.length)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const streakStyle = useMemo(() => {
@@ -108,6 +110,17 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
       resetTranscript()
     }
   }, [transcript, resetTranscript])
+
+  // Flash inline inbox when new items arrive
+  useEffect(() => {
+    const prev = prevUnsortedCount.current
+    if (unsortedItems.length > prev) {
+      setIsUnsortedOpen(true)
+      setUnsortedFlash(true)
+      setTimeout(() => setUnsortedFlash(false), 350)
+    }
+    prevUnsortedCount.current = unsortedItems.length
+  }, [unsortedItems.length])
 
   const handleCapture = (entityType?: Exclude<EntityType, 'idea'> | null, subtype?: string) => {
     if (!inputText.trim()) return
@@ -445,7 +458,16 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
           {isUnsortedOpen ? 'Hide Inbox' : 'Show Inbox'} ({unsortedItems.length})
         </button>
         {isUnsortedOpen && (
-          <div className="retro-card" style={{ padding: '12px', maxHeight: '220px', overflowY: 'auto' }}>
+          <div
+            className="retro-card"
+            style={{
+              padding: '12px',
+              maxHeight: '220px',
+              overflowY: 'auto',
+              boxShadow: unsortedFlash ? '0 0 0 3px rgba(255,255,255,0.6)' : undefined,
+              transition: 'box-shadow 0.3s ease',
+            }}
+          >
             {unsortedItems.length === 0 && (
               <div className="text-xs opacity-60">No unsorted items.</div>
             )}
