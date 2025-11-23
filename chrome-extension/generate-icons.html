@@ -77,61 +77,14 @@
   <script>
     const sizes = [16, 48, 128];
 
-    function drawIcon(ctx, size) {
-      const scale = size / 128;
+    // Entity colors from IdeaListed
+    const taskColor = '#4A90E2';    // Blue - Top Left
+    const noteColor = '#F5A623';    // Orange - Top Right
+    const projectColor = '#7ED321'; // Green - Bottom Left
+    const listColor = '#BD10E0';    // Purple - Bottom Right
 
-      // Background
-      ctx.fillStyle = '#0a0a0a';
-      roundRect(ctx, 0, 0, size, size, 16 * scale);
-      ctx.fill();
-
-      // Inner border
-      ctx.strokeStyle = '#00ff00';
-      ctx.lineWidth = 2 * scale;
-      roundRect(ctx, 8 * scale, 8 * scale, size - 16 * scale, size - 16 * scale, 12 * scale);
-      ctx.stroke();
-
-      // Fill inner
-      ctx.fillStyle = '#1a1a1a';
-      roundRect(ctx, 8 * scale, 8 * scale, size - 16 * scale, size - 16 * scale, 12 * scale);
-      ctx.fill();
-
-      // Stroke again on top
-      ctx.strokeStyle = '#00ff00';
-      roundRect(ctx, 8 * scale, 8 * scale, size - 16 * scale, size - 16 * scale, 12 * scale);
-      ctx.stroke();
-
-      // Text "IDEA" - only for larger icons
-      if (size >= 48) {
-        ctx.fillStyle = '#00ff00';
-        ctx.font = `bold ${24 * scale}px monospace`;
-        ctx.textAlign = 'center';
-        ctx.fillText('IDEA', size / 2, 48 * scale);
-      }
-
-      // Lines
-      ctx.fillStyle = '#00ff00';
-      const lineY = size >= 48 ? 60 : 40;
-      ctx.globalAlpha = 1;
-      ctx.fillRect(24 * scale, lineY * scale, 80 * scale, 4 * scale);
-
-      if (size >= 48) {
-        ctx.globalAlpha = 0.7;
-        ctx.fillRect(24 * scale, 72 * scale, 60 * scale, 4 * scale);
-        ctx.globalAlpha = 0.5;
-        ctx.fillRect(24 * scale, 84 * scale, 70 * scale, 4 * scale);
-        ctx.globalAlpha = 0.3;
-        ctx.fillRect(24 * scale, 96 * scale, 40 * scale, 4 * scale);
-      } else {
-        ctx.globalAlpha = 0.7;
-        ctx.fillRect(24 * scale, (lineY + 12) * scale, 50 * scale, 4 * scale);
-        ctx.globalAlpha = 0.4;
-        ctx.fillRect(24 * scale, (lineY + 24) * scale, 35 * scale, 4 * scale);
-      }
-      ctx.globalAlpha = 1;
-    }
-
-    function roundRect(ctx, x, y, width, height, radius) {
+    function drawRoundedRect(ctx, x, y, width, height, radius, color) {
+      ctx.fillStyle = color;
       ctx.beginPath();
       ctx.moveTo(x + radius, y);
       ctx.lineTo(x + width - radius, y);
@@ -143,6 +96,30 @@
       ctx.lineTo(x, y + radius);
       ctx.quadraticCurveTo(x, y, x + radius, y);
       ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawIcon(ctx, size) {
+      // Scale factor based on 32x32 base
+      const scale = size / 32;
+
+      // Gap between squares (scaled)
+      const gap = 2 * scale;
+      const padding = 2 * scale;
+      const squareSize = (size - gap - padding * 2) / 2;
+      const radius = Math.max(1, scale);
+
+      // Top-left: Task (Blue)
+      drawRoundedRect(ctx, padding, padding, squareSize, squareSize, radius, taskColor);
+
+      // Top-right: Note (Orange)
+      drawRoundedRect(ctx, padding + squareSize + gap, padding, squareSize, squareSize, radius, noteColor);
+
+      // Bottom-left: Project (Green)
+      drawRoundedRect(ctx, padding, padding + squareSize + gap, squareSize, squareSize, radius, projectColor);
+
+      // Bottom-right: List (Purple)
+      drawRoundedRect(ctx, padding + squareSize + gap, padding + squareSize + gap, squareSize, squareSize, radius, listColor);
     }
 
     // Generate icons
