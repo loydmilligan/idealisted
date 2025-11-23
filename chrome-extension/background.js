@@ -186,6 +186,16 @@ async function callOpenRouter(prompt, config) {
   }
 }
 
+// Map note types to template IDs
+function getTemplateId(noteType) {
+  const templateMap = {
+    video: 'note-youtube',
+    research: 'note-research',
+    link: 'note-generic'
+  };
+  return templateMap[noteType] || 'note-generic';
+}
+
 // Parse AI response into note structure
 function parseAIResponse(aiResponse, pageData, noteType) {
   let parsedData = null;
@@ -202,19 +212,39 @@ function parseAIResponse(aiResponse, pageData, noteType) {
     }
   }
 
-  // Build note with AI data or fallback to basic extraction
+  // Generate the markdown content
+  const markdownContent = parsedData?.content || generateFallbackContent(pageData, noteType);
+  const title = parsedData?.title || generateFallbackTitle(pageData, noteType);
+
+  // Map noteType to note subtype (video -> video, research -> research, link -> link)
+  const subtypeMap = {
+    video: 'video',
+    research: 'research',
+    link: 'link'
+  };
+  const subtype = subtypeMap[noteType] || 'general';
+
+  // Build note with markdown_content and template_id for new markdown viewer
   const note = {
     type: 'note',
-    text: parsedData?.title || generateFallbackTitle(pageData, noteType),
+    text: title,
     tags: parsedData?.tags || generateFallbackTags(pageData, noteType),
+    // NEW: markdown_content triggers the markdown viewer
+    markdown_content: markdownContent,
+    // NEW: template_id tells the viewer which template to use
+    template_id: getTemplateId(noteType),
+    // Mark as parsed for proper handling
+    parsed: true,
+    entity_type: 'note',
     note: {
-      subtype: noteType,
+      subtype: subtype,
       url: pageData.url,
-      content: parsedData?.content || generateFallbackContent(pageData, noteType),
+      content: markdownContent,
       media_type: noteType === 'video' ? 'video/youtube' : undefined
     },
     metadata: {
       ...parsedData?.metadata,
+      subtype: subtype,
       source: pageData.domain,
       sourceUrl: pageData.url,
       capturedVia: 'chrome-extension',
