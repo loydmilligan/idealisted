@@ -56,6 +56,7 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
   onMediaSave,
   journalEntry,
   mediaEntry,
+  recap,
   className = '',
   aiSuggestion,
   isAnalyzing,

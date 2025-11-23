@@ -124,32 +124,45 @@ export const TagInput: React.FC<TagInputProps> = ({
     return tag?.color || '#868e96'
   }
 
-  // Handle keyboard navigation
+  // Handle keyboard navigation (and mobile enter-as-tab behavior)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
       if (focusedIndex >= 0 && focusedIndex < filteredTags.length) {
-        // Add the focused tag from dropdown
         addTag(filteredTags[focusedIndex].name)
       } else if (inputValue.trim()) {
-        // Add the typed tag
         addTag(inputValue)
       }
-    } else if (e.key === 'Backspace' && !inputValue && value.length > 0) {
-      // Remove last tag when backspace on empty input
+      return
+    }
+    if (e.key === 'Backspace' && !inputValue && value.length > 0) {
       e.preventDefault()
       removeTag(value[value.length - 1])
-    } else if (e.key === 'ArrowDown') {
+      return
+    }
+    if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setFocusedIndex(prev =>
-        prev < filteredTags.length - 1 ? prev + 1 : prev
-      )
-    } else if (e.key === 'ArrowUp') {
+      setFocusedIndex(prev => prev < filteredTags.length - 1 ? prev + 1 : prev)
+      return
+    }
+    if (e.key === 'ArrowUp') {
       e.preventDefault()
       setFocusedIndex(prev => prev > 0 ? prev - 1 : -1)
-    } else if (e.key === 'Escape') {
+      return
+    }
+    if (e.key === 'Escape') {
       setShowDropdown(false)
       setFocusedIndex(-1)
+      return
+    }
+    // Mobile keyboards often send Enter as Tab/navigation. Treat Tab like Enter to add tag.
+    if (e.key === 'Tab') {
+      e.preventDefault()
+      if (focusedIndex >= 0 && focusedIndex < filteredTags.length) {
+        addTag(filteredTags[focusedIndex].name)
+      } else if (inputValue.trim()) {
+        addTag(inputValue)
+      }
     }
   }
 
