@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 380px;
+      min-height: 400px;
+      font-family: 'Courier New', monospace;
+      background: #0a0a0a;
+      color: #00ff00;
+      padding: 0;
+    }
+
+    .header {
+      background: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%);
+      border-bottom: 2px solid #00ff00;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo {
+      width: 32px;
+      height: 32px;
+      background: #00ff00;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .title {
+      font-size: 16px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .content {
+      padding: 16px;
+    }
+
+    .status-bar {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      padding: 8px 12px;
+      margin-bottom: 16px;
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    .status-dot.connected { background: #00ff00; }
+    .status-dot.disconnected { background: #ff0000; }
+    .status-dot.processing { background: #ffff00; animation: blink 0.5s infinite; }
+
+    @keyframes blink {
+      50% { opacity: 0.3; }
+    }
+
+    .page-info {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .page-info-label {
+      font-size: 10px;
+      color: #666;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .page-title {
+      font-size: 13px;
+      color: #00ff00;
+      word-break: break-word;
+      margin-bottom: 8px;
+    }
+
+    .page-url {
+      font-size: 10px;
+      color: #888;
+      word-break: break-all;
+    }
+
+    .detected-type {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .type-icon {
+      font-size: 24px;
+    }
+
+    .type-info {
+      flex: 1;
+    }
+
+    .type-label {
+      font-size: 10px;
+      color: #666;
+      text-transform: uppercase;
+    }
+
+    .type-name {
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .type-name.youtube { color: #ff0000; }
+    .type-name.research { color: #00ffff; }
+    .type-name.link { color: #ff00ff; }
+
+    .type-select {
+      margin-bottom: 16px;
+    }
+
+    .type-select label {
+      display: block;
+      font-size: 10px;
+      color: #666;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .type-select select {
+      width: 100%;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      color: #00ff00;
+      padding: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+    }
+
+    .type-select select:focus {
+      outline: none;
+      border-color: #00ff00;
+    }
+
+    .preview {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      padding: 12px;
+      margin-bottom: 16px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .preview-label {
+      font-size: 10px;
+      color: #666;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .preview-content {
+      font-size: 11px;
+      color: #aaa;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px 16px;
+      border: 2px solid;
+      background: transparent;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      font-weight: bold;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      border-color: #00ff00;
+      color: #00ff00;
+    }
+
+    .btn-primary:hover {
+      background: #00ff00;
+      color: #000;
+    }
+
+    .btn-primary:disabled {
+      border-color: #333;
+      color: #333;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      border-color: #666;
+      color: #666;
+    }
+
+    .btn-secondary:hover {
+      border-color: #888;
+      color: #888;
+    }
+
+    .message {
+      padding: 12px;
+      margin-bottom: 16px;
+      border: 1px solid;
+      font-size: 12px;
+    }
+
+    .message.success {
+      border-color: #00ff00;
+      color: #00ff00;
+      background: rgba(0, 255, 0, 0.1);
+    }
+
+    .message.error {
+      border-color: #ff0000;
+      color: #ff0000;
+      background: rgba(255, 0, 0, 0.1);
+    }
+
+    .message.info {
+      border-color: #00ffff;
+      color: #00ffff;
+      background: rgba(0, 255, 255, 0.1);
+    }
+
+    .settings-link {
+      text-align: center;
+      margin-top: 12px;
+    }
+
+    .settings-link a {
+      color: #666;
+      font-size: 11px;
+      text-decoration: none;
+    }
+
+    .settings-link a:hover {
+      color: #00ff00;
+    }
+
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      gap: 16px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #333;
+      border-top-color: #00ff00;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">📋</div>
+    <div class="title">IdeaListed</div>
+  </div>
+
+  <div class="content">
+    <div class="status-bar">
+      <span>
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Checking connection...</span>
+      </span>
+      <span id="serverUrl"></span>
+    </div>
+
+    <div id="mainContent">
+      <div class="loading" id="loadingState">
+        <div class="spinner"></div>
+        <div class="loading-text">Analyzing page...</div>
+      </div>
+
+      <div id="captureForm" style="display: none;">
+        <div class="page-info">
+          <div class="page-info-label">Current Page</div>
+          <div class="page-title" id="pageTitle"></div>
+          <div class="page-url" id="pageUrl"></div>
+        </div>
+
+        <div class="detected-type" id="detectedType">
+          <div class="type-icon" id="typeIcon">🔗</div>
+          <div class="type-info">
+            <div class="type-label">Detected Type</div>
+            <div class="type-name" id="typeName">Link</div>
+          </div>
+        </div>
+
+        <div class="type-select">
+          <label for="noteType">Override Note Type</label>
+          <select id="noteType">
+            <option value="auto">Auto-detect</option>
+            <option value="video">🎥 YouTube Video</option>
+            <option value="research">🔬 Research/Article</option>
+            <option value="link">🔗 Link/URL</option>
+          </select>
+        </div>
+
+        <div class="preview">
+          <div class="preview-label">Content Preview</div>
+          <div class="preview-content" id="previewContent">Extracting content...</div>
+        </div>
+
+        <div id="messageArea"></div>
+
+        <div class="actions">
+          <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+          <button class="btn btn-primary" id="captureBtn" disabled>Capture</button>
+        </div>
+      </div>
+
+      <div id="configNeeded" style="display: none;">
+        <div class="message info">
+          Please configure IdeaListed server URL and API settings in the extension options.
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" id="openOptionsBtn">Open Settings</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-link">
+      <a href="#" id="settingsLink">⚙ Settings</a>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

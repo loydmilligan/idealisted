@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>IdeaListed Capture Settings</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0a0a0a;
+      color: #00ff00;
+      min-height: 100vh;
+      padding: 40px;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #333;
+    }
+
+    .logo {
+      width: 48px;
+      height: 48px;
+      background: #00ff00;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+    }
+
+    .title-group h1 {
+      font-size: 24px;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+    }
+
+    .title-group p {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .section {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #333;
+    }
+
+    .field {
+      margin-bottom: 20px;
+    }
+
+    .field:last-child {
+      margin-bottom: 0;
+    }
+
+    .field label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 8px;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      background: #0a0a0a;
+      border: 1px solid #333;
+      color: #00ff00;
+      padding: 12px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+    }
+
+    .field input:focus,
+    .field select:focus {
+      outline: none;
+      border-color: #00ff00;
+    }
+
+    .field input::placeholder {
+      color: #444;
+    }
+
+    .field-help {
+      font-size: 10px;
+      color: #666;
+      margin-top: 6px;
+    }
+
+    .field-help a {
+      color: #00ff00;
+    }
+
+    .password-toggle {
+      position: relative;
+    }
+
+    .password-toggle input {
+      padding-right: 50px;
+    }
+
+    .toggle-btn {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      color: #666;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .toggle-btn:hover {
+      color: #00ff00;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 32px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 14px 24px;
+      border: 2px solid;
+      background: transparent;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      font-weight: bold;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      border-color: #00ff00;
+      color: #00ff00;
+    }
+
+    .btn-primary:hover {
+      background: #00ff00;
+      color: #000;
+    }
+
+    .btn-secondary {
+      border-color: #666;
+      color: #666;
+    }
+
+    .btn-secondary:hover {
+      border-color: #888;
+      color: #888;
+    }
+
+    .message {
+      padding: 12px 16px;
+      margin-top: 20px;
+      border: 1px solid;
+      font-size: 12px;
+    }
+
+    .message.success {
+      border-color: #00ff00;
+      color: #00ff00;
+      background: rgba(0, 255, 0, 0.1);
+    }
+
+    .message.error {
+      border-color: #ff0000;
+      color: #ff0000;
+      background: rgba(255, 0, 0, 0.1);
+    }
+
+    .connection-test {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .test-btn {
+      padding: 8px 16px;
+      background: transparent;
+      border: 1px solid #444;
+      color: #888;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .test-btn:hover {
+      border-color: #00ff00;
+      color: #00ff00;
+    }
+
+    .test-result {
+      font-size: 11px;
+    }
+
+    .test-result.success { color: #00ff00; }
+    .test-result.error { color: #ff0000; }
+    .test-result.testing { color: #ffff00; }
+
+    .model-info {
+      background: #0a0a0a;
+      padding: 12px;
+      margin-top: 12px;
+      font-size: 11px;
+      color: #888;
+    }
+
+    .model-info strong {
+      color: #00ff00;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">📋</div>
+      <div class="title-group">
+        <h1>IdeaListed Capture</h1>
+        <p>Extension Settings</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🖥️ IdeaListed Server</div>
+
+      <div class="field">
+        <label for="serverUrl">Server URL</label>
+        <input type="url" id="serverUrl" placeholder="http://localhost:3000">
+        <div class="field-help">
+          The URL of your IdeaListed instance (e.g., http://localhost:3000 or your deployed URL)
+        </div>
+        <div class="connection-test">
+          <button class="test-btn" id="testConnection">Test Connection</button>
+          <span class="test-result" id="testResult"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🤖 AI Configuration (Optional)</div>
+
+      <div class="field">
+        <label for="apiKey">OpenRouter API Key</label>
+        <div class="password-toggle">
+          <input type="password" id="apiKey" placeholder="sk-or-...">
+          <button class="toggle-btn" id="toggleApiKey">Show</button>
+        </div>
+        <div class="field-help">
+          Get your API key from <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a>.
+          AI processing is optional but provides better note structure and summaries.
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="aiModel">AI Model</label>
+        <select id="aiModel">
+          <optgroup label="Free Models">
+            <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (Free)</option>
+            <option value="meta-llama/llama-3.2-3b-instruct:free">Llama 3.2 3B (Free)</option>
+            <option value="qwen/qwen-2-7b-instruct:free">Qwen 2 7B (Free)</option>
+          </optgroup>
+          <optgroup label="Paid Models (Better Quality)">
+            <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+            <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+            <option value="anthropic/claude-3-haiku">Claude 3 Haiku</option>
+            <option value="google/gemini-pro">Gemini Pro</option>
+          </optgroup>
+        </select>
+        <div class="model-info" id="modelInfo">
+          <strong>Gemini 2.0 Flash</strong> - Free tier, fast responses, good for structured extraction.
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">⚙️ Capture Defaults</div>
+
+      <div class="field">
+        <label for="defaultAction">Default Capture Action</label>
+        <select id="defaultAction">
+          <option value="popup">Show popup for review</option>
+          <option value="quick">Quick capture (no review)</option>
+        </select>
+        <div class="field-help">
+          "Quick capture" sends to IdeaListed immediately without popup review.
+        </div>
+      </div>
+
+      <div class="field">
+        <label>
+          <input type="checkbox" id="useAI" checked> Enable AI processing
+        </label>
+        <div class="field-help" style="margin-top: 8px;">
+          When enabled, content will be analyzed by AI for better notes.
+          Disable to save the page with basic extraction only.
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" id="resetBtn">Reset</button>
+      <button class="btn btn-primary" id="saveBtn">Save Settings</button>
+    </div>
+
+    <div id="messageArea"></div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
