@@ -31,6 +31,7 @@ interface CaptureScreenProps {
   onMediaSave?: (payload: { url: string; type: 'Image' | 'Audio' | 'Video'; caption: string }) => void
   journalEntry?: { text: string; date: string; streak: number }
   mediaEntry?: { url: string; type: 'Image' | 'Audio' | 'Video'; caption: string; date: string; streak: number }
+  recap?: { title: string; body: string; link?: string; mode: 'summary' | 'quote' }
   className?: string
   aiSuggestion?: AISuggestion | null
   isAnalyzing?: boolean
@@ -553,12 +554,15 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
         <div className="retro-card" style={{ padding: '12px' }}>
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-xs font-mono opacity-70 uppercase">AI Recap</div>
-              <div className="text-sm font-semibold">Yesterday Summary</div>
+              <div className="text-xs font-mono opacity-70 uppercase">{recap?.mode === 'summary' ? 'AI Recap' : 'Quote'}</div>
+              <div className="text-sm font-semibold">{recap?.title || 'Daily Recap'}</div>
             </div>
-            <span className="text-xs opacity-60">Coming soon</span>
+            <span className="text-xs opacity-60">{recap?.mode === 'summary' ? 'Auto' : 'Fallback'}</span>
           </div>
-          <p className="text-xs opacity-60 mt-2">AI-generated recap placeholder (non-blocking).</p>
+          <p className="text-sm mt-2">{recap?.body || 'No recap yet.'}</p>
+          {recap?.link && (
+            <a className="text-xs underline" href={recap.link} target="_blank" rel="noreferrer">Learn more</a>
+          )}
         </div>
       </div>
 
