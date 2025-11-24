@@ -200,6 +200,17 @@ export interface Plan {
   completed_at?: number | null | undefined
 }
 
+// Sprint 3 Phase 1: Plan assignments for "Plan my day" feature
+// Links items to specific dates with ordering support
+export interface PlanAssignment {
+  id: string
+  item_id: string
+  assigned_date: string  // YYYY-MM-DD format
+  position: number       // For drag-drop reordering within a day
+  created_at: number
+  updated_at: number
+}
+
 export interface Setting {
   key: string
   value: string
@@ -269,6 +280,12 @@ export interface DailySummaryConfig {
     tasksDueToday: boolean
     tasksDueSoon: boolean
   }
+}
+
+export interface RecapConfig {
+  enabled: boolean
+  mode: 'summary' | 'quote'
+  threshold: number  // Minimum items required for summary mode (default: 3)
 }
 
 // Combined types for API responses

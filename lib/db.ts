@@ -96,6 +96,11 @@ function seedAIFeatureSettings() {
       enabled: 0,
       description: 'AI summary in daily review notifications'
     },
+    {
+      name: 'list_append_ai',
+      enabled: 1,
+      description: 'AI-powered suggestions for adding items to lists'
+    },
   ]
 
   try {
@@ -636,6 +641,21 @@ export function initializeDatabase() {
     )
   `)
 
+  // Plan assignments table - Sprint 3 Phase 1: Links items to specific dates with ordering
+  // Enables "Plan my day" feature where items can be assigned to calendar dates
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS plan_assignments (
+      id TEXT PRIMARY KEY,
+      item_id TEXT NOT NULL,
+      assigned_date TEXT NOT NULL,  -- YYYY-MM-DD format
+      position INTEGER DEFAULT 0,   -- For drag-drop reordering within a day
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
+      UNIQUE(item_id, assigned_date)
+    )
+  `)
+
   // AI suggestions table
   db.exec(`
     CREATE TABLE IF NOT EXISTS ai_suggestions (
@@ -723,6 +743,8 @@ export function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_tags_usage ON tags(usage_count DESC);
     CREATE INDEX IF NOT EXISTS idx_tasks_reminder ON tasks(reminder_datetime);
     CREATE INDEX IF NOT EXISTS idx_templates_entity_type ON templates(entity_type);
+    CREATE INDEX IF NOT EXISTS idx_plan_assignments_date ON plan_assignments(assigned_date);
+    CREATE INDEX IF NOT EXISTS idx_plan_assignments_item ON plan_assignments(item_id);
   `)
 
   console.log('Database initialized successfully')
