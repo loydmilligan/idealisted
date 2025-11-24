@@ -19,7 +19,8 @@ import {
   loadFromServer,
   getLocalAssignments,
   initOfflineSupport,
-  removeAssignmentLocal
+  removeAssignmentLocal,
+  addAssignmentLocal
 } from '@/lib/plan-storage'
 import { getEntityColor, getEntityBackgroundColor, EntityType } from '@/lib/entity-colors'
 
@@ -283,6 +284,53 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
     // Notify parent
     onTaskToggle?.(itemId, newStatus)
   }, [onTaskToggle])
+
+  /**
+   * Assign an item to a specific date
+   * Creates new assignment with optimistic update and background sync
+   */
+  const assignToDay = useCallback(async (itemId: string, date: string) => {
+    try {
+      // Calculate next position (max + 1)
+      const existingAssignments = getLocalAssignments(date)
+      const maxPosition = existingAssignments.reduce(
+        (max, a) => Math.max(max, a.position),
+        0
+      )
+      const newPosition = maxPosition + 1
+
+      // Generate new assignment ID
+      const newAssignment: PlanAssignmentWithItem = {
+        id: crypto.randomUUID(),
+        item_id: itemId,
+        assigned_date: date,
+        position: newPosition,
+        created_at: Date.now(),
+        updated_at: Date.now()
+      }
+
+      // Optimistic update: add to React state if viewing this date
+      if (date === selectedDate) {
+        setAssignments(prev => [...prev, newAssignment])
+      }
+
+      // Update localStorage and queue for sync (internally triggers syncToServer)
+      addAssignmentLocal(date, newAssignment)
+
+    } catch (error) {
+      console.error('[PlannerScreen] Failed to assign item to day:', error)
+      // Note: Local state is already updated, sync will retry later
+      // Future: show toast notification here
+    }
+  }, [selectedDate])
+
+  /**
+   * Remove an assignment from a specific date
+   * Alias for handleRemove to match the naming convention in the prompt
+   */
+  const removeFromDay = useCallback((assignmentId: string) => {
+    handleRemove(assignmentId)
+  }, [handleRemove])
 
   // Formatted date for display
   const formattedDate = useMemo(() => formatDateDisplay(selectedDate), [selectedDate])

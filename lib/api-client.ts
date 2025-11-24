@@ -154,46 +154,29 @@ class ApiClient {
     })
   }
 
-  // Task Management
-  async rescheduleTask(taskId: string, _field: string, newDate?: string | number) {
-    // Reschedule task by updating its due_date
-    // Convert string date to timestamp if needed
-    const dueDate = typeof newDate === 'string' ? new Date(newDate).getTime() : newDate
-    return this.request<{ item: Item }>(`/items/${taskId}`, {
+  async finalizePlan(id: string) {
+    return this.request<{ plan: Plan }>(`/plans/${id}/finalize`, {
       method: 'PUT',
-      body: JSON.stringify({
-        id: taskId,
-        task: {
-          due_date: dueDate
-        }
-      }),
     })
   }
 
-  // Plan Management (Sprint 3)
-  async autoPopulatePlan(_date: string) {
-    // Stub: Auto-populate plan for a given date
-    // This will be implemented in Sprint 3 Phase 2
-    return { success: true }
-  }
-
-  async completePlan(planId: string) {
-    // Mark a plan as completed
-    return this.request<{ plan: Plan }>(`/plans/${planId}`, {
+  async completePlan(id: string) {
+    return this.request<{ plan: Plan }>(`/plans/${id}/complete`, {
       method: 'PUT',
-      body: JSON.stringify({
-        completed_at: Date.now()
-      }),
     })
   }
 
-  async finalizePlan(planId: string) {
-    // Mark a plan as finalized (ready for execution)
-    return this.request<{ plan: Plan }>(`/plans/${planId}`, {
+  async autoPopulatePlan(date: string) {
+    return this.request<{ plan: Plan }>(`/plans/auto-populate`, {
+      method: 'POST',
+      body: JSON.stringify({ date }),
+    })
+  }
+
+  async rescheduleTask(taskId: string, option: 'tomorrow' | 'pick' | 'backlog' | 'delete', targetDate?: string) {
+    return this.request<{ success: boolean }>(`/items/${taskId}/reschedule`, {
       method: 'PUT',
-      body: JSON.stringify({
-        finalized_at: Date.now()
-      }),
+      body: JSON.stringify({ option, targetDate }),
     })
   }
 }

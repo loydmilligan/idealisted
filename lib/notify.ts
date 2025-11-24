@@ -37,6 +37,12 @@ class NtfyService {
     return this.events[eventName] === true
   }
 
+  private async isMilestoneEnabled(): Promise<boolean> {
+    await this.loadConfig()
+    if (!this.config?.enabled) return false
+    return this.config?.milestone_notifications === true
+  }
+
   async updateConfig(config: NtfyConfig) {
     try {
       const { db } = await import('./db')
@@ -253,6 +259,54 @@ class NtfyService {
       `"${taskText.substring(0, 50)}${taskText.length > 50 ? '...' : ''}"`,
       [],
       'default'
+    )
+  }
+
+  // Planner milestone notifications
+  async notifyPlanFinalized(date: string, taskCount: number) {
+    if (!(await this.isMilestoneEnabled())) {
+      return { success: false, skipped: true }
+    }
+
+    const baseURL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    return this.sendNotification(
+      '📅 Plan Finalized!',
+      `Your plan for ${date} is set with ${taskCount} task${taskCount !== 1 ? 's' : ''}.`,
+      [
+        {
+          action: 'view',
+          label: 'View Plan',
+          url: `${baseURL}/planner`
+        }
+      ],
+      'default'
+    )
+  }
+
+  async notifyEveningReviewComplete(date: string, completedCount: number, totalCount: number) {
+    if (!(await this.isMilestoneEnabled())) {
+      return { success: false, skipped: true }
+    }
+
+    const pct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+    return this.sendNotification(
+      '🌙 Evening Review Complete!',
+      `${date}: ${completedCount}/${totalCount} tasks done (${pct}%). Great job!`,
+      [],
+      'default'
+    )
+  }
+
+  async notifyAllTasksCompleted(date: string) {
+    if (!(await this.isMilestoneEnabled())) {
+      return { success: false, skipped: true }
+    }
+
+    return this.sendNotification(
+      '🎉 All Tasks Completed!',
+      `Congratulations! You've completed all tasks for ${date}.`,
+      [],
+      'high'
     )
   }
 

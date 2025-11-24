@@ -640,9 +640,29 @@ export function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS plans (
       id TEXT PRIMARY KEY,
       date TEXT UNIQUE NOT NULL,
-      todoIds TEXT, -- JSON array of todo IDs
+      todoIds TEXT, -- JSON array of todo IDs (legacy)
+      status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'finalized', 'completed')),
+      journal_entry TEXT,
+      tasks_completed_count INTEGER DEFAULT 0,
+      tasks_total_count INTEGER DEFAULT 0,
+      completion_percentage REAL DEFAULT 0.0,
       created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
+      updated_at INTEGER NOT NULL,
+      finalized_at INTEGER,
+      completed_at INTEGER
+    )
+  `)
+
+  // Plan tasks table - Sprint 3: Many-to-many relationship between plans and tasks
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS plan_tasks (
+      id TEXT PRIMARY KEY,
+      plan_id TEXT NOT NULL,
+      task_id TEXT NOT NULL,
+      added_at INTEGER NOT NULL,
+      FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE,
+      FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+      UNIQUE(plan_id, task_id)
     )
   `)
 

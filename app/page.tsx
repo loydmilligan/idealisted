@@ -2216,7 +2216,7 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
               background: 'var(--palm-bg-secondary)',
               color: 'var(--entity-project)'
             }}>
-              ⚠️ Almost there! Don't let this stall. {currentMarkdownItem.project_summary.danger_zone.reason || ''}
+              ⚠️ Almost there! Don&apos;t let this stall. {currentMarkdownItem.project_summary.danger_zone.reason || ''}
             </div>
           )}
                         <RelatedList

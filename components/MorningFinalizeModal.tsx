@@ -41,6 +41,21 @@ export function MorningFinalizeModal({ plan, tasks, onClose, onFinalize }: Morni
       // Finalize the plan
       await apiClient.finalizePlan(plan.id)
 
+      // Send milestone notification (P6-T6)
+      try {
+        await fetch('/api/notify/milestone-plan-finalized', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date: plan.date,
+            taskCount: planTasks.length
+          })
+        })
+      } catch (notifyError) {
+        // Non-blocking: log but don't fail the operation
+        console.error('Failed to send plan finalized notification:', notifyError)
+      }
+
       onFinalize()
     } catch (error) {
       console.error('Failed to finalize plan:', error)
@@ -56,7 +71,7 @@ export function MorningFinalizeModal({ plan, tasks, onClose, onFinalize }: Morni
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b-2 border-[var(--retro-primary)]">
           <h2 className="text-lg font-bold uppercase tracking-wide">
-            Finalize Today's Plan
+            Finalize Today&apos;s Plan
           </h2>
           <RetroButton
             onClick={onClose}
@@ -70,7 +85,7 @@ export function MorningFinalizeModal({ plan, tasks, onClose, onFinalize }: Morni
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           <p className="text-sm opacity-70">
-            Review and adjust your plan for today. Remove tasks you won't tackle or reorder them by priority.
+            Review and adjust your plan for today. Remove tasks you won&apos;t tackle or reorder them by priority.
           </p>
 
           <div className="space-y-2">

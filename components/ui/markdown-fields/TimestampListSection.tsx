@@ -75,7 +75,7 @@ export function TimestampListSection({
             padding: 'var(--space-sm)',
             textAlign: 'center'
           }}>
-            No timestamps yet. Click "Add Item" to get started.
+            No timestamps yet. Click &quot;Add Item&quot; to get started.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>

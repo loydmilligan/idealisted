@@ -349,7 +349,7 @@ export async function PUT(
 
     if (body.task) {
       const existingTask = db.prepare('SELECT id FROM tasks WHERE item_id = ?').get(params.id)
-      
+
       if (existingTask) {
         const updateTask = db.prepare(`
           UPDATE tasks
@@ -366,6 +366,12 @@ export async function PUT(
           body.task.reminder_datetime || null,
           params.id
         )
+
+        // TODO (P6-T6): Check if this was the last incomplete task for today's plan
+        // If so, trigger milestone notification via /api/notify/milestone-all-tasks-complete
+        // Query plan_assignments for today's date, check if all tasks are status='completed'
+        // This requires: 1) Get today's date 2) Query plan_assignments 3) Check task statuses
+        // 4) If all complete, call ntfyService.notifyAllTasksCompleted(date)
       } else {
         const insertTask = db.prepare(`
           INSERT INTO tasks (id, item_id, status, priority, tags, estimated_time, project_id, due_date, reminder_datetime)

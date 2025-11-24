@@ -123,6 +123,22 @@ export function EveningReviewFlow({
       // Mark today's plan as complete
       await apiClient.completePlan(plan.id)
 
+      // Send milestone notification (P6-T6)
+      try {
+        await fetch('/api/notify/milestone-evening-review', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date: plan.date,
+            completedCount: completedTasks.size,
+            totalCount: plan.tasks.length
+          })
+        })
+      } catch (notifyError) {
+        // Non-blocking: log but don't fail the operation
+        console.error('Failed to send evening review notification:', notifyError)
+      }
+
       onComplete()
     } catch (error) {
       console.error('Failed to complete evening review:', error)
@@ -342,9 +358,9 @@ export function EveningReviewFlow({
       case 'tomorrow':
         return (
           <div className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wide">Draft Tomorrow's Plan</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wide">Draft Tomorrow&apos;s Plan</h3>
             <p className="text-xs opacity-70">
-              Auto-populating tomorrow's plan with rescheduled and due tasks
+              Auto-populating tomorrow&apos;s plan with rescheduled and due tasks
             </p>
 
             <div className="bg-[var(--retro-primary)] bg-opacity-10 p-4 rounded space-y-3">
@@ -361,7 +377,7 @@ export function EveningReviewFlow({
               </ul>
 
               <p className="text-sm mt-4">
-                Tomorrow's plan will include:
+                Tomorrow&apos;s plan will include:
               </p>
               <ul className="text-xs space-y-1 opacity-70">
                 <li>• Rescheduled tasks from today</li>

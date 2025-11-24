@@ -191,7 +191,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({
                       marginRight: '8px',
                     }}
                   />
-                  <span>Don't show this again</span>
+                  <span>Don&apos;t show this again</span>
                 </label>
 
                 {/* Action Buttons */}

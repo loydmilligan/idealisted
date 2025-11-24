@@ -249,6 +249,7 @@ export interface NtfyConfig {
   username?: string
   password?: string
   priority: 'default' | 'low' | 'high' | 'urgent'
+  milestone_notifications?: boolean  // Optional planner milestone notifications
 }
 
 export interface AppearanceConfig {

@@ -1,0 +1,25 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { ntfyService } from '@/lib/notify'
+
+export async function POST(request: NextRequest) {
+  try {
+    const { date, taskCount } = await request.json()
+
+    if (!date || taskCount === undefined) {
+      return NextResponse.json(
+        { success: false, error: 'Missing required fields' },
+        { status: 400 }
+      )
+    }
+
+    const result = await ntfyService.notifyPlanFinalized(date, taskCount)
+
+    return NextResponse.json({ success: true, result })
+  } catch (error) {
+    console.error('Failed to send plan finalized notification:', error)
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    )
+  }
+}

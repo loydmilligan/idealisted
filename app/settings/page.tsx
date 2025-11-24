@@ -32,7 +32,8 @@ export default function SettingsPage() {
     topic: 'idealisted',
     username: '',
     password: '',
-    priority: 'default'
+    priority: 'default',
+    milestone_notifications: false
   })
 
   const [recapConfig, setRecapConfig] = useState<RecapConfig>({
@@ -408,7 +409,21 @@ export default function SettingsPage() {
                     <option value="high">High</option>
                     <option value="urgent">Urgent</option>
                   </select>
-                  
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="palm-checkbox"
+                      checked={ntfyConfig.milestone_notifications || false}
+                      onChange={(e) => setNtfyConfig({...ntfyConfig, milestone_notifications: e.target.checked})}
+                      disabled={!ntfyConfig.enabled}
+                    />
+                    <label className="text-xs">Milestone Notifications</label>
+                  </div>
+                  <p className="text-xs opacity-70">
+                    Get notified when you finalize plans, complete reviews, or finish all tasks
+                  </p>
+
                   <div className="flex gap-2">
                     <RetroButton
                       onClick={saveNtfySettings}
