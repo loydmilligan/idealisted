@@ -246,6 +246,11 @@ function HomePageContent() {
       entityType: i.type as Exclude<EntityType, 'idea'>,
       tags: Array.isArray(i.tags) ? i.tags : [],
       createdAt: i.created_at,
+      metadata: {
+        status: i.task?.status,
+        dueDate: i.task?.due_date ? new Date(i.task.due_date).toISOString() : undefined,
+        itemCount: i.list?.items?.length
+      },
     }))
 
   // Planner state (local only)
@@ -1698,6 +1703,7 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
             onEntityTap={handleEntityTap}
             onDelete={handleDelete}
             onSwipeRightAction={handleSwipeRightAction}
+            onTaskToggle={(id, status) => toggleTaskStatus(id, status)}
             tagsEnabled
           />
         )}

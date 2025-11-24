@@ -4,81 +4,20 @@ A retro Palm Pilot-styled idea capture and task management application with AI-p
 
 ## Features
 
-- **Quick Idea Capture**: Rapid text input with AI-powered parsing and suggestions
-- **Entity System**: Convert ideas into tasks, notes, projects, lists, and todos
-- **AI Integration**: OpenRouter-powered idea analysis, rewriting, and daily summaries
-- **Retro Design**: Nostalgic Palm Pilot aesthetic with modern functionality
-- **Daily Review**: Automated activity tracking and insights
-- **Markdown Entities**: Template-based structured entities (tasks, notes) with rich formatting
+- **Quick Capture first**: Primary capture box with entity quick-sort buttons; inline inbox (collapsed) auto-expands on new ideas.
+- **Markdown entities**: Tasks, notes (generic/meeting/research/media/YouTube), lists (bulleted/numbered/tasklist/shopping), projects.
+- **AI assist**: Inline suggestion panel under capture; accept/override creates entities directly into Files with color flash.
+- **Planner tab**: Daily view with filters, week grid, color-coded cards, task checkboxes, and slide-in “Add” drawer for tasks/notes/lists.
+- **Journal/Media streaks + recap**: Today surface for journal/media entries with streak indicators; recap/quote fallback.
+- **Chrome extension**: Capture YouTube content and arbitrary URLs to IdeaListed (see Chrome extension README).
+- **Retro design**: Palm Pilot aesthetic with muted entity colors and mobile-first layout.
 
-## Idea Capture Flows
-
-IdeaListed supports three distinct workflows for capturing and converting ideas into structured entities:
-
-### 1. "3-Step Flow" (Full Processing)
-**Idea → Unsorted → Ready → Entity**
-
-The complete workflow for quick capture with delayed processing:
-
-1. **Capture**: Enter idea text and click the checkmark (✓) button
-2. **Unsorted Inbox**: Idea appears in Unsorted tab for triage
-3. **Ready to Convert**: Select entity type (Task/Note/Project/List) to move to Ready tab
-4. **Convert**: Click "Convert" button to open modal, fill in details, and save to Files
-
-**Use Case**: Quick idea capture during the day, with nightly cleanup process to sort Unsorted ideas, then convert Ready items into fully-detailed entities.
-
-**Markdown Support**: Task, Generic Note, and YouTube Note entities create markdown-based structured content.
-
-### 2. "JumpTheLine Flow" (Quick Entity Creation)
-**Idea → Entity (via Quick Sort Buttons)**
-
-Direct conversion for ideas where the entity type is immediately obvious:
-
-1. **Capture**: Enter idea text in capture field
-2. **Quick Sort**: Click entity button (Task/Note/Project/List) in capture screen
-3. **Entity Created**: Item goes directly to Files tab as a structured entity
-
-**Current Behavior**: Opens modal for detail entry, saves immediately to Files.
-
-**Intended Behavior** (to be implemented):
-- Should move item to Ready tab instead of Files
-- Add "Convert All" button to batch-convert all Ready items without modals
-- Quick sort creates entity with minimal data, user refines later
-
-**Use Case**: When you know what type of entity you need but don't want to fill in details immediately.
-
-**Markdown Support**: Task, Generic Note, and YouTube Note buttons open MarkdownEntityEditor for structured creation.
-
-### 3. "LetAIDoIt Flow" (AI-Powered Conversion)
-**Idea → AI Analysis → Entity**
-
-AI-driven conversion with automatic type detection and detail extraction:
-
-1. **Capture**: Enter idea text in capture field
-2. **AI Analyze**: Click AI (🤖) button
-3. **AI Suggestion Panel**: Review AI's suggested entity type, confidence score, and extracted metadata
-4. **Accept or Override**:
-   - **Accept**: AI creates entity immediately with suggested details (goes to Files)
-   - **Override**: Change entity type, then create with AI-extracted metadata
-   - **Dismiss**: Cancel and return to capture
-
-**Intended Enhancement** (to be implemented):
-- **Accept & Edit** button: Creates entity but opens modal for refinement before saving
-- **Accept & Save** button: Creates entity immediately (current behavior)
-
-**Use Case**: Leverage AI to analyze idea text, extract metadata (dates, priorities, tags), and create fully-detailed entities automatically.
-
-**Markdown Support**: AI suggestions for Task and Note entities create markdown-based content when accepted.
-
-### Flow Comparison
-
-| Feature | 3-Step | JumpTheLine | LetAIDoIt |
-|---------|--------|-------------|-----------|
-| **Speed** | Slowest (deliberate) | Fast | Fastest |
-| **Detail Level** | Full (user-provided) | Minimal → Full | Full (AI-generated) |
-| **Use Case** | Daily triage workflow | Known entity type | AI-assisted capture |
-| **Markdown** | ✅ Task, Note | ✅ Task, Note | ✅ Task, Note |
-| **Modal** | Always (in Ready) | Currently yes (should be optional) | Optional (to be added) |
+## Current Flows (high level)
+- **Capture → Ready → Files**: Capture box + quick-sort buttons (note/list subtypes inline). Inline inbox (collapsed) expands on new ideas; Ready tab holds typed ideas for conversion; Files holds final entities in markdown viewer.
+- **AI path**: AI button under capture shows inline panel; Accept/override creates entity directly into Files (color flash).
+- **Planner**: Daily view of assigned items (color-coded, task checkbox), week grid for a 7-day snapshot, slide-in Add drawer to place tasks/notes/lists into today. Draft/final flows to be expanded.
+- **Journal/Media**: Today surface journal/media entries with streaks; daily recap/quote fallback card.
+- **Chrome Extension**: Capture YouTube pages and arbitrary URLs from the browser into IdeaListed (see `chrome-extension/README.md` for install/use).
 
 ## Development
 
@@ -92,6 +31,10 @@ PM2 (recommended for a stable dev instance on port 3300):
 pm2 start ecosystem.config.js --only idealisted --update-env
 pm2 reload idealisted --update-env
 ```
+
+### Notifications / ntfy
+- Configure ntfy in Settings → Notifications.
+- Daily review runs server-side with a client fallback. Consider adjusting topics/times per your setup. (AI recap/quote fallback exists on the Capture screen; planner-specific notifications pending.)
 
 ## Daily Review Feature
 
