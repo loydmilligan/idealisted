@@ -11,6 +11,8 @@ declare global {
   var __reminder_check_is_running: boolean | undefined
   var __daily_summary_cron_task: any | undefined
   var __daily_summary_is_running: boolean | undefined
+  var __daily_reminder_cron_task: any | undefined
+  var __daily_reminder_is_running: boolean | undefined
 }
 
 class SchedulerService {
@@ -56,6 +58,18 @@ class SchedulerService {
     })
 
     console.log('[Scheduler] Daily summary check cron started (every minute)')
+
+    // Daily Reminder Check (Phase 6 - Task P6-T5)
+    if (global.__daily_reminder_cron_task) {
+      global.__daily_reminder_cron_task.stop()
+      global.__daily_reminder_cron_task = undefined
+    }
+
+    global.__daily_reminder_cron_task = cron.schedule('* * * * *', async () => {
+      await this.checkAndSendDailyReminder()
+    })
+
+    console.log('[Scheduler] Daily reminder check cron started (every minute)')
   }
 
   /**
@@ -74,6 +88,10 @@ class SchedulerService {
     if (global.__daily_summary_cron_task) {
       global.__daily_summary_cron_task.stop()
       global.__daily_summary_cron_task = undefined
+    }
+    if (global.__daily_reminder_cron_task) {
+      global.__daily_reminder_cron_task.stop()
+      global.__daily_reminder_cron_task = undefined
     }
     console.log('[Scheduler] All CRON tasks stopped')
   }
@@ -423,6 +441,105 @@ class SchedulerService {
       console.error('[Scheduler] Error in daily summary check:', error)
     } finally {
       global.__daily_summary_is_running = false
+    }
+  }
+
+  /**
+   * Check if it's time to send the daily reminder notification
+   * Phase 6 - Task P6-T5: Daily reminder notification system
+   */
+  private async checkAndSendDailyReminder() {
+    // Prevent concurrent executions
+    if (global.__daily_reminder_is_running) return
+
+    try {
+      global.__daily_reminder_is_running = true
+
+      // Load reminder configuration from settings
+      const { db } = await import('./db')
+      const reminderSetting = db.prepare('SELECT value FROM settings WHERE key = ?').get('reminder_config') as any
+
+      if (!reminderSetting) {
+        // No reminder settings configured yet
+        return
+      }
+
+      const reminderConfig = JSON.parse(reminderSetting.value)
+
+      // Check if daily reminder is enabled
+      if (!reminderConfig.enabled) {
+        return
+      }
+
+      // Check if ntfy is configured and enabled
+      const ntfySetting = db.prepare('SELECT value FROM settings WHERE key = ?').get('ntfy_config') as any
+
+      if (!ntfySetting) {
+        return
+      }
+
+      const ntfyConfig = JSON.parse(ntfySetting.value)
+
+      if (!ntfyConfig.enabled) {
+        return
+      }
+
+      // Get current time in HH:MM format
+      const now = new Date()
+      const currentTime = format(now, 'HH:mm')
+      const configuredTime = reminderConfig.time || '19:00'
+
+      // Check if it's the right time
+      if (currentTime !== configuredTime) {
+        return
+      }
+
+      // Deduplication: Check if reminder was already sent today
+      const today = format(now, 'yyyy-MM-dd')
+      const lastReminderSetting = db.prepare('SELECT value FROM settings WHERE key = ?').get('last_reminder_date') as any
+
+      if (lastReminderSetting) {
+        const lastReminderDate = lastReminderSetting.value.replace(/"/g, '') // Remove JSON quotes if any
+        if (lastReminderDate === today) {
+          // Already sent today, skip
+          return
+        }
+      }
+
+      // All conditions met - send the reminder!
+      console.log('[Scheduler] Sending daily reminder notification...')
+
+      const baseURL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
+      // Send notification
+      const notificationResult = await ntfyService.sendNotification(
+        'Daily Review Reminder',
+        'Time to review your tasks and plan your day!',
+        [
+          {
+            action: 'view',
+            label: 'Open IdeaListed',
+            url: baseURL
+          }
+        ],
+        'default'
+      )
+
+      if (notificationResult.success) {
+        // Update last_reminder_date to prevent duplicate notifications today
+        db.prepare(`
+          INSERT OR REPLACE INTO settings (key, value, updated_at)
+          VALUES (?, ?, ?)
+        `).run('last_reminder_date', JSON.stringify(today), Date.now())
+
+        console.log('[Scheduler] Daily reminder sent successfully')
+      } else {
+        console.error('[Scheduler] Failed to send daily reminder:', notificationResult.error)
+      }
+    } catch (error) {
+      console.error('[Scheduler] Error in daily reminder check:', error)
+    } finally {
+      global.__daily_reminder_is_running = false
     }
   }
 }

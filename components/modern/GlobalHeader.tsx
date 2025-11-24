@@ -5,10 +5,11 @@ import { Settings } from 'lucide-react'
 import { GridLogo } from './GridLogo'
 
 interface GlobalHeaderProps {
-  activeTab: 'capture' | 'unsorted' | 'ready' | 'files'
+  activeTab: 'capture' | 'unsorted' | 'ready' | 'files' | 'planner'
   unsortedCount?: number
   readyCount?: number
   onSettingsClick: () => void
+  subHeaderText?: string
 }
 
 export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
@@ -16,6 +17,7 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
   unsortedCount = 0,
   readyCount = 0,
   onSettingsClick,
+  subHeaderText,
 }) => {
   const [time, setTime] = useState(new Date())
   const [isFlashing, setIsFlashing] = useState(false)

@@ -9,7 +9,8 @@ import { RetroTabs } from '@/components/ui/RetroTabs'
 import { ThemeSelector } from '@/components/ui/ThemeSelector'
 import { RetroIcon } from '@/components/ui/RetroIcon'
 import { apiClient } from '@/lib/api-client'
-import { AIConfig, NtfyConfig, RecapConfig } from '@/types'
+import { AIConfig, NtfyConfig, RecapConfig, DailyReminderConfig, PlannerScheduleConfig } from '@/types'
+import { DEFAULT_SCHEDULE, validateScheduleConfig } from '@/lib/planner-schedule'
 import Link from 'next/link'
 
 export default function SettingsPage() {
@@ -40,6 +41,14 @@ export default function SettingsPage() {
     threshold: 3
   })
 
+  const [reminderConfig, setReminderConfig] = useState<DailyReminderConfig>({
+    enabled: false,
+    time: '19:00'
+  })
+
+  const [plannerScheduleConfig, setPlannerScheduleConfig] = useState<PlannerScheduleConfig>(DEFAULT_SCHEDULE)
+  const [scheduleValidationErrors, setScheduleValidationErrors] = useState<string[]>([])
+
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
 
@@ -60,6 +69,12 @@ export default function SettingsPage() {
       }
       if (settings.recap_config) {
         setRecapConfig(settings.recap_config)
+      }
+      if (settings.reminder_config) {
+        setReminderConfig(settings.reminder_config)
+      }
+      if (settings.planner_schedule_config) {
+        setPlannerScheduleConfig(settings.planner_schedule_config)
       }
     } catch (error) {
       console.error('Failed to load settings:', error)
@@ -130,6 +145,56 @@ export default function SettingsPage() {
     } catch (error) {
       setMessage('✗ Failed to save recap settings')
       console.error('Failed to save recap settings:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const saveReminderSettings = async () => {
+    setLoading(true)
+    setMessage('')
+
+    try {
+      await apiClient.updateSettings({ reminder_config: reminderConfig })
+      setMessage('✓ Daily reminder settings saved!')
+      setTimeout(() => setMessage(''), 3000)
+    } catch (error) {
+      setMessage('✗ Failed to save reminder settings')
+      console.error('Failed to save reminder settings:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const updatePlannerSchedule = (updates: Partial<PlannerScheduleConfig>) => {
+    const newConfig = { ...plannerScheduleConfig, ...updates }
+    setPlannerScheduleConfig(newConfig)
+    // Validate on every change
+    const errors = validateScheduleConfig(newConfig)
+    setScheduleValidationErrors(errors)
+  }
+
+  const savePlannerScheduleSettings = async () => {
+    // Validate before saving
+    const errors = validateScheduleConfig(plannerScheduleConfig)
+    setScheduleValidationErrors(errors)
+
+    if (errors.length > 0) {
+      setMessage('✗ Fix validation errors before saving')
+      setTimeout(() => setMessage(''), 3000)
+      return
+    }
+
+    setLoading(true)
+    setMessage('')
+
+    try {
+      await apiClient.updateSettings({ planner_schedule_config: plannerScheduleConfig })
+      setMessage('✓ Planner schedule settings saved!')
+      setTimeout(() => setMessage(''), 3000)
+    } catch (error) {
+      setMessage('✗ Failed to save planner schedule settings')
+      console.error('Failed to save planner schedule settings:', error)
     } finally {
       setLoading(false)
     }
@@ -376,6 +441,62 @@ export default function SettingsPage() {
                 <p>• Public: https://ntfy.sh</p>
                 <p>• Private: your own ntfy server</p>
               </div>
+
+              {/* Daily Review Reminder */}
+              <RetroCard inset>
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wide">
+                    Daily Review Reminder
+                  </h3>
+                  <p className="text-xs opacity-70">
+                    Get a daily notification to review your tasks
+                  </p>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="palm-checkbox"
+                      checked={reminderConfig.enabled}
+                      onChange={(e) => setReminderConfig({...reminderConfig, enabled: e.target.checked})}
+                      disabled={!ntfyConfig.enabled}
+                    />
+                    <label className="text-xs font-bold uppercase tracking-wide">
+                      Enable Daily Reminder
+                    </label>
+                  </div>
+
+                  {!ntfyConfig.enabled && (
+                    <p className="text-xs text-orange-600">
+                      Enable NTFY notifications above to use daily reminders
+                    </p>
+                  )}
+
+                  {reminderConfig.enabled && ntfyConfig.enabled && (
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold uppercase tracking-wide">
+                        Reminder Time
+                      </label>
+                      <RetroInput
+                        type="time"
+                        value={reminderConfig.time}
+                        onChange={(e) => setReminderConfig({...reminderConfig, time: e.target.value})}
+                      />
+                      <p className="text-xs opacity-70">
+                        You&apos;ll receive a notification at this time each day
+                      </p>
+                    </div>
+                  )}
+
+                  <RetroButton
+                    onClick={saveReminderSettings}
+                    variant="primary"
+                    disabled={loading}
+                    className="w-full"
+                  >
+                    {loading ? '...' : 'SAVE REMINDER SETTINGS'}
+                  </RetroButton>
+                </div>
+              </RetroCard>
             </div>
           )}
 
@@ -480,6 +601,102 @@ export default function SettingsPage() {
                     className="w-full"
                   >
                     {loading ? '...' : 'SAVE RECAP SETTINGS'}
+                  </RetroButton>
+                </div>
+              </RetroCard>
+
+              {/* Planner Schedule Settings */}
+              <RetroCard inset>
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wide">
+                    Planner Schedule
+                  </h3>
+                  <p className="text-xs opacity-70">
+                    Configure morning finalize and evening review time windows
+                  </p>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="palm-checkbox"
+                      checked={plannerScheduleConfig.auto_popup_enabled}
+                      onChange={(e) => updatePlannerSchedule({ auto_popup_enabled: e.target.checked })}
+                    />
+                    <label className="text-xs font-bold uppercase tracking-wide">
+                      Enable Auto-Popup
+                    </label>
+                  </div>
+
+                  {plannerScheduleConfig.auto_popup_enabled && (
+                    <>
+                      {/* Morning Window */}
+                      <div className="space-y-2">
+                        <label className="block text-xs font-bold uppercase tracking-wide">
+                          Morning Window (Finalize Day)
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <span className="text-xs opacity-70">Start</span>
+                            <RetroInput
+                              type="time"
+                              value={plannerScheduleConfig.morning_start}
+                              onChange={(e) => updatePlannerSchedule({ morning_start: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <span className="text-xs opacity-70">End</span>
+                            <RetroInput
+                              type="time"
+                              value={plannerScheduleConfig.morning_end}
+                              onChange={(e) => updatePlannerSchedule({ morning_end: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Evening Window */}
+                      <div className="space-y-2">
+                        <label className="block text-xs font-bold uppercase tracking-wide">
+                          Evening Window (Review Day)
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <span className="text-xs opacity-70">Start</span>
+                            <RetroInput
+                              type="time"
+                              value={plannerScheduleConfig.evening_start}
+                              onChange={(e) => updatePlannerSchedule({ evening_start: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <span className="text-xs opacity-70">End</span>
+                            <RetroInput
+                              type="time"
+                              value={plannerScheduleConfig.evening_end}
+                              onChange={(e) => updatePlannerSchedule({ evening_end: e.target.value })}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Validation Errors */}
+                  {scheduleValidationErrors.length > 0 && (
+                    <div className="p-2 bg-red-100 border border-red-300 rounded">
+                      {scheduleValidationErrors.map((error, idx) => (
+                        <p key={idx} className="text-xs text-red-700">{error}</p>
+                      ))}
+                    </div>
+                  )}
+
+                  <RetroButton
+                    onClick={savePlannerScheduleSettings}
+                    variant="primary"
+                    disabled={loading || scheduleValidationErrors.length > 0}
+                    className="w-full"
+                  >
+                    {loading ? '...' : 'SAVE PLANNER SCHEDULE'}
                   </RetroButton>
                 </div>
               </RetroCard>

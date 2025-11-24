@@ -372,7 +372,7 @@ function HomePageContent() {
   }
 
   const journalEntry = useMemo(() => {
-    const notes = items.filter(i => i.type === 'note' && ((i.metadata as any)?.subtype === 'journal' || i.note?.subtype === 'journal'))
+    const notes = items.filter(i => i.type === 'note' && ((i.metadata as any)?.subtype === 'journal' || (i.note?.subtype as string) === 'journal'))
     if (!notes.length) return null
     const todayKey = getDateKey(Date.now())
     const today = notes.find(n => getDateKey(n.created_at) === todayKey)
@@ -387,7 +387,7 @@ function HomePageContent() {
   }, [items])
 
   const mediaEntry = useMemo(() => {
-    const notes = items.filter(i => i.type === 'note' && ((i.metadata as any)?.subtype === 'media' || i.note?.subtype === 'media'))
+    const notes = items.filter(i => i.type === 'note' && ((i.metadata as any)?.subtype === 'media' || (i.note?.subtype as string) === 'media'))
     if (!notes.length) return null
     const todayKey = getDateKey(Date.now())
     const today = notes.find(n => getDateKey(n.created_at) === todayKey)
@@ -775,11 +775,11 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
     const listItems = suggestion.additional_fields.list_items
     if (Array.isArray(listItems) && listItems.length > 0) {
       const target = Object.entries(fieldConfig.sections).find(([, def]) =>
-        ['bulletlist', 'orderedlist', 'checklist', 'shoppinglist'].includes(def.type)
+        ['bulletlist', 'orderedlist', 'checklist', 'shoppinglist'].includes((def as { type: string }).type)
       )
       if (target) {
         const [sectionName, def] = target
-        if (def.type === 'checklist') {
+        if ((def as { type: string }).type === 'checklist') {
           sections[sectionName] = listItems.map(text => ({ text, checked: false }))
         } else {
           sections[sectionName] = listItems.map(text => text)

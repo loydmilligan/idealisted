@@ -8,13 +8,13 @@ export async function GET(
   { params }: { params: { date: string } }
 ) {
   try {
-    const plan = db.prepare('SELECT * FROM plans WHERE date = ?').get(params.date) as Plan
-    
+    const plan = db.prepare('SELECT * FROM plans WHERE date = ?').get(params.date) as (Omit<Plan, 'todoIds'> & { todoIds?: string }) | undefined
+
     if (!plan) {
       return NextResponse.json({ error: 'Plan not found' }, { status: 404 })
     }
 
-    // Parse todoIds from JSON string
+    // Parse todoIds from JSON string (stored as JSON string in database)
     const planWithParsedTodos = {
       ...plan,
       todoIds: plan.todoIds ? JSON.parse(plan.todoIds) : []
@@ -53,9 +53,9 @@ export async function PUT(
     }
 
     // Fetch updated plan
-    const updatedPlan = db.prepare('SELECT * FROM plans WHERE date = ?').get(params.date) as Plan
+    const updatedPlan = db.prepare('SELECT * FROM plans WHERE date = ?').get(params.date) as (Omit<Plan, 'todoIds'> & { todoIds?: string })
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       plan: {
         ...updatedPlan,
         todoIds: updatedPlan.todoIds ? JSON.parse(updatedPlan.todoIds) : []

@@ -101,6 +101,11 @@ function seedAIFeatureSettings() {
       enabled: 1,
       description: 'AI-powered suggestions for adding items to lists'
     },
+    {
+      name: 'project_ai_add',
+      enabled: 1,
+      description: 'AI-powered task and note suggestions for projects'
+    },
   ]
 
   try {

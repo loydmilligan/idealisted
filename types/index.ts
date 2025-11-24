@@ -288,6 +288,19 @@ export interface RecapConfig {
   threshold: number  // Minimum items required for summary mode (default: 3)
 }
 
+export interface DailyReminderConfig {
+  enabled: boolean
+  time: string  // HH:MM format
+}
+
+export interface PlannerScheduleConfig {
+  morning_start: string  // HH:MM format
+  morning_end: string    // HH:MM format
+  evening_start: string  // HH:MM format
+  evening_end: string    // HH:MM format
+  auto_popup_enabled: boolean
+}
+
 // Combined types for API responses
 export interface ItemWithRelations extends Item {
   todo?: Todo
