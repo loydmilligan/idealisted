@@ -9,7 +9,7 @@ import { RetroTabs } from '@/components/ui/RetroTabs'
 import { ThemeSelector } from '@/components/ui/ThemeSelector'
 import { RetroIcon } from '@/components/ui/RetroIcon'
 import { apiClient } from '@/lib/api-client'
-import { AIConfig, NtfyConfig } from '@/types'
+import { AIConfig, NtfyConfig, RecapConfig } from '@/types'
 import Link from 'next/link'
 
 export default function SettingsPage() {
@@ -34,6 +34,12 @@ export default function SettingsPage() {
     priority: 'default'
   })
 
+  const [recapConfig, setRecapConfig] = useState<RecapConfig>({
+    enabled: true,
+    mode: 'summary',
+    threshold: 3
+  })
+
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
 
@@ -51,6 +57,9 @@ export default function SettingsPage() {
       }
       if (settings.ntfy_config) {
         setNtfyConfig(settings.ntfy_config)
+      }
+      if (settings.recap_config) {
+        setRecapConfig(settings.recap_config)
       }
     } catch (error) {
       console.error('Failed to load settings:', error)
@@ -107,6 +116,22 @@ export default function SettingsPage() {
     } catch (error) {
       setMessage('✗ Failed to send test notification')
       console.error('Failed to send test notification:', error)
+    }
+  }
+
+  const saveRecapSettings = async () => {
+    setLoading(true)
+    setMessage('')
+
+    try {
+      await apiClient.updateSettings({ recap_config: recapConfig })
+      setMessage('✓ Recap settings saved!')
+      setTimeout(() => setMessage(''), 3000)
+    } catch (error) {
+      setMessage('✗ Failed to save recap settings')
+      console.error('Failed to save recap settings:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -358,20 +383,119 @@ export default function SettingsPage() {
           {activeTab === 'general' && (
             <div className="space-y-4">
               <ThemeSelector />
-              
+
+              {/* Daily Recap Settings */}
               <RetroCard inset>
                 <div className="space-y-3">
                   <h3 className="text-xs font-bold uppercase tracking-wide">
-                    General Settings
+                    Daily Recap
                   </h3>
                   <p className="text-xs opacity-70">
-                    More settings coming soon...
+                    Configure your evening recap notifications
+                  </p>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="palm-checkbox"
+                      checked={recapConfig.enabled}
+                      onChange={(e) => setRecapConfig({...recapConfig, enabled: e.target.checked})}
+                    />
+                    <label className="text-xs font-bold uppercase tracking-wide">
+                      Enable Daily Recap
+                    </label>
+                  </div>
+
+                  {recapConfig.enabled && (
+                    <>
+                      <div className="space-y-2">
+                        <label className="block text-xs font-bold uppercase tracking-wide">
+                          Recap Mode
+                        </label>
+                        <div className="space-y-2">
+                          <label className="flex items-start gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="recapMode"
+                              className="palm-checkbox mt-0.5"
+                              checked={recapConfig.mode === 'summary'}
+                              onChange={() => setRecapConfig({...recapConfig, mode: 'summary'})}
+                            />
+                            <div>
+                              <span className="text-xs font-bold">Summary Bullets</span>
+                              <p className="text-xs opacity-70">
+                                3-5 bullet points of yesterday&apos;s activity
+                              </p>
+                            </div>
+                          </label>
+                          <label className="flex items-start gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="recapMode"
+                              className="palm-checkbox mt-0.5"
+                              checked={recapConfig.mode === 'quote'}
+                              onChange={() => setRecapConfig({...recapConfig, mode: 'quote'})}
+                            />
+                            <div>
+                              <span className="text-xs font-bold">Quote/Reflection</span>
+                              <p className="text-xs opacity-70">
+                                Inspirational quote or reflection prompt
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+
+                      {recapConfig.mode === 'summary' && (
+                        <div className="space-y-2">
+                          <label className="block text-xs font-bold uppercase tracking-wide">
+                            Minimum Activity Threshold
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <RetroInput
+                              type="number"
+                              min="1"
+                              max="10"
+                              value={recapConfig.threshold}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value) || 1
+                                setRecapConfig({...recapConfig, threshold: Math.max(1, Math.min(10, val))})
+                              }}
+                              className="w-20"
+                            />
+                            <span className="text-xs opacity-70">items</span>
+                          </div>
+                          <p className="text-xs opacity-70">
+                            Falls back to quote mode if activity is below this threshold
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  <RetroButton
+                    onClick={saveRecapSettings}
+                    variant="primary"
+                    disabled={loading}
+                    className="w-full"
+                  >
+                    {loading ? '...' : 'SAVE RECAP SETTINGS'}
+                  </RetroButton>
+                </div>
+              </RetroCard>
+
+              {/* Placeholder for future settings */}
+              <RetroCard inset>
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wide">
+                    More Settings
+                  </h3>
+                  <p className="text-xs opacity-70">
+                    Coming soon...
                   </p>
                   <div className="space-y-2 text-xs opacity-70">
-                    <p>• Dark mode toggle</p>
-                    <p>• Data export/import</p>
-                    <p>• Theme customization</p>
-                    <p>• Backup settings</p>
+                    <p>- Data export/import</p>
+                    <p>- Backup settings</p>
                   </div>
                 </div>
               </RetroCard>

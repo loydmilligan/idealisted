@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { AIConfig, NtfyConfig } from '@/types'
+import { AIConfig, NtfyConfig, RecapConfig } from '@/types'
 
 // GET /api/settings - Get all settings
 export async function GET() {
@@ -49,6 +49,23 @@ export async function GET() {
           VALUES (?, ?, ?)
         `).run('ai_config', JSON.stringify(aiConfig), Date.now())
       }
+    }
+
+    // Initialize recap config with default values if not present
+    if (!result.recap_config) {
+      const defaultRecapConfig: RecapConfig = {
+        enabled: true,
+        mode: 'summary',
+        threshold: 3
+      }
+
+      // Save default config to database
+      db.prepare(`
+        INSERT OR REPLACE INTO settings (key, value, updated_at)
+        VALUES (?, ?, ?)
+      `).run('recap_config', JSON.stringify(defaultRecapConfig), Date.now())
+
+      result.recap_config = defaultRecapConfig
     }
 
     return NextResponse.json({ settings: result })
