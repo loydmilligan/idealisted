@@ -2072,3 +2072,207 @@ body {
   color: var(--palm-text-secondary);
   opacity: 0.7;
 }
+
+/* ============================================
+   MOBILE TAP TARGETS & SPACING
+   ============================================ */
+
+/* Tap target utility - 44x44 minimum for accessibility */
+.tap-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Large tap target - 48x48 for bottom nav and primary actions */
+.tap-target-lg {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+/* Mobile-specific spacing and sizing */
+@media (max-width: 640px) {
+  /* Buttons get larger tap targets on mobile */
+  .retro-btn {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+  }
+
+  .retro-btn-primary,
+  .retro-btn-secondary {
+    min-height: 44px;
+  }
+
+  /* Small buttons still need minimum tap area */
+  .retro-btn-sm {
+    min-height: 36px;
+    padding: 0.5rem 0.75rem;
+  }
+
+  /* Icon buttons - ensure 44x44 minimum */
+  .retro-btn-icon {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px;
+  }
+
+  /* Form inputs get larger touch areas */
+  .retro-input,
+  .retro-select {
+    min-height: 44px;
+    padding: 0.75rem;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+
+  .retro-textarea {
+    min-height: 80px;
+    padding: 0.75rem;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+
+  /* Checkboxes and radio buttons need larger hit areas */
+  .retro-checkbox,
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 20px;
+    height: 20px;
+    margin-right: 10px;
+  }
+
+  .retro-checkbox-label,
+  .retro-radio-label {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+  }
+
+  /* Filter chips need adequate tap targets */
+  .retro-chip {
+    min-height: 36px;
+    padding: 8px 12px;
+  }
+
+  .retro-tag-chip {
+    min-height: 32px;
+    padding: 6px 12px;
+  }
+
+  /* Mobile spacing between interactive elements */
+  .mobile-spacing > * + * {
+    margin-top: 0.75rem;
+  }
+
+  .mobile-spacing-sm > * + * {
+    margin-top: 0.5rem;
+  }
+
+  /* Bottom nav gets larger tap targets */
+  .retro-tab-bar {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .retro-tab {
+    min-height: 56px;
+    padding: 8px 4px;
+    gap: 2px;
+  }
+
+  /* Cards in list views need adequate height for tapping */
+  .retro-card {
+    min-height: 56px;
+    padding: var(--space-md) var(--space-lg);
+  }
+
+  /* Form groups need more spacing */
+  .retro-form-group {
+    margin-bottom: 20px;
+  }
+
+  /* Close buttons need adequate size */
+  .retro-close-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px;
+  }
+
+  /* Settings tabs need adequate tap targets */
+  .retro-settings-tabs .retro-tab {
+    min-height: 44px;
+    padding: 10px 8px;
+  }
+
+  /* Tag action buttons */
+  .retro-tag-action-btn {
+    min-width: 40px;
+    min-height: 40px;
+    padding: 8px;
+  }
+
+  /* Dropdown items need adequate height */
+  .retro-tag-dropdown-item {
+    min-height: 44px;
+    padding: 12px 16px;
+  }
+
+  /* Modal actions need proper spacing */
+  .retro-sheet-actions {
+    gap: var(--space-md);
+    padding: var(--space-lg);
+  }
+
+  .retro-sheet-actions .retro-btn {
+    min-height: 48px;
+  }
+
+  /* Button row spacing */
+  .retro-button-row {
+    gap: var(--space-md);
+  }
+
+  .retro-button-row .retro-btn {
+    min-height: 44px;
+  }
+
+  /* Color swatches need larger tap targets */
+  .retro-color-swatch {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* Action row spacing */
+  .retro-action-row {
+    gap: var(--space-md);
+  }
+
+  .retro-action-row .retro-btn {
+    min-height: 44px;
+  }
+}
+
+/* Extra small screens (iPhone SE, etc.) - more aggressive sizing */
+@media (max-width: 375px) {
+  .retro-btn {
+    font-size: 12px;
+    padding: 0.625rem 0.75rem;
+  }
+
+  .retro-btn-sm {
+    font-size: 10px;
+    padding: 0.5rem 0.625rem;
+  }
+
+  .retro-settings-tabs .retro-tab {
+    font-size: 10px;
+    padding: 10px 4px;
+  }
+
+  /* Stack filter chips if needed */
+  .retro-filter-chips {
+    gap: var(--space-xs);
+  }
+
+  .retro-chip {
+    font-size: 10px;
+    padding: 6px 10px;
+  }
+}

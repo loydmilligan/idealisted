@@ -69,11 +69,12 @@ export const ReadyCard: React.FC<ReadyCardProps> = ({
       <p className="retro-timestamp mb-3">{timeAgo}</p>
 
       {/* Action Buttons (Right-aligned) */}
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-3">
         {/* Convert Button - Primary (beveled) with entity color accent */}
         <button
           onClick={onConvert}
-          className={`retro-btn retro-btn-primary retro-btn-accent-${entityType}`}
+          className={`retro-btn retro-btn-primary tap-target retro-btn-accent-${entityType}`}
+          style={{ touchAction: 'manipulation' }}
         >
           Convert
         </button>
@@ -82,7 +83,8 @@ export const ReadyCard: React.FC<ReadyCardProps> = ({
         {aiEnabled && (
           <button
             onClick={() => setShowAIMenu(!showAIMenu)}
-            className="retro-btn retro-btn-secondary"
+            className="retro-btn retro-btn-secondary tap-target"
+            style={{ touchAction: 'manipulation' }}
           >
             AI ▾
           </button>
@@ -91,13 +93,14 @@ export const ReadyCard: React.FC<ReadyCardProps> = ({
 
       {/* AI Action Menu (if shown) */}
       {showAIMenu && (
-        <div className="retro-card absolute z-10 mt-2 right-0 w-40">
+        <div className="retro-card absolute z-10 mt-2 right-0 w-44 mobile-spacing-sm">
           <button
             onClick={() => {
               onAIAction('convert')
               setShowAIMenu(false)
             }}
-            className="retro-btn retro-btn-secondary w-full text-left"
+            className="retro-btn retro-btn-secondary tap-target w-full text-left"
+            style={{ touchAction: 'manipulation' }}
           >
             Convert
           </button>
@@ -106,7 +109,8 @@ export const ReadyCard: React.FC<ReadyCardProps> = ({
               onAIAction('full')
               setShowAIMenu(false)
             }}
-            className="retro-btn retro-btn-secondary w-full text-left"
+            className="retro-btn retro-btn-secondary tap-target w-full text-left"
+            style={{ touchAction: 'manipulation' }}
           >
             Full
           </button>

@@ -73,7 +73,7 @@ export const InboxCard: React.FC<InboxCardProps> = ({
       <p className="retro-timestamp mb-3">{timeAgo}</p>
 
       {/* Action Buttons Row */}
-      <div className="retro-action-row">
+      <div className="retro-action-row flex-wrap">
         {entityButtons.map((btn) => {
           // Add entity color accent class for conversion buttons
           const accentClass = btn.type ? `retro-btn-accent-${btn.type}` : ''
@@ -82,6 +82,7 @@ export const InboxCard: React.FC<InboxCardProps> = ({
               key={btn.type}
               onClick={() => handleEntityClick(btn.type)}
               className={`retro-btn retro-btn-secondary retro-btn-sm ${accentClass}`}
+              style={{ touchAction: 'manipulation' }}
             >
               {btn.label}
             </button>
@@ -93,6 +94,7 @@ export const InboxCard: React.FC<InboxCardProps> = ({
           <button
             onClick={() => setShowAIMenu(!showAIMenu)}
             className="retro-btn retro-btn-secondary retro-btn-sm"
+            style={{ touchAction: 'manipulation' }}
           >
             AI ▾
           </button>
@@ -101,7 +103,7 @@ export const InboxCard: React.FC<InboxCardProps> = ({
 
       {/* Note Template Menu (if shown) */}
       {showNoteMenu && (
-        <div className="retro-card absolute z-10 mt-2 w-36">
+        <div className="retro-card absolute z-10 mt-2 w-40 mobile-spacing-sm">
           {[
             { label: 'Note', subtype: 'general' },
             { label: 'Research', subtype: 'research' },
@@ -116,7 +118,8 @@ export const InboxCard: React.FC<InboxCardProps> = ({
                 onSort('note', template.subtype)
                 setShowNoteMenu(false)
               }}
-              className="retro-btn retro-btn-secondary w-full text-left"
+              className="retro-btn retro-btn-secondary tap-target w-full text-left"
+              style={{ touchAction: 'manipulation' }}
             >
               {template.label}
             </button>
@@ -126,13 +129,14 @@ export const InboxCard: React.FC<InboxCardProps> = ({
 
       {/* AI Action Menu (if shown) */}
       {showAIMenu && (
-        <div className="retro-card absolute z-10 mt-2 w-40">
+        <div className="retro-card absolute z-10 mt-2 w-44 mobile-spacing-sm">
           <button
             onClick={() => {
               onAIAction('sort')
               setShowAIMenu(false)
             }}
-            className="retro-btn retro-btn-secondary w-full text-left"
+            className="retro-btn retro-btn-secondary tap-target w-full text-left"
+            style={{ touchAction: 'manipulation' }}
           >
             Sort
           </button>
@@ -141,7 +145,8 @@ export const InboxCard: React.FC<InboxCardProps> = ({
               onAIAction('convert')
               setShowAIMenu(false)
             }}
-            className="retro-btn retro-btn-secondary w-full text-left"
+            className="retro-btn retro-btn-secondary tap-target w-full text-left"
+            style={{ touchAction: 'manipulation' }}
           >
             Convert
           </button>
@@ -150,7 +155,8 @@ export const InboxCard: React.FC<InboxCardProps> = ({
               onAIAction('full')
               setShowAIMenu(false)
             }}
-            className="retro-btn retro-btn-secondary w-full text-left"
+            className="retro-btn retro-btn-secondary tap-target w-full text-left"
+            style={{ touchAction: 'manipulation' }}
           >
             Full
           </button>

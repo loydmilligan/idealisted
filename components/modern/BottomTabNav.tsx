@@ -98,7 +98,7 @@ export const BottomTabNav = forwardRef<TabNavHandle, BottomTabNavProps>(
     }
 
     return (
-      <nav className={`retro-tab-bar ${className}`}>
+      <nav className={`retro-tab-bar ${className}`} role="tablist">
         {tabs.map((tab, index) => {
           const Icon = tab.icon
           const isActive = activeTab === tab.id
@@ -111,11 +111,17 @@ export const BottomTabNav = forwardRef<TabNavHandle, BottomTabNavProps>(
               onClick={() => handleTabClick(tab.id)}
               className={`
                 retro-tab
+                tap-target-lg
                 ${isActive ? 'active' : ''}
                 ${isFlashing && flashColor ? `flash-${flashColor}` : ''}
               `.trim()}
+              role="tab"
               aria-label={tab.label}
+              aria-selected={isActive}
               aria-current={isActive ? 'page' : undefined}
+              style={{
+                touchAction: 'manipulation', // Prevents double-tap zoom
+              }}
             >
               {/* Icon */}
               <div className="retro-tab-icon">

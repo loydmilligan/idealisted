@@ -405,32 +405,7 @@ function HomePageContent() {
     }
   }, [items])
 
-  const recap = useMemo(() => {
-    const yesterday = subDays(new Date(), 1)
-    const yKey = getDateKey(yesterday)
-    const yItems = items.filter(i => getDateKey(i.created_at) === yKey && i.type !== 'idea')
-    if (yItems.length >= 2) {
-      const titles = yItems.slice(0, 3).map(i => i.text).join('; ')
-      return {
-        title: 'Yesterday Recap',
-        body: `Captured ${yItems.length} items. Highlights: ${titles}`,
-        mode: 'summary' as const
-      }
-    }
-    // Fallback quote
-    const quotes = [
-      { q: 'The obstacle is the way.', link: 'https://en.wikipedia.org/wiki/Marcus_Aurelius' },
-      { q: 'Make it work, make it right, make it fast.', link: 'https://martinfowler.com/' },
-      { q: 'Simplicity is the soul of efficiency.', link: 'https://en.wikipedia.org/wiki/Austin_Freeman' },
-    ]
-    const pick = quotes[Math.floor(Math.random() * quotes.length)]
-    return {
-      title: 'Today’s Spark',
-      body: pick.q,
-      link: pick.link,
-      mode: 'quote' as const
-    }
-  }, [items])
+  // Recap is now fetched directly in CaptureScreen component via API
 
   // Badge counts
   const unsortedCount = unsortedItems.length
@@ -1668,7 +1643,6 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
             onMediaSave={handleMediaSave}
             journalEntry={journalEntry || undefined}
             mediaEntry={mediaEntry || undefined}
-            recap={recap || undefined}
             aiSuggestion={aiSuggestion}
             isAnalyzing={isAnalyzing}
             isCreatingItem={isCreatingItem}

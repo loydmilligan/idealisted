@@ -232,7 +232,7 @@ export function BulletListSection({
             padding: 'var(--space-sm)',
             textAlign: 'center'
           }}>
-            No items yet. Click "Add Item" to get started.
+            No items yet. Click &quot;Add Item&quot; to get started.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>

@@ -10,7 +10,17 @@ import { formatDistanceToNow } from 'date-fns'
 import { useSpeechRecognition } from '@/lib/useSpeechRecognition'
 import { AISuggestion } from '@/types'
 import { AISuggestionPanel } from '@/components/ui/AISuggestionPanel'
-import { Bot, Loader2, Mic, ChevronDown, ChevronUp } from 'lucide-react'
+import { Bot, Loader2, Mic, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react'
+
+// Types for recap data from API
+interface RecapData {
+  summary?: string[]
+  quote?: { text: string; author?: string }
+  fallback: boolean
+  stats?: { tasks: number; notes: number; ideas: number }
+  cached?: boolean
+  error?: boolean
+}
 
 interface RecentItem {
   id: string
@@ -31,7 +41,6 @@ interface CaptureScreenProps {
   onMediaSave?: (payload: { url: string; type: 'Image' | 'Audio' | 'Video'; caption: string }) => void
   journalEntry?: { text: string; date: string; streak: number }
   mediaEntry?: { url: string; type: 'Image' | 'Audio' | 'Video'; caption: string; date: string; streak: number }
-  recap?: { title: string; body: string; link?: string; mode: 'summary' | 'quote' }
   className?: string
   aiSuggestion?: AISuggestion | null
   isAnalyzing?: boolean
@@ -56,7 +65,6 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
   onMediaSave,
   journalEntry,
   mediaEntry,
-  recap,
   className = '',
   aiSuggestion,
   isAnalyzing,
@@ -70,6 +78,9 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
 }) => {
   const [inputText, setInputText] = useState('')
   const [aiEnabled, setAiEnabled] = useState(false)
+  const [recap, setRecap] = useState<RecapData | null>(null)
+  const [recapLoading, setRecapLoading] = useState(false)
+  const [recapError, setRecapError] = useState<string | null>(null)
   const [isUnsortedOpen, setIsUnsortedOpen] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('unsorted_expanded') === 'true'
@@ -107,6 +118,37 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
       .then(res => res.json())
       .then(data => setAiEnabled(data.settings?.ai_config?.enabled ?? false))
       .catch(() => setAiEnabled(false))
+  }, [])
+
+  // Fetch recap on mount
+  const loadRecap = async () => {
+    setRecapLoading(true)
+    setRecapError(null)
+    try {
+      const res = await fetch('/api/ai/recap', { method: 'POST' })
+      const data = await res.json()
+      if (data.success) {
+        setRecap({
+          summary: data.summary,
+          quote: data.quote,
+          fallback: data.fallback,
+          stats: data.stats,
+          cached: data.cached,
+          error: data.error
+        })
+      } else {
+        // API returned success: false - recap might be disabled
+        setRecapError(data.error || 'Recap unavailable')
+      }
+    } catch (e) {
+      console.error('Failed to load recap:', e)
+      setRecapError('Failed to load recap')
+    }
+    setRecapLoading(false)
+  }
+
+  useEffect(() => {
+    loadRecap()
   }, [])
 
   useEffect(() => {
@@ -268,55 +310,59 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
               style={{
                 minHeight: '96px',
                 maxHeight: '40vh',
-                paddingRight: isSupported ? '48px' : undefined,
+                paddingRight: isSupported ? '52px' : undefined,
               }}
             />
             {isSupported && (
               <button
                 onClick={handleVoiceInput}
                 disabled={isListening}
-                className="retro-btn retro-btn-secondary"
+                className="retro-btn retro-btn-secondary tap-target"
                 aria-label="Voice input"
                 title={isListening ? "Listening..." : "Voice input"}
                 style={{
                   position: 'absolute',
-                  right: '8px',
-                  top: '8px',
-                  width: '32px',
-                  height: '32px',
-                  padding: '4px',
+                  right: '4px',
+                  top: '4px',
+                  width: '44px',
+                  height: '44px',
+                  padding: '8px',
                   fontSize: '16px',
-                  minWidth: 'unset',
+                  minWidth: '44px',
+                  minHeight: '44px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  touchAction: 'manipulation',
                 }}
               >
                 {isListening ? (
-                  <Loader2 size={18} className="animate-spin" />
+                  <Loader2 size={20} className="animate-spin" />
                 ) : (
-                  <Mic size={18} />
+                  <Mic size={20} />
                 )}
               </button>
             )}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button
               onClick={() => handleCapture(null)}
               disabled={!inputText.trim() || isAnalyzing || isCreatingItem}
-              className="retro-btn retro-btn-primary"
+              className="retro-btn retro-btn-primary tap-target"
               aria-label="Save as unsorted"
               title="Save as unsorted"
               style={{
-                width: '40px',
-                height: '40px',
-                padding: '4px',
+                width: '44px',
+                height: '44px',
+                padding: '8px',
                 fontSize: '18px',
-                minWidth: 'unset',
+                minWidth: '44px',
+                minHeight: '44px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                touchAction: 'manipulation',
               }}
             >
               ✓
@@ -326,24 +372,26 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
               <button
                 onClick={handleAIAction}
                 disabled={!inputText.trim() || isAnalyzing || isCreatingItem}
-                className="retro-btn retro-btn-secondary"
+                className="retro-btn retro-btn-secondary tap-target"
                 aria-label="AI analyze"
                 title={isAnalyzing ? "Analyzing..." : "AI analyze"}
                 style={{
-                  width: '40px',
-                  height: '40px',
-                  padding: '4px',
+                  width: '44px',
+                  height: '44px',
+                  padding: '8px',
                   fontSize: '18px',
-                  minWidth: 'unset',
+                  minWidth: '44px',
+                  minHeight: '44px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  touchAction: 'manipulation',
                 }}
               >
                 {isAnalyzing ? (
-                  <Loader2 size={18} className="animate-spin" />
+                  <Loader2 size={20} className="animate-spin" />
                 ) : (
-                  <Bot size={18} />
+                  <Bot size={20} />
                 )}
               </button>
             )}
@@ -591,17 +639,96 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
           {renderMedia()}
         </div>
 
+        {/* AI Recap Card */}
         <div className="retro-card" style={{ padding: '12px' }}>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-2">
             <div>
-              <div className="text-xs font-mono opacity-70 uppercase">{recap?.mode === 'summary' ? 'AI Recap' : 'Quote'}</div>
-              <div className="text-sm font-semibold">{recap?.title || 'Daily Recap'}</div>
+              <div className="text-xs font-mono opacity-70 uppercase">
+                {recapLoading ? 'Loading...' : recap?.fallback ? 'Daily Quote' : 'AI Recap'}
+              </div>
+              <div className="text-sm font-semibold">
+                {recap?.fallback ? 'Inspiration' : 'Yesterday\u2019s Activity'}
+              </div>
             </div>
-            <span className="text-xs opacity-60">{recap?.mode === 'summary' ? 'Auto' : 'Fallback'}</span>
+            <div className="flex items-center gap-2">
+              {recap?.cached && (
+                <span className="text-[10px] opacity-50">cached</span>
+              )}
+              <button
+                onClick={loadRecap}
+                disabled={recapLoading}
+                className="retro-btn retro-btn-secondary tap-target"
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  padding: '8px',
+                  minWidth: '36px',
+                  minHeight: '36px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  touchAction: 'manipulation',
+                }}
+                aria-label="Refresh recap"
+                title="Refresh recap"
+              >
+                <RefreshCw size={16} className={recapLoading ? 'animate-spin' : ''} />
+              </button>
+            </div>
           </div>
-          <p className="text-sm mt-2">{recap?.body || 'No recap yet.'}</p>
-          {recap?.link && (
-            <a className="text-xs underline" href={recap.link} target="_blank" rel="noreferrer">Learn more</a>
+
+          {/* Loading state */}
+          {recapLoading && !recap && (
+            <div className="flex items-center gap-2 py-4">
+              <Loader2 size={16} className="animate-spin opacity-60" />
+              <span className="text-sm opacity-60">Loading recap...</span>
+            </div>
+          )}
+
+          {/* Error state */}
+          {recapError && !recap && (
+            <div className="text-sm opacity-60 py-2">
+              {recapError}
+            </div>
+          )}
+
+          {/* Quote display (fallback mode) */}
+          {recap?.fallback && recap.quote && (
+            <blockquote className="border-l-2 border-current pl-3 py-1 my-2 italic">
+              <p className="text-sm">&ldquo;{recap.quote.text}&rdquo;</p>
+              {recap.quote.author && (
+                <cite className="text-xs opacity-70 not-italic block mt-1">
+                  &mdash; {recap.quote.author}
+                </cite>
+              )}
+            </blockquote>
+          )}
+
+          {/* AI Summary bullets (normal mode) */}
+          {!recap?.fallback && recap?.summary && recap.summary.length > 0 && (
+            <ul className="list-disc list-inside space-y-1 my-2">
+              {recap.summary.map((bullet, i) => (
+                <li key={i} className="text-sm">{bullet}</li>
+              ))}
+            </ul>
+          )}
+
+          {/* Stats footer */}
+          {recap?.stats && (
+            <div className="text-xs opacity-60 mt-3 pt-2 border-t border-dashed border-current/20">
+              {recap.stats.tasks} task{recap.stats.tasks !== 1 ? 's' : ''} completed
+              {' · '}
+              {recap.stats.notes} note{recap.stats.notes !== 1 ? 's' : ''}
+              {' · '}
+              {recap.stats.ideas} idea{recap.stats.ideas !== 1 ? 's' : ''}
+            </div>
+          )}
+
+          {/* AI error indicator */}
+          {recap?.error && (
+            <div className="text-[10px] opacity-50 mt-1">
+              AI unavailable, showing quote
+            </div>
           )}
         </div>
       </div>

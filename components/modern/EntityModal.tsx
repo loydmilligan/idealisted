@@ -217,14 +217,16 @@ export const EntityModal: React.FC<EntityModalProps> = ({
           {onAIFill && aiEnabled && (
             <button
               onClick={onAIFill}
-              className="retro-btn retro-btn-secondary"
+              className="retro-btn retro-btn-secondary tap-target"
               style={{
-                width: '160px',
+                width: '180px',
+                minHeight: '44px',
                 margin: '0 auto 16px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
+                touchAction: 'manipulation',
               }}
             >
               <span className="text-lg">✨</span>
@@ -238,14 +240,16 @@ export const EntityModal: React.FC<EntityModalProps> = ({
               <button
                 onClick={handleSuggestTags}
                 disabled={loadingSuggestions || !initialData?.title?.trim()}
-                className="retro-btn retro-btn-secondary"
+                className="retro-btn retro-btn-secondary tap-target"
                 style={{
-                  width: '160px',
+                  width: '180px',
+                  minHeight: '44px',
                   margin: '0 auto',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
+                  touchAction: 'manipulation',
                 }}
               >
                 <span className="text-lg">🏷️</span>
@@ -287,25 +291,25 @@ export const EntityModal: React.FC<EntityModalProps> = ({
                       </div>
                       <button
                         onClick={() => handleAddTag(tag.name)}
-                        className="retro-btn retro-btn-sm retro-btn-secondary"
-                        style={{ fontSize: '10px', padding: '2px 8px' }}
+                        className="retro-btn retro-btn-sm retro-btn-secondary tap-target"
+                        style={{ fontSize: '10px', padding: '8px 12px', minHeight: '36px', touchAction: 'manipulation' }}
                       >
                         ADD
                       </button>
                     </div>
                   ))}
-                  <div className="flex gap-2 mt-3">
+                  <div className="flex gap-3 mt-3">
                     <button
                       onClick={handleAcceptAllTags}
-                      className="retro-btn retro-btn-primary flex-1"
-                      style={{ fontSize: '11px' }}
+                      className="retro-btn retro-btn-primary flex-1 tap-target"
+                      style={{ fontSize: '11px', minHeight: '44px', touchAction: 'manipulation' }}
                     >
                       ACCEPT ALL
                     </button>
                     <button
                       onClick={handleDismissSuggestions}
-                      className="retro-btn retro-btn-secondary flex-1"
-                      style={{ fontSize: '11px' }}
+                      className="retro-btn retro-btn-secondary flex-1 tap-target"
+                      style={{ fontSize: '11px', minHeight: '44px', touchAction: 'manipulation' }}
                     >
                       DISMISS
                     </button>
@@ -319,14 +323,16 @@ export const EntityModal: React.FC<EntityModalProps> = ({
           <div className="flex gap-3">
             <button
               onClick={() => onSave(initialData)}
-              className="retro-btn retro-btn-primary flex-1"
+              className="retro-btn retro-btn-primary flex-1 tap-target-lg"
+              style={{ minHeight: '48px', touchAction: 'manipulation' }}
             >
               {initialData?.id ? 'SAVE' : 'CONVERT'}
             </button>
             {onSaveAndNavigate && (
               <button
                 onClick={() => onSaveAndNavigate(initialData)}
-                className="retro-btn retro-btn-secondary flex-1"
+                className="retro-btn retro-btn-secondary flex-1 tap-target-lg"
+                style={{ minHeight: '48px', touchAction: 'manipulation' }}
               >
                 SAVE & GO TO FILES
               </button>

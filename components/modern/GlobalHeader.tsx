@@ -75,8 +75,13 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
         <div className="retro-header-right">
           <span className="retro-clock">{formatTime(time)}</span>
           <span className="retro-date">{formatDate(time)}</span>
-          <button className="retro-settings-btn" onClick={onSettingsClick}>
-            <Settings size={18} />
+          <button
+            className="retro-settings-btn tap-target"
+            onClick={onSettingsClick}
+            style={{ touchAction: 'manipulation' }}
+            aria-label="Settings"
+          >
+            <Settings size={20} />
           </button>
           <GridLogo />
         </div>

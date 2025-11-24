@@ -25,36 +25,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
         {/* Header */}
         <div className="retro-settings-header">
           <h2>SETTINGS</h2>
-          <button className="retro-close-btn" onClick={onClose}>
-            <X size={20} />
+          <button
+            className="retro-close-btn tap-target"
+            onClick={onClose}
+            style={{ touchAction: 'manipulation' }}
+          >
+            <X size={24} />
           </button>
         </div>
 
         {/* Tabs */}
         <div className="retro-settings-tabs">
           <button
-            className={`retro-tab ${activeTab === 'ai' ? 'active' : ''}`}
+            className={`retro-tab tap-target ${activeTab === 'ai' ? 'active' : ''}`}
             onClick={() => setActiveTab('ai')}
+            style={{ touchAction: 'manipulation' }}
           >
             AI
           </button>
           <button
-            className={`retro-tab ${activeTab === 'notifications' ? 'active' : ''}`}
+            className={`retro-tab tap-target ${activeTab === 'notifications' ? 'active' : ''}`}
             onClick={() => setActiveTab('notifications')}
+            style={{ touchAction: 'manipulation' }}
           >
-            NOTIFICATIONS
+            NOTIF
           </button>
           <button
-            className={`retro-tab ${activeTab === 'tags' ? 'active' : ''}`}
+            className={`retro-tab tap-target ${activeTab === 'tags' ? 'active' : ''}`}
             onClick={() => setActiveTab('tags')}
+            style={{ touchAction: 'manipulation' }}
           >
             TAGS
           </button>
           <button
-            className={`retro-tab ${activeTab === 'appearance' ? 'active' : ''}`}
+            className={`retro-tab tap-target ${activeTab === 'appearance' ? 'active' : ''}`}
             onClick={() => setActiveTab('appearance')}
+            style={{ touchAction: 'manipulation' }}
           >
-            APPEARANCE
+            LOOK
           </button>
         </div>
 
