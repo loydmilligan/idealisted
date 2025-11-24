@@ -17,7 +17,7 @@ async function loadConfig() {
   config = {
     serverUrl: result.idealistedUrl || '',
     apiKey: result.openrouterApiKey || '',
-    aiModel: result.aiModel || 'google/gemini-2.0-flash-exp:free'
+    aiModel: result.aiModel || 'x-ai/grok-code-fast-1'
   };
 
   document.getElementById('serverUrl').textContent = config.serverUrl ? new URL(config.serverUrl).host : 'Not configured';
@@ -58,6 +58,30 @@ async function checkConnection() {
   }
 }
 
+// Inject content script if not already present
+async function ensureContentScript(tabId) {
+  try {
+    // Try to ping the content script
+    await chrome.tabs.sendMessage(tabId, { action: 'ping' });
+    return true;
+  } catch (error) {
+    // Content script not loaded, inject it
+    console.log('Content script not found, injecting...');
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tabId },
+        files: ['content.js']
+      });
+      // Wait a moment for script to initialize
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return true;
+    } catch (injectError) {
+      console.error('Failed to inject content script:', injectError);
+      return false;
+    }
+  }
+}
+
 // Analyze current page
 async function analyzePage() {
   if (!config.serverUrl) return;
@@ -65,6 +89,12 @@ async function analyzePage() {
   try {
     // Get current tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    // Ensure content script is loaded
+    const scriptReady = await ensureContentScript(tab.id);
+    if (!scriptReady) {
+      throw new Error('Could not load content script');
+    }
 
     // Get page data from content script
     const response = await chrome.tabs.sendMessage(tab.id, { action: 'extractPageData' });

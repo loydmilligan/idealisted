@@ -3,6 +3,11 @@
 
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'ping') {
+    // Simple ping to check if content script is loaded
+    sendResponse({ status: 'ok' });
+    return true;
+  }
   if (request.action === 'extractPageData') {
     const pageData = extractPageData();
     sendResponse(pageData);
