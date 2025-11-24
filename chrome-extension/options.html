@@ -4,6 +4,29 @@
   <meta charset="UTF-8">
   <title>IdeaListed Capture Settings</title>
   <style>
+    :root {
+      /* Palm screen colors */
+      --palm-screen-light: #A5B5A5;
+      --palm-screen-base: #8B9E8B;
+      --palm-screen-dark: #7A8A7A;
+
+      /* Text colors */
+      --palm-text-dark: #2D3A2D;
+      --palm-text-secondary: #5B6B5B;
+      --palm-text-light: #E8EFE8;
+
+      /* Borders */
+      --palm-border: #6B7B6B;
+      --palm-border-light: #8B9B8B;
+      --palm-border-dark: #5B6B5B;
+
+      /* Entity colors */
+      --entity-task: #4A90E2;
+      --entity-note: #F5A623;
+      --entity-project: #7ED321;
+      --entity-list: #BD10E0;
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -11,68 +34,92 @@
     }
 
     body {
-      font-family: 'Courier New', monospace;
-      background: #0a0a0a;
-      color: #00ff00;
+      font-family: 'Courier New', Monaco, Consolas, monospace;
+      background: #5B6B5B;
+      color: var(--palm-text-dark);
       min-height: 100vh;
       padding: 40px;
     }
 
     .container {
-      max-width: 600px;
+      max-width: 500px;
       margin: 0 auto;
+      background: var(--palm-screen-base);
+      border: 4px solid;
+      border-top-color: var(--palm-border-light);
+      border-left-color: var(--palm-border-light);
+      border-bottom-color: var(--palm-border-dark);
+      border-right-color: var(--palm-border-dark);
+      box-shadow: 4px 4px 0 var(--palm-border-dark);
     }
 
     .header {
       display: flex;
       align-items: center;
-      gap: 16px;
-      margin-bottom: 40px;
-      padding-bottom: 20px;
-      border-bottom: 2px solid #333;
+      gap: 12px;
+      padding: 16px;
+      background: var(--palm-screen-dark);
+      border-bottom: 2px solid var(--palm-border-dark);
     }
 
     .logo {
-      width: 48px;
-      height: 48px;
-      background: #00ff00;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 28px;
+      display: grid;
+      grid-template-columns: repeat(2, 14px);
+      gap: 2px;
     }
 
+    .logo-square {
+      width: 14px;
+      height: 14px;
+    }
+
+    .logo-task { background: var(--entity-task); }
+    .logo-note { background: var(--entity-note); }
+    .logo-project { background: var(--entity-project); }
+    .logo-list { background: var(--entity-list); }
+
     .title-group h1 {
-      font-size: 24px;
+      font-size: 16px;
       text-transform: uppercase;
-      letter-spacing: 3px;
+      letter-spacing: 0.1em;
+      color: var(--palm-text-dark);
     }
 
     .title-group p {
-      font-size: 12px;
-      color: #666;
-      margin-top: 4px;
+      font-size: 10px;
+      color: var(--palm-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 2px;
+    }
+
+    .content {
+      padding: 16px;
     }
 
     .section {
-      background: #1a1a1a;
-      border: 1px solid #333;
-      padding: 24px;
-      margin-bottom: 24px;
+      background: var(--palm-screen-light);
+      border: 2px solid;
+      border-top-color: var(--palm-border-dark);
+      border-left-color: var(--palm-border-dark);
+      border-bottom-color: var(--palm-border-light);
+      border-right-color: var(--palm-border-light);
+      padding: 16px;
+      margin-bottom: 16px;
     }
 
     .section-title {
-      font-size: 14px;
+      font-size: 12px;
       text-transform: uppercase;
-      letter-spacing: 2px;
-      margin-bottom: 20px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #333;
+      letter-spacing: 0.1em;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--palm-border);
+      color: var(--palm-text-dark);
     }
 
     .field {
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
 
     .field:last-child {
@@ -81,41 +128,52 @@
 
     .field label {
       display: block;
-      font-size: 11px;
+      font-size: 10px;
       text-transform: uppercase;
-      color: #888;
-      margin-bottom: 8px;
+      letter-spacing: 0.1em;
+      color: var(--palm-text-secondary);
+      margin-bottom: 6px;
     }
 
     .field input,
     .field select {
       width: 100%;
-      background: #0a0a0a;
-      border: 1px solid #333;
-      color: #00ff00;
-      padding: 12px;
-      font-family: 'Courier New', monospace;
-      font-size: 13px;
+      background: var(--palm-screen-base);
+      border: 2px solid;
+      border-top-color: var(--palm-border-dark);
+      border-left-color: var(--palm-border-dark);
+      border-bottom-color: var(--palm-border-light);
+      border-right-color: var(--palm-border-light);
+      color: var(--palm-text-dark);
+      padding: 10px;
+      font-family: 'Courier New', Monaco, Consolas, monospace;
+      font-size: 12px;
     }
 
     .field input:focus,
     .field select:focus {
       outline: none;
-      border-color: #00ff00;
+      background: var(--palm-screen-dark);
     }
 
     .field input::placeholder {
-      color: #444;
+      color: var(--palm-text-secondary);
     }
 
     .field-help {
       font-size: 10px;
-      color: #666;
+      color: var(--palm-text-secondary);
       margin-top: 6px;
+      line-height: 1.4;
     }
 
     .field-help a {
-      color: #00ff00;
+      color: var(--entity-task);
+      text-decoration: none;
+    }
+
+    .field-help a:hover {
+      text-decoration: underline;
     }
 
     .password-toggle {
@@ -123,7 +181,7 @@
     }
 
     .password-toggle input {
-      padding-right: 50px;
+      padding-right: 60px;
     }
 
     .toggle-btn {
@@ -131,209 +189,267 @@
       right: 8px;
       top: 50%;
       transform: translateY(-50%);
-      background: transparent;
-      border: none;
-      color: #666;
+      background: var(--palm-screen-dark);
+      border: 1px solid var(--palm-border);
+      color: var(--palm-text-secondary);
       cursor: pointer;
-      font-size: 12px;
+      font-size: 10px;
+      padding: 4px 8px;
+      text-transform: uppercase;
+      font-family: 'Courier New', Monaco, Consolas, monospace;
     }
 
     .toggle-btn:hover {
-      color: #00ff00;
+      color: var(--palm-text-dark);
+      background: var(--palm-screen-base);
     }
 
     .actions {
       display: flex;
-      gap: 12px;
-      margin-top: 32px;
+      gap: 8px;
+      margin-top: 16px;
     }
 
     .btn {
       flex: 1;
-      padding: 14px 24px;
+      padding: 12px 16px;
       border: 2px solid;
-      background: transparent;
-      font-family: 'Courier New', monospace;
-      font-size: 13px;
+      background: var(--palm-screen-base);
+      font-family: 'Courier New', Monaco, Consolas, monospace;
+      font-size: 11px;
       font-weight: bold;
       text-transform: uppercase;
+      letter-spacing: 0.1em;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.1s;
     }
 
     .btn-primary {
-      border-color: #00ff00;
-      color: #00ff00;
+      border-top-color: var(--palm-border-light);
+      border-left-color: var(--palm-border-light);
+      border-bottom-color: var(--palm-border-dark);
+      border-right-color: var(--palm-border-dark);
+      color: var(--palm-text-dark);
     }
 
     .btn-primary:hover {
-      background: #00ff00;
-      color: #000;
+      background: var(--palm-screen-dark);
+    }
+
+    .btn-primary:active {
+      border-top-color: var(--palm-border-dark);
+      border-left-color: var(--palm-border-dark);
+      border-bottom-color: var(--palm-border-light);
+      border-right-color: var(--palm-border-light);
     }
 
     .btn-secondary {
-      border-color: #666;
-      color: #666;
+      border-top-color: var(--palm-border-light);
+      border-left-color: var(--palm-border-light);
+      border-bottom-color: var(--palm-border-dark);
+      border-right-color: var(--palm-border-dark);
+      color: var(--palm-text-secondary);
+      background: var(--palm-screen-light);
     }
 
     .btn-secondary:hover {
-      border-color: #888;
-      color: #888;
+      background: var(--palm-screen-base);
+      color: var(--palm-text-dark);
     }
 
     .message {
-      padding: 12px 16px;
-      margin-top: 20px;
-      border: 1px solid;
-      font-size: 12px;
+      padding: 10px;
+      margin-top: 16px;
+      border: 2px solid;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .message.success {
-      border-color: #00ff00;
-      color: #00ff00;
-      background: rgba(0, 255, 0, 0.1);
+      border-color: var(--entity-project);
+      color: var(--palm-text-dark);
+      background: rgba(126, 211, 33, 0.2);
     }
 
     .message.error {
-      border-color: #ff0000;
-      color: #ff0000;
-      background: rgba(255, 0, 0, 0.1);
+      border-color: #CC4444;
+      color: var(--palm-text-dark);
+      background: rgba(204, 68, 68, 0.2);
     }
 
     .connection-test {
       display: flex;
       align-items: center;
-      gap: 12px;
-      margin-top: 12px;
+      gap: 10px;
+      margin-top: 8px;
     }
 
     .test-btn {
-      padding: 8px 16px;
-      background: transparent;
-      border: 1px solid #444;
-      color: #888;
-      font-family: 'Courier New', monospace;
-      font-size: 11px;
+      padding: 6px 12px;
+      background: var(--palm-screen-base);
+      border: 2px solid;
+      border-top-color: var(--palm-border-light);
+      border-left-color: var(--palm-border-light);
+      border-bottom-color: var(--palm-border-dark);
+      border-right-color: var(--palm-border-dark);
+      color: var(--palm-text-secondary);
+      font-family: 'Courier New', Monaco, Consolas, monospace;
+      font-size: 10px;
+      text-transform: uppercase;
       cursor: pointer;
     }
 
     .test-btn:hover {
-      border-color: #00ff00;
-      color: #00ff00;
+      background: var(--palm-screen-dark);
+      color: var(--palm-text-dark);
     }
 
     .test-result {
-      font-size: 11px;
+      font-size: 10px;
+      text-transform: uppercase;
     }
 
-    .test-result.success { color: #00ff00; }
-    .test-result.error { color: #ff0000; }
-    .test-result.testing { color: #ffff00; }
+    .test-result.success { color: var(--entity-project); }
+    .test-result.error { color: #CC4444; }
+    .test-result.testing { color: var(--entity-note); }
 
     .model-info {
-      background: #0a0a0a;
-      padding: 12px;
-      margin-top: 12px;
-      font-size: 11px;
-      color: #888;
+      background: var(--palm-screen-base);
+      border: 2px solid;
+      border-top-color: var(--palm-border-dark);
+      border-left-color: var(--palm-border-dark);
+      border-bottom-color: var(--palm-border-light);
+      border-right-color: var(--palm-border-light);
+      padding: 10px;
+      margin-top: 8px;
+      font-size: 10px;
+      color: var(--palm-text-secondary);
     }
 
     .model-info strong {
-      color: #00ff00;
+      color: var(--palm-text-dark);
+    }
+
+    .checkbox-field {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .checkbox-field input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      margin-top: 2px;
+      accent-color: var(--entity-project);
+    }
+
+    .checkbox-field .checkbox-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <div class="logo">📋</div>
+      <div class="logo">
+        <div class="logo-square logo-task"></div>
+        <div class="logo-square logo-note"></div>
+        <div class="logo-square logo-project"></div>
+        <div class="logo-square logo-list"></div>
+      </div>
       <div class="title-group">
         <h1>IdeaListed Capture</h1>
         <p>Extension Settings</p>
       </div>
     </div>
 
-    <div class="section">
-      <div class="section-title">🖥️ IdeaListed Server</div>
+    <div class="content">
+      <div class="section">
+        <div class="section-title">Server Configuration</div>
 
-      <div class="field">
-        <label for="serverUrl">Server URL</label>
-        <input type="url" id="serverUrl" placeholder="http://localhost:3000">
-        <div class="field-help">
-          The URL of your IdeaListed instance (e.g., http://localhost:3000 or your deployed URL)
-        </div>
-        <div class="connection-test">
-          <button class="test-btn" id="testConnection">Test Connection</button>
-          <span class="test-result" id="testResult"></span>
+        <div class="field">
+          <label for="serverUrl">IdeaListed Server URL</label>
+          <input type="url" id="serverUrl" placeholder="https://idealisted.example.com">
+          <div class="field-help">
+            Your IdeaListed instance URL (e.g., https://idealisted.mattmariani.com)
+          </div>
+          <div class="connection-test">
+            <button class="test-btn" id="testConnection">Test Connection</button>
+            <span class="test-result" id="testResult"></span>
+          </div>
         </div>
       </div>
+
+      <div class="section">
+        <div class="section-title">AI Configuration (Optional)</div>
+
+        <div class="field">
+          <label for="apiKey">OpenRouter API Key</label>
+          <div class="password-toggle">
+            <input type="password" id="apiKey" placeholder="sk-or-...">
+            <button class="toggle-btn" id="toggleApiKey">Show</button>
+          </div>
+          <div class="field-help">
+            Get your API key from <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="aiModel">AI Model</label>
+          <select id="aiModel">
+            <optgroup label="IdeaListed Models (Recommended)">
+              <option value="x-ai/grok-code-fast-1" selected>Grok Code Fast (Paid - Recommended)</option>
+              <option value="z-ai/glm-4.5-air:free">GLM 4.5 Air (Free)</option>
+            </optgroup>
+            <optgroup label="Other Models">
+              <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (Free)</option>
+              <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (Paid)</option>
+              <option value="openai/gpt-4o-mini">GPT-4o Mini (Paid)</option>
+            </optgroup>
+          </select>
+          <div class="model-info" id="modelInfo">
+            <strong>Grok Code Fast</strong> - Paid, fast and capable, same as IdeaListed paid model.
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Capture Defaults</div>
+
+        <div class="field">
+          <label for="defaultAction">Default Capture Action</label>
+          <select id="defaultAction">
+            <option value="popup">Show popup for review</option>
+            <option value="quick">Quick capture (no review)</option>
+          </select>
+          <div class="field-help">
+            Quick capture sends to IdeaListed immediately without review.
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="checkbox-field">
+            <input type="checkbox" id="useAI" checked>
+            <div>
+              <span class="checkbox-label">Enable AI Processing</span>
+              <div class="field-help" style="margin-top: 4px;">
+                AI analyzes content for better structured notes. Disable to use basic extraction.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-secondary" id="resetBtn">Reset</button>
+        <button class="btn btn-primary" id="saveBtn">Save Settings</button>
+      </div>
+
+      <div id="messageArea"></div>
     </div>
-
-    <div class="section">
-      <div class="section-title">🤖 AI Configuration (Optional)</div>
-
-      <div class="field">
-        <label for="apiKey">OpenRouter API Key</label>
-        <div class="password-toggle">
-          <input type="password" id="apiKey" placeholder="sk-or-...">
-          <button class="toggle-btn" id="toggleApiKey">Show</button>
-        </div>
-        <div class="field-help">
-          Get your API key from <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a>.
-          AI processing is optional but provides better note structure and summaries.
-        </div>
-      </div>
-
-      <div class="field">
-        <label for="aiModel">AI Model</label>
-        <select id="aiModel">
-          <optgroup label="IdeaListed Models (Recommended)">
-            <option value="x-ai/grok-code-fast-1" selected>Grok Code Fast (Paid - Recommended)</option>
-            <option value="z-ai/glm-4.5-air:free">GLM 4.5 Air (Free)</option>
-          </optgroup>
-          <optgroup label="Other Models">
-            <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (Free)</option>
-            <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (Paid)</option>
-            <option value="openai/gpt-4o-mini">GPT-4o Mini (Paid)</option>
-          </optgroup>
-        </select>
-        <div class="model-info" id="modelInfo">
-          <strong>Grok Code Fast</strong> - Paid, fast and capable, same as IdeaListed paid model. (Recommended)
-        </div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">⚙️ Capture Defaults</div>
-
-      <div class="field">
-        <label for="defaultAction">Default Capture Action</label>
-        <select id="defaultAction">
-          <option value="popup">Show popup for review</option>
-          <option value="quick">Quick capture (no review)</option>
-        </select>
-        <div class="field-help">
-          "Quick capture" sends to IdeaListed immediately without popup review.
-        </div>
-      </div>
-
-      <div class="field">
-        <label>
-          <input type="checkbox" id="useAI" checked> Enable AI processing
-        </label>
-        <div class="field-help" style="margin-top: 8px;">
-          When enabled, content will be analyzed by AI for better notes.
-          Disable to save the page with basic extraction only.
-        </div>
-      </div>
-    </div>
-
-    <div class="actions">
-      <button class="btn btn-secondary" id="resetBtn">Reset</button>
-      <button class="btn btn-primary" id="saveBtn">Save Settings</button>
-    </div>
-
-    <div id="messageArea"></div>
   </div>
 
   <script src="options.js"></script>

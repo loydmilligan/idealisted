@@ -3,6 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <style>
+    :root {
+      /* Palm screen colors */
+      --palm-screen-light: #A5B5A5;
+      --palm-screen-base: #8B9E8B;
+      --palm-screen-dark: #7A8A7A;
+
+      /* Text colors */
+      --palm-text-dark: #2D3A2D;
+      --palm-text-secondary: #5B6B5B;
+      --palm-text-light: #E8EFE8;
+
+      /* Borders */
+      --palm-border: #6B7B6B;
+      --palm-border-light: #8B9B8B;
+      --palm-border-dark: #5B6B5B;
+
+      /* Entity colors */
+      --entity-task: #4A90E2;
+      --entity-note: #F5A623;
+      --entity-project: #7ED321;
+      --entity-list: #BD10E0;
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
@@ -11,110 +34,139 @@
 
     body {
       width: 380px;
-      min-height: 400px;
-      font-family: 'Courier New', monospace;
-      background: #0a0a0a;
-      color: #00ff00;
+      min-height: 420px;
+      font-family: 'Courier New', Monaco, Consolas, monospace;
+      background: var(--palm-screen-base);
+      color: var(--palm-text-dark);
       padding: 0;
     }
 
     .header {
-      background: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%);
-      border-bottom: 2px solid #00ff00;
+      background: var(--palm-screen-dark);
+      border-bottom: 2px solid var(--palm-border-dark);
       padding: 12px 16px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
 
     .logo {
-      width: 32px;
-      height: 32px;
-      background: #00ff00;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
+      display: grid;
+      grid-template-columns: repeat(2, 12px);
+      gap: 2px;
     }
 
+    .logo-square {
+      width: 12px;
+      height: 12px;
+    }
+
+    .logo-task { background: var(--entity-task); }
+    .logo-note { background: var(--entity-note); }
+    .logo-project { background: var(--entity-project); }
+    .logo-list { background: var(--entity-list); }
+
     .title {
-      font-size: 16px;
+      font-size: 14px;
       font-weight: bold;
       text-transform: uppercase;
-      letter-spacing: 2px;
+      letter-spacing: 0.1em;
+      color: var(--palm-text-dark);
     }
 
     .content {
-      padding: 16px;
+      padding: 12px;
     }
 
     .status-bar {
-      background: #1a1a1a;
-      border: 1px solid #333;
-      padding: 8px 12px;
-      margin-bottom: 16px;
+      background: var(--palm-screen-light);
+      border: 2px solid;
+      border-top-color: var(--palm-border-dark);
+      border-left-color: var(--palm-border-dark);
+      border-bottom-color: var(--palm-border-light);
+      border-right-color: var(--palm-border-light);
+      padding: 8px 10px;
+      margin-bottom: 12px;
       font-size: 11px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .status-dot {
       width: 8px;
       height: 8px;
-      border-radius: 50%;
       display: inline-block;
       margin-right: 6px;
+      border: 1px solid var(--palm-border-dark);
     }
 
-    .status-dot.connected { background: #00ff00; }
-    .status-dot.disconnected { background: #ff0000; }
-    .status-dot.processing { background: #ffff00; animation: blink 0.5s infinite; }
+    .status-dot.connected { background: var(--entity-project); }
+    .status-dot.disconnected { background: #CC4444; }
+    .status-dot.processing { background: var(--entity-note); animation: blink 0.5s infinite; }
 
     @keyframes blink {
       50% { opacity: 0.3; }
     }
 
-    .page-info {
-      background: #1a1a1a;
-      border: 1px solid #333;
-      padding: 12px;
-      margin-bottom: 16px;
+    .panel {
+      background: var(--palm-screen-light);
+      border: 2px solid;
+      border-top-color: var(--palm-border-dark);
+      border-left-color: var(--palm-border-dark);
+      border-bottom-color: var(--palm-border-light);
+      border-right-color: var(--palm-border-light);
+      padding: 10px;
+      margin-bottom: 12px;
     }
 
-    .page-info-label {
+    .panel-label {
       font-size: 10px;
-      color: #666;
+      color: var(--palm-text-secondary);
       text-transform: uppercase;
-      margin-bottom: 4px;
+      letter-spacing: 0.1em;
+      margin-bottom: 6px;
     }
 
     .page-title {
-      font-size: 13px;
-      color: #00ff00;
+      font-size: 12px;
+      color: var(--palm-text-dark);
       word-break: break-word;
-      margin-bottom: 8px;
+      margin-bottom: 4px;
+      font-weight: bold;
     }
 
     .page-url {
       font-size: 10px;
-      color: #888;
+      color: var(--palm-text-secondary);
       word-break: break-all;
     }
 
     .detected-type {
       display: flex;
       align-items: center;
-      gap: 8px;
-      background: #1a1a1a;
-      border: 1px solid #333;
-      padding: 12px;
-      margin-bottom: 16px;
+      gap: 10px;
+      padding: 10px;
+      background: var(--palm-screen-light);
+      border: 2px solid;
+      border-top-color: var(--palm-border-dark);
+      border-left-color: var(--palm-border-dark);
+      border-bottom-color: var(--palm-border-light);
+      border-right-color: var(--palm-border-light);
+      margin-bottom: 12px;
     }
 
     .type-icon {
       font-size: 24px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--palm-screen-base);
+      border: 2px solid var(--palm-border);
     }
 
     .type-info {
@@ -123,67 +175,82 @@
 
     .type-label {
       font-size: 10px;
-      color: #666;
+      color: var(--palm-text-secondary);
       text-transform: uppercase;
+      letter-spacing: 0.1em;
     }
 
     .type-name {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
-    .type-name.youtube { color: #ff0000; }
-    .type-name.research { color: #00ffff; }
-    .type-name.link { color: #ff00ff; }
+    .type-name.youtube { color: var(--entity-task); }
+    .type-name.research { color: var(--entity-note); }
+    .type-name.link { color: var(--entity-list); }
 
-    .type-select {
-      margin-bottom: 16px;
+    .field {
+      margin-bottom: 12px;
     }
 
-    .type-select label {
+    .field label {
       display: block;
       font-size: 10px;
-      color: #666;
       text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--palm-text-secondary);
       margin-bottom: 6px;
     }
 
-    .type-select select {
+    .field select {
       width: 100%;
-      background: #1a1a1a;
-      border: 1px solid #333;
-      color: #00ff00;
+      background: var(--palm-screen-light);
+      border: 2px solid;
+      border-top-color: var(--palm-border-dark);
+      border-left-color: var(--palm-border-dark);
+      border-bottom-color: var(--palm-border-light);
+      border-right-color: var(--palm-border-light);
+      color: var(--palm-text-dark);
       padding: 8px;
-      font-family: 'Courier New', monospace;
+      font-family: 'Courier New', Monaco, Consolas, monospace;
       font-size: 12px;
+      text-transform: uppercase;
     }
 
-    .type-select select:focus {
+    .field select:focus {
       outline: none;
-      border-color: #00ff00;
+      background: var(--palm-screen-base);
     }
 
     .preview {
-      background: #1a1a1a;
-      border: 1px solid #333;
-      padding: 12px;
-      margin-bottom: 16px;
-      max-height: 150px;
+      background: var(--palm-screen-light);
+      border: 2px solid;
+      border-top-color: var(--palm-border-dark);
+      border-left-color: var(--palm-border-dark);
+      border-bottom-color: var(--palm-border-light);
+      border-right-color: var(--palm-border-light);
+      padding: 10px;
+      margin-bottom: 12px;
+      max-height: 120px;
       overflow-y: auto;
     }
 
     .preview-label {
       font-size: 10px;
-      color: #666;
+      color: var(--palm-text-secondary);
       text-transform: uppercase;
-      margin-bottom: 8px;
+      letter-spacing: 0.1em;
+      margin-bottom: 6px;
     }
 
     .preview-content {
       font-size: 11px;
-      color: #aaa;
+      color: var(--palm-text-dark);
       white-space: pre-wrap;
       word-break: break-word;
+      line-height: 1.4;
     }
 
     .actions {
@@ -193,81 +260,100 @@
 
     .btn {
       flex: 1;
-      padding: 12px 16px;
+      padding: 10px 12px;
       border: 2px solid;
-      background: transparent;
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
+      background: var(--palm-screen-base);
+      font-family: 'Courier New', Monaco, Consolas, monospace;
+      font-size: 11px;
       font-weight: bold;
       text-transform: uppercase;
+      letter-spacing: 0.1em;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.1s;
     }
 
     .btn-primary {
-      border-color: #00ff00;
-      color: #00ff00;
+      border-top-color: var(--palm-border-light);
+      border-left-color: var(--palm-border-light);
+      border-bottom-color: var(--palm-border-dark);
+      border-right-color: var(--palm-border-dark);
+      color: var(--palm-text-dark);
     }
 
     .btn-primary:hover {
-      background: #00ff00;
-      color: #000;
+      background: var(--palm-screen-dark);
+    }
+
+    .btn-primary:active {
+      border-top-color: var(--palm-border-dark);
+      border-left-color: var(--palm-border-dark);
+      border-bottom-color: var(--palm-border-light);
+      border-right-color: var(--palm-border-light);
     }
 
     .btn-primary:disabled {
-      border-color: #333;
-      color: #333;
+      opacity: 0.5;
       cursor: not-allowed;
     }
 
     .btn-secondary {
-      border-color: #666;
-      color: #666;
+      border-top-color: var(--palm-border-light);
+      border-left-color: var(--palm-border-light);
+      border-bottom-color: var(--palm-border-dark);
+      border-right-color: var(--palm-border-dark);
+      color: var(--palm-text-secondary);
+      background: var(--palm-screen-light);
     }
 
     .btn-secondary:hover {
-      border-color: #888;
-      color: #888;
+      background: var(--palm-screen-base);
+      color: var(--palm-text-dark);
     }
 
     .message {
-      padding: 12px;
-      margin-bottom: 16px;
-      border: 1px solid;
-      font-size: 12px;
+      padding: 10px;
+      margin-bottom: 12px;
+      border: 2px solid;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .message.success {
-      border-color: #00ff00;
-      color: #00ff00;
-      background: rgba(0, 255, 0, 0.1);
+      border-color: var(--entity-project);
+      color: var(--palm-text-dark);
+      background: rgba(126, 211, 33, 0.2);
     }
 
     .message.error {
-      border-color: #ff0000;
-      color: #ff0000;
-      background: rgba(255, 0, 0, 0.1);
+      border-color: #CC4444;
+      color: var(--palm-text-dark);
+      background: rgba(204, 68, 68, 0.2);
     }
 
     .message.info {
-      border-color: #00ffff;
-      color: #00ffff;
-      background: rgba(0, 255, 255, 0.1);
+      border-color: var(--entity-task);
+      color: var(--palm-text-dark);
+      background: rgba(74, 144, 226, 0.2);
     }
 
     .settings-link {
       text-align: center;
-      margin-top: 12px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--palm-border);
     }
 
     .settings-link a {
-      color: #666;
-      font-size: 11px;
+      color: var(--palm-text-secondary);
+      font-size: 10px;
       text-decoration: none;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
     }
 
     .settings-link a:hover {
-      color: #00ff00;
+      color: var(--palm-text-dark);
     }
 
     .loading {
@@ -280,11 +366,10 @@
     }
 
     .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid #333;
-      border-top-color: #00ff00;
-      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--palm-border);
+      border-top-color: var(--entity-task);
       animation: spin 1s linear infinite;
     }
 
@@ -293,14 +378,26 @@
     }
 
     .loading-text {
-      font-size: 12px;
-      color: #666;
+      font-size: 11px;
+      color: var(--palm-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    #configNeeded {
+      text-align: center;
+      padding: 20px;
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <div class="logo">📋</div>
+    <div class="logo">
+      <div class="logo-square logo-task"></div>
+      <div class="logo-square logo-note"></div>
+      <div class="logo-square logo-project"></div>
+      <div class="logo-square logo-list"></div>
+    </div>
     <div class="title">IdeaListed</div>
   </div>
 
@@ -308,7 +405,7 @@
     <div class="status-bar">
       <span>
         <span class="status-dot" id="statusDot"></span>
-        <span id="statusText">Checking connection...</span>
+        <span id="statusText">Checking...</span>
       </span>
       <span id="serverUrl"></span>
     </div>
@@ -320,8 +417,8 @@
       </div>
 
       <div id="captureForm" style="display: none;">
-        <div class="page-info">
-          <div class="page-info-label">Current Page</div>
+        <div class="panel">
+          <div class="panel-label">Current Page</div>
           <div class="page-title" id="pageTitle"></div>
           <div class="page-url" id="pageUrl"></div>
         </div>
@@ -334,8 +431,8 @@
           </div>
         </div>
 
-        <div class="type-select">
-          <label for="noteType">Override Note Type</label>
+        <div class="field">
+          <label for="noteType">Override Type</label>
           <select id="noteType">
             <option value="auto">Auto-detect</option>
             <option value="video">🎥 YouTube Video</option>
@@ -346,7 +443,7 @@
 
         <div class="preview">
           <div class="preview-label">Content Preview</div>
-          <div class="preview-content" id="previewContent">Extracting content...</div>
+          <div class="preview-content" id="previewContent">Extracting...</div>
         </div>
 
         <div id="messageArea"></div>
@@ -359,9 +456,9 @@
 
       <div id="configNeeded" style="display: none;">
         <div class="message info">
-          Please configure IdeaListed server URL and API settings in the extension options.
+          Configure server URL in extension settings.
         </div>
-        <div class="actions">
+        <div class="actions" style="margin-top: 12px;">
           <button class="btn btn-primary" id="openOptionsBtn">Open Settings</button>
         </div>
       </div>
