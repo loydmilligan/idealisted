@@ -11,7 +11,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import type { Item, Template, FieldConfig, FieldDef, SectionDef } from '@/types'
+import type { Item, ItemWithRelations, Template, FieldConfig, FieldDef, SectionDef } from '@/types'
 import { parseMarkdown, renderMarkdown } from '@/lib/markdown-parser'
 import { TagInput } from '@/components/modern/TagInput'
 import { BadgeCheck, Loader2 } from 'lucide-react'
@@ -38,7 +38,7 @@ export interface PreFillData {
 
 
 interface MarkdownEntityEditorProps {
-  item: Item | null // null for new entities
+  item: Item | ItemWithRelations | null // null for new entities, ItemWithRelations when editing
   template: Template
   onSave: (payload: { markdown: string; fields: Record<string, string>; sections: Record<string, any>; rawSections?: Record<string, any>; tags: string[] }) => Promise<void>
   onCancel: () => void
@@ -81,6 +81,7 @@ export function MarkdownEntityEditor({
   const [tags, setTags] = useState<string[]>([])
   const [aiEnabled, setAiEnabled] = useState(false)
   const [tagSuggestionsEnabled, setTagSuggestionsEnabled] = useState(false)
+  const [listAppendAIEnabled, setListAppendAIEnabled] = useState(false)  // P5-T2
   const [tagSuggestions, setTagSuggestions] = useState<Array<{ name: string; confidence: number; source?: string; usage_count?: number }>>([])
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
 
@@ -94,6 +95,14 @@ export function MarkdownEntityEditor({
     }
   }, [template.field_config])
 
+  // P5-T2: Extract list ID for AI append feature (only available when editing existing lists)
+  const listId = React.useMemo(() => {
+    if (item && template.entity_type === 'list' && 'list' in item && item.list) {
+      return (item as ItemWithRelations).list?.id
+    }
+    return undefined
+  }, [item, template.entity_type])
+
   // AI/tag feature flags
   useEffect(() => {
     fetch('/api/settings')
@@ -106,10 +115,16 @@ export function MarkdownEntityEditor({
     fetch('/api/ai-features')
       .then(res => res.json())
       .then(data => {
-        const feature = data.features?.find((f: any) => f.feature_name === 'tag_suggestions')
-        setTagSuggestionsEnabled(feature?.enabled === 1)
+        const tagFeature = data.features?.find((f: any) => f.feature_name === 'tag_suggestions')
+        setTagSuggestionsEnabled(tagFeature?.enabled === 1)
+        // P5-T2: Check list_append_ai feature
+        const listAppendFeature = data.features?.find((f: any) => f.feature_name === 'list_append_ai')
+        setListAppendAIEnabled(listAppendFeature?.enabled === 1)
       })
-      .catch(() => setTagSuggestionsEnabled(false))
+      .catch(() => {
+        setTagSuggestionsEnabled(false)
+        setListAppendAIEnabled(false)
+      })
   }, [])
 
   // Initialize form state when modal opens or item changes
@@ -594,6 +609,10 @@ export function MarkdownEntityEditor({
             items={value || []}
             onChange={(val) => updateSection(sectionName, val)}
             required={sectionDef.required}
+            // P5-T2: AI append props
+            listId={listId}
+            aiEnabled={aiEnabled}
+            listAppendAIEnabled={listAppendAIEnabled}
           />
         )
 
@@ -606,6 +625,10 @@ export function MarkdownEntityEditor({
             onChange={(val) => updateSection(sectionName, val)}
             required={sectionDef.required}
             variant="ordered"
+            // P5-T2: AI append props
+            listId={listId}
+            aiEnabled={aiEnabled}
+            listAppendAIEnabled={listAppendAIEnabled}
           />
         )
 
@@ -640,6 +663,10 @@ export function MarkdownEntityEditor({
             onChange={(val) => updateSection(sectionName, val)}
             required={sectionDef.required}
             variant="shopping"
+            // P5-T2: AI append props
+            listId={listId}
+            aiEnabled={aiEnabled}
+            listAppendAIEnabled={listAppendAIEnabled}
           />
         )
 

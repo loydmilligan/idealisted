@@ -10,7 +10,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { useSpeechRecognition } from '@/lib/useSpeechRecognition'
 import { AISuggestion } from '@/types'
 import { AISuggestionPanel } from '@/components/ui/AISuggestionPanel'
-import { Bot, Loader2, Mic } from 'lucide-react'
+import { Bot, Loader2, Mic, ChevronDown, ChevronUp } from 'lucide-react'
 
 interface RecentItem {
   id: string
@@ -70,7 +70,12 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
 }) => {
   const [inputText, setInputText] = useState('')
   const [aiEnabled, setAiEnabled] = useState(false)
-  const [isUnsortedOpen, setIsUnsortedOpen] = useState(false)
+  const [isUnsortedOpen, setIsUnsortedOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('unsorted_expanded') === 'true'
+    }
+    return false
+  })
   const [journalText, setJournalText] = useState('')
   const [mediaUrl, setMediaUrl] = useState('')
   const [mediaType, setMediaType] = useState<'Image' | 'Audio' | 'Video'>('Image')
@@ -111,11 +116,12 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
     }
   }, [transcript, resetTranscript])
 
-  // Flash inline inbox when new items arrive
+  // Flash inline inbox when new items arrive and auto-expand
   useEffect(() => {
     const prev = prevUnsortedCount.current
     if (unsortedItems.length > prev) {
       setIsUnsortedOpen(true)
+      localStorage.setItem('unsorted_expanded', 'true')
       setUnsortedFlash(true)
       setTimeout(() => setUnsortedFlash(false), 350)
     }
@@ -128,6 +134,7 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
     setInputText('')
     textareaRef.current?.focus()
     setIsUnsortedOpen(true)
+    localStorage.setItem('unsorted_expanded', 'true')
   }
 
   const handleAIAction = () => {
@@ -140,6 +147,12 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
   }
 
   const handleVoiceInput = () => startListening()
+
+  const toggleUnsorted = () => {
+    const newState = !isUnsortedOpen
+    setIsUnsortedOpen(newState)
+    localStorage.setItem('unsorted_expanded', String(newState))
+  }
 
   const renderJournal = () => {
     if (journalEntry) {
@@ -444,12 +457,24 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
       {/* Unsorted Inbox (collapsed by default) */}
       <div className="px-4">
         <button
-          className="retro-btn retro-btn-secondary w-full mb-2"
-          onClick={() => setIsUnsortedOpen(prev => !prev)}
+          className="retro-btn retro-btn-secondary w-full mb-2 flex items-center justify-center gap-2"
+          onClick={toggleUnsorted}
+          aria-expanded={isUnsortedOpen}
+          aria-controls="unsorted-inbox-container"
         >
-          {isUnsortedOpen ? 'Hide Inbox' : 'Show Inbox'} ({unsortedItems.length})
+          {isUnsortedOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          <span>Inbox ({unsortedItems.length})</span>
         </button>
-        {isUnsortedOpen && (
+        <div
+          id="unsorted-inbox-container"
+          className="inbox-container"
+          style={{
+            maxHeight: isUnsortedOpen ? '220px' : '0',
+            opacity: isUnsortedOpen ? 1 : 0,
+            overflow: 'hidden',
+            transition: 'max-height 250ms ease-out, opacity 200ms ease-out',
+          }}
+        >
           <div
             className="retro-card"
             style={{
@@ -557,7 +582,7 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
               </div>
             ))}
           </div>
-        )}
+        </div>
       </div>
 
       <div className="px-4 pt-4 space-y-4">
