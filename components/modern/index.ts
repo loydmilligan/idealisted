@@ -21,3 +21,6 @@ export { EntityModal, FormField } from './EntityModal'
 
 // Drawers
 export { PlannerDrawer, type PlannerDrawerProps } from './PlannerDrawer'
+
+// Calendar
+export { MiniCalendar, type MiniCalendarProps } from './MiniCalendar'

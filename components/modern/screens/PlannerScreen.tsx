@@ -8,13 +8,15 @@
  * - Assignment list for selected date
  * - Empty state when no assignments
  * - LocalStorage sync with server fallback
+ * - PlannerDrawer for adding items to plan
  */
 
 'use client'
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { format, addDays, subDays, isToday, isTomorrow, isYesterday, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns'
-import { ChevronLeft, ChevronRight, Calendar, Loader2, LayoutGrid, LayoutList } from 'lucide-react'
+import { format, addDays, subDays, isToday, isTomorrow, isYesterday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns'
+import { ChevronLeft, ChevronRight, Calendar, Loader2, LayoutGrid, LayoutList, Plus } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
   PlanAssignmentWithItem,
   loadFromServer,
@@ -25,8 +27,11 @@ import {
 } from '@/lib/plan-storage'
 import { getEntityColor, getEntityBackgroundColor, EntityType } from '@/lib/entity-colors'
 import { WeekGrid } from './WeekGrid'
+import { MiniCalendar } from '@/components/modern/MiniCalendar'
 import { MorningFinalizeModal } from '@/components/MorningFinalizeModal'
-import { Plan, Item } from '@/types'
+import { EveningReviewFlow } from '@/components/EveningReviewFlow'
+import { PlannerDrawer } from '@/components/modern/PlannerDrawer'
+import { Plan, Item, PlanWithEntities, PlanAssignment } from '@/types'
 import { apiClient } from '@/lib/api-client'
 
 interface PlannerScreenProps {
@@ -74,6 +79,57 @@ function isInMorningWindow(): boolean {
 }
 
 /**
+ * Check if current time is within evening review window
+ * Default window: 7:00 PM - 9:00 PM
+ * TODO: P3-T5 will read from settings
+ */
+function isInEveningWindow(): boolean {
+  const now = new Date()
+  const hours = now.getHours()
+  const minutes = now.getMinutes()
+  const currentMinutes = hours * 60 + minutes
+
+  // Default: 7:00 PM - 9:00 PM (1140-1260 minutes)
+  // TODO: P3-T5 will read from settings
+  const startMinutes = 19 * 60  // 7:00 PM
+  const endMinutes = 21 * 60    // 9:00 PM
+
+  return currentMinutes >= startMinutes && currentMinutes <= endMinutes
+}
+
+/**
+ * Simple toast notification component
+ */
+interface ToastProps {
+  message: string
+  type?: 'success' | 'error'
+  onClose: () => void
+}
+
+const Toast: React.FC<ToastProps> = ({ message, type = 'success', onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3000)
+    return () => clearTimeout(timer)
+  }, [onClose])
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 50 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 50 }}
+      className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[1004] px-4 py-2 rounded-lg shadow-lg"
+      style={{
+        background: type === 'success' ? 'var(--retro-primary)' : '#ef4444',
+        color: 'white',
+        maxWidth: '90%',
+      }}
+    >
+      <div className="text-sm font-semibold text-center">{message}</div>
+    </motion.div>
+  )
+}
+
+/**
  * PlannerItem sub-component for displaying individual assignments
  */
 interface PlannerItemProps {
@@ -100,7 +156,7 @@ const PlannerItem: React.FC<PlannerItemProps> = ({
   const isCompleted = task?.status === 'completed'
 
   const cardStyle = {
-    borderLeft: `4px solid \${getEntityColor(entityType)}`,
+    borderLeft: `4px solid ${getEntityColor(entityType)}`,
     background: getEntityBackgroundColor(entityType, 'muted', 0.08),
     opacity: isCompleted ? 0.6 : 1,
   }
@@ -112,7 +168,7 @@ const PlannerItem: React.FC<PlannerItemProps> = ({
   // Get entity-specific details
   const getDetails = () => {
     if (task) {
-      const priority = task.priority ? `P\${task.priority}` : null
+      const priority = task.priority ? `P${task.priority}` : null
       const dueDate = task.due_date
         ? format(new Date(task.due_date), 'MMM d')
         : null
@@ -123,7 +179,7 @@ const PlannerItem: React.FC<PlannerItemProps> = ({
     }
     if (project) {
       const progress = project.progress || 0
-      return `\${progress}% complete`
+      return `${progress}% complete`
     }
     return null
   }
@@ -223,10 +279,46 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
   const [viewMode, setViewMode] = useState<'day' | 'week'>('day')
   const [weekAssignments, setWeekAssignments] = useState<PlanAssignmentWithItem[]>([])
 
+  // Drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [availableItems, setAvailableItems] = useState<Item[]>([])
+  const [allAssignments, setAllAssignments] = useState<PlanAssignment[]>([])
+
+  // Toast state
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [toastType, setToastType] = useState<'success' | 'error'>('success')
+
   // Morning finalize modal state
   const [showMorningModal, setShowMorningModal] = useState(false)
   const [todayPlan, setTodayPlan] = useState<Plan | null>(null)
   const [planTasks, setPlanTasks] = useState<Item[]>([])
+
+  // Evening review modal state
+  const [showEveningModal, setShowEveningModal] = useState(false)
+  const [eveningReviewData, setEveningReviewData] = useState<{
+    plan: PlanWithEntities
+    projects: Item[]
+    unparsedCount: number
+  } | null>(null)
+
+  // Calendar month assignments for task counts
+  const [calendarMonthAssignments, setCalendarMonthAssignments] = useState<PlanAssignmentWithItem[]>([])
+
+  // Task counts for mini calendar
+  const taskCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+
+    // In week view, use weekAssignments which are already loaded
+    // In day view, use calendarMonthAssignments for broader coverage
+    const source = viewMode === 'week' ? weekAssignments : calendarMonthAssignments
+
+    source.forEach(assignment => {
+      const date = assignment.assigned_date
+      counts[date] = (counts[date] || 0) + 1
+    })
+
+    return counts
+  }, [weekAssignments, calendarMonthAssignments, viewMode])
 
   // Date navigation handlers
   const goToPrevDay = useCallback(() => {
@@ -248,6 +340,12 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
   // Toggle view mode
   const toggleViewMode = useCallback(() => {
     setViewMode(prev => prev === 'day' ? 'week' : 'day')
+  }, [])
+
+  // Show toast notification
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    setToastMessage(message)
+    setToastType(type)
   }, [])
 
   // Load assignments when date changes (day view)
@@ -312,7 +410,7 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
             const dayAssignments = await loadFromServer(dateKey)
             allAssignments.push(...dayAssignments)
           } catch (error) {
-            console.error(`[PlannerScreen] Failed to load \${dateKey}:`, error)
+            console.error(`[PlannerScreen] Failed to load ${dateKey}:`, error)
             // Fall back to local storage for this day
             const localData = getLocalAssignments(dateKey)
             allAssignments.push(...localData)
@@ -337,6 +435,85 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
       mounted = false
     }
   }, [selectedDate, viewMode])
+
+  // Load calendar month assignments for task counts in mini calendar
+  useEffect(() => {
+    if (viewMode !== 'day') return
+
+    let mounted = true
+
+    const loadCalendarMonth = async () => {
+      try {
+        const selected = new Date(selectedDate + 'T00:00:00')
+        const monthStart = startOfMonth(selected)
+        const monthEnd = endOfMonth(selected)
+
+        // Get full calendar range (includes prev/next month days)
+        const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 })
+        const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
+        const calendarDates = eachDayOfInterval({ start: calendarStart, end: calendarEnd })
+
+        // Load assignments for all days in the calendar view
+        const allAssignments: PlanAssignmentWithItem[] = []
+
+        for (const date of calendarDates) {
+          const dateKey = format(date, 'yyyy-MM-dd')
+          try {
+            const dayAssignments = await loadFromServer(dateKey)
+            allAssignments.push(...dayAssignments)
+          } catch (error) {
+            // Fall back to local storage for this day
+            const localData = getLocalAssignments(dateKey)
+            allAssignments.push(...localData)
+          }
+        }
+
+        if (mounted) {
+          setCalendarMonthAssignments(allAssignments)
+        }
+      } catch (error) {
+        console.error('[PlannerScreen] Failed to load calendar month assignments:', error)
+      }
+    }
+
+    loadCalendarMonth()
+
+    return () => {
+      mounted = false
+    }
+  }, [selectedDate, viewMode])
+
+
+  // Load available items and all assignments when drawer opens
+  useEffect(() => {
+    if (!drawerOpen) return
+
+    async function loadDrawerData() {
+      try {
+        // Fetch all items (excluding archived)
+        const itemsResponse = await fetch('/api/items')
+        const itemsResult = await itemsResponse.json()
+
+        if (itemsResult.success) {
+          const items = itemsResult.items.filter((item: Item) => !item.archived)
+          setAvailableItems(items)
+        }
+
+        // Fetch all assignments (for indicator logic)
+        const assignmentsResponse = await fetch('/api/plan-assignments')
+        const assignmentsResult = await assignmentsResponse.json()
+
+        if (assignmentsResult.success) {
+          setAllAssignments(assignmentsResult.data)
+        }
+      } catch (error) {
+        console.error('[PlannerScreen] Failed to load drawer data:', error)
+        showToast('Failed to load items', 'error')
+      }
+    }
+
+    loadDrawerData()
+  }, [drawerOpen, showToast])
 
   // Initialize offline support
   useEffect(() => {
@@ -373,6 +550,84 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
 
     checkMorningFlow()
   }, [])
+
+  // Load evening review data
+  const loadEveningReviewData = useCallback(async () => {
+    const today = getTodayKey()
+
+    try {
+      // Get plan with status
+      const { plan } = await apiClient.getPlan(today)
+      if (!plan) return
+
+      // Get all items (tasks, projects, ideas)
+      const { items: allItems } = await apiClient.getItems({})
+
+      // Filter tasks for this plan's date
+      const tasks = allItems.filter(item =>
+        item.type === 'task' &&
+        item.task?.due_date &&
+        format(new Date(item.task.due_date), 'yyyy-MM-dd') === today
+      )
+
+      // Get all active projects
+      const projects = allItems.filter(item =>
+        item.type === 'project' &&
+        !item.archived
+      )
+
+      // Count unparsed ideas
+      const unparsedCount = allItems.filter(item =>
+        item.type === 'idea' &&
+        !item.parsed
+      ).length
+
+      // Build PlanWithEntities
+      const planWithEntities: PlanWithEntities = {
+        ...plan,
+        tasks: tasks.map(t => ({
+          id: t.id,
+          item_id: t.id,
+          status: t.task?.status || 'pending',
+          priority: t.task?.priority || 1,
+          tags: t.task?.tags,
+          estimated_time: t.task?.estimated_time,
+          project_id: t.task?.project_id,
+          due_date: t.task?.due_date,
+          item: t
+        }))
+      }
+
+      setEveningReviewData({
+        plan: planWithEntities,
+        projects,
+        unparsedCount
+      })
+      setShowEveningModal(true)
+    } catch (error) {
+      console.error('[PlannerScreen] Failed to load evening review data:', error)
+    }
+  }, [])
+
+  // Check for evening review flow on mount
+  useEffect(() => {
+    async function checkEveningFlow() {
+      if (!isInEveningWindow()) return
+
+      const today = getTodayKey()
+      try {
+        const { plan } = await apiClient.getPlan(today)
+        if (plan && plan.status === 'finalized') {
+          await loadEveningReviewData()
+        }
+      } catch (error) {
+        // No finalized plan for today - ignore
+        console.log('[PlannerScreen] No finalized plan found for evening review')
+      }
+    }
+
+    checkEveningFlow()
+  }, [loadEveningReviewData])
 
   // Handle removing an assignment
   const handleRemove = useCallback((assignmentId: string, date: string) => {
@@ -428,6 +683,74 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
   }, [])
 
   /**
+   * Handle assignment moved between days in week view
+   * Updates local state optimistically
+   */
+  const handleMoveAssignment = useCallback((assignmentId: string, oldDate: string, newDate: string) => {
+    setWeekAssignments(prev => {
+      // Find and update the assignment
+      return prev.map(a => {
+        if (a.id === assignmentId) {
+          return { ...a, assigned_date: newDate, updated_at: Date.now() }
+        }
+        return a
+      })
+    })
+
+    console.log(`[PlannerScreen] Assignment ${assignmentId} moved from ${oldDate} to ${newDate}`)
+  }, [])
+
+  /**
+   * Handle adding item to day from drawer
+   */
+  const handleAddToDay = useCallback(async (itemId: string) => {
+    const item = availableItems.find(i => i.id === itemId)
+
+    try {
+      // Calculate next position (max + 1)
+      const existingAssignments = getLocalAssignments(selectedDate)
+      const maxPosition = existingAssignments.reduce(
+        (max, a) => Math.max(max, a.position),
+        0
+      )
+      const newPosition = maxPosition + 1
+
+      // Generate new assignment ID
+      const newAssignment: PlanAssignmentWithItem = {
+        id: crypto.randomUUID(),
+        item_id: itemId,
+        assigned_date: selectedDate,
+        position: newPosition,
+        created_at: Date.now(),
+        updated_at: Date.now()
+      }
+
+      // Optimistic update: add to React state if viewing this date
+      if (viewMode === 'day') {
+        setAssignments(prev => [...prev, newAssignment])
+      } else if (viewMode === 'week') {
+        setWeekAssignments(prev => [...prev, newAssignment])
+      }
+
+      // Update localStorage and queue for sync (internally triggers syncToServer)
+      addAssignmentLocal(selectedDate, newAssignment)
+
+      // Update allAssignments for drawer indicators
+      setAllAssignments(prev => [...prev, newAssignment])
+
+      // Show success toast
+      const itemText = item?.text || 'Item'
+      const dateFormatted = formatDateDisplay(selectedDate)
+      showToast(`Added "${itemText}" to ${dateFormatted}`)
+
+      // Keep drawer open for batch adds
+    } catch (error) {
+      console.error('[PlannerScreen] Failed to assign item to day:', error)
+      showToast('Failed to add item', 'error')
+    }
+  }, [availableItems, selectedDate, viewMode, showToast])
+
+  /**
    * Assign an item to a specific date
    * Creates new assignment with optimistic update and background sync
    */
@@ -476,12 +799,37 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
     handleRemove(assignmentId, selectedDate)
   }, [handleRemove, selectedDate])
 
+  // Handle evening review completion
+  const handleEveningComplete = useCallback(async () => {
+    setShowEveningModal(false)
+    setEveningReviewData(null)
+
+    // Optionally navigate to tomorrow's view
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const tomorrowStr = format(tomorrow, 'yyyy-MM-dd')
+    setSelectedDate(tomorrowStr)
+
+    // Refresh planner data
+    try {
+      const serverData = await loadFromServer(tomorrowStr)
+      setAssignments(serverData)
+    } catch (error) {
+      console.error('[PlannerScreen] Failed to load tomorrow\'s assignments:', error)
+    }
+  }, [])
+
   // Formatted date for display
   const formattedDate = useMemo(() => formatDateDisplay(selectedDate), [selectedDate])
   const isSelectedToday = useMemo(() => selectedDate === getTodayKey(), [selectedDate])
 
+  // Convert selectedDate string to Date object for drawer
+  const selectedDateObj = useMemo(() => {
+    return new Date(selectedDate + 'T00:00:00')
+  }, [selectedDate])
+
   return (
-    <div className={`flex flex-col h-full pb-20 \${className}`}>
+    <div className={`flex flex-col h-full pb-20 ${className}`}>
       {/* Date Navigation Header */}
       <div className="px-4 pt-4 pb-3">
         <div className="retro-card p-3">
@@ -526,19 +874,48 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
             </button>
           </div>
 
-          {/* Today Quick Button */}
-          {!isSelectedToday && (
-            <div className="mt-2 text-center">
+          {/* Action Buttons Row */}
+          <div className="mt-2 flex items-center justify-center gap-2">
+            {/* Today Quick Button */}
+            {!isSelectedToday && (
               <button
                 className="retro-btn retro-btn-primary retro-btn-sm"
                 onClick={goToToday}
               >
                 Go to Today
               </button>
-            </div>
-          )}
+            )}
+
+            {/* Evening Review Button (only show when viewing today and plan is finalized) */}
+            {isSelectedToday && todayPlan && todayPlan.status === 'finalized' && (
+              <button
+                className="retro-btn retro-btn-secondary retro-btn-sm"
+                onClick={loadEveningReviewData}
+              >
+                Evening Review
+              </button>
+            )}
+
+            {/* Add to Plan Button */}
+            <button
+              className="retro-btn retro-btn-primary retro-btn-sm flex items-center gap-1"
+              onClick={() => setDrawerOpen(true)}
+            >
+              <Plus size={16} />
+              Add to Plan
+            </button>
+          </div>
         </div>
       </div>
+
+        {/* Mini Calendar */}
+        <div className="mt-3">
+          <MiniCalendar
+            selectedDate={selectedDate}
+            onDateSelect={handleDateSelect}
+            taskCounts={taskCounts}
+          />
+        </div>
 
       {/* Main Content Area */}
       {viewMode === 'week' ? (
@@ -557,6 +934,7 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
               onItemTap={onItemTap}
               onTaskToggle={handleTaskToggle}
               onRemoveAssignment={handleRemove}
+              onMoveAssignment={handleMoveAssignment}
             />
           )}
         </div>
@@ -579,7 +957,7 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
                 No tasks planned for this day
               </h2>
               <p className="retro-empty-message">
-                Use the Add button to assign items to this date.
+                Use the Add to Plan button to assign items to this date.
               </p>
             </div>
           ) : (
@@ -608,6 +986,31 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
         </div>
       )}
 
+      {/* PlannerDrawer */}
+      <AnimatePresence>
+        {drawerOpen && (
+          <PlannerDrawer
+            isOpen={drawerOpen}
+            onClose={() => setDrawerOpen(false)}
+            items={availableItems}
+            assignments={allAssignments}
+            onAdd={handleAddToDay}
+            selectedDate={selectedDateObj}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <Toast
+            message={toastMessage}
+            type={toastType}
+            onClose={() => setToastMessage(null)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Morning Finalize Modal */}
       {showMorningModal && todayPlan && (
         <MorningFinalizeModal
@@ -621,6 +1024,30 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
           }}
         />
       )}
+
+      {/* Evening Review Modal */}
+      {showEveningModal && eveningReviewData && (
+        <EveningReviewFlow
+          plan={eveningReviewData.plan}
+          allProjects={eveningReviewData.projects}
+          unparsedCount={eveningReviewData.unparsedCount}
+          onClose={() => setShowEveningModal(false)}
+          onComplete={handleEveningComplete}
+        />
+      )}
+
+      {/* Planner Drawer */}
+      <PlannerDrawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        items={availableItems}
+        assignments={allAssignments}
+        selectedDate={new Date(selectedDate + 'T00:00:00')}
+        onAdd={(itemId) => {
+          assignToDay(itemId, selectedDate)
+          showToast(`Added to ${selectedDate}`, 'success')
+        }}
+      />
     </div>
   )
 }

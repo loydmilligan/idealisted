@@ -18,6 +18,7 @@ import { BottomTabNav, TabId, TabNavHandle } from '@/components/modern/BottomTab
 import { CaptureScreen } from '@/components/modern/screens/CaptureScreen'
 import { UnsortedInboxScreen } from '@/components/modern/screens/UnsortedInboxScreen'
 import { ReadyInboxScreen } from '@/components/modern/screens/ReadyInboxScreen'
+import { PlannerScreen } from '@/components/modern/screens/PlannerScreen'
 import { EntitiesScreen } from '@/components/modern/screens/EntitiesScreen'
 import { EntityModal, FormField } from '@/components/modern/EntityModal'
 import { SettingsModal } from '@/components/modern/SettingsModal'
@@ -1683,115 +1684,11 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
         )}
 
         {activeTab === 'planner' && (
-          <div className="p-4 space-y-4">
-            <div className="retro-card p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="retro-header retro-header-sm">Planner</h2>
-                <div className="flex gap-2 items-center">
-                  <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => goWeek(-1)}>⟵</button>
-                  <div className="text-xs opacity-70">{plannerDate}</div>
-                  <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => goWeek(1)}>⟶</button>
-                  <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => setPlannerDate(todayKey)}>Today</button>
-                  <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => setPlannerDrawer({ type: 'task', filter: 'current' })}>Add</button>
-                </div>
-              </div>
-              <div className="flex gap-2 flex-wrap items-center text-xs">
-                <span className="font-mono opacity-70">Filter:</span>
-                {['all','task','note','list'].map(f => (
-                  <button
-                    key={f}
-                    className={`retro-btn retro-btn-sm ${plannerFilter === f ? 'retro-btn-primary' : 'retro-btn-secondary'}`}
-                    onClick={() => setPlannerFilter(f as any)}
-                  >
-                    {f.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-
-              {/* AI Suggestions rail placeholder */}
-              <div className="retro-card p-3" style={{ background: 'var(--palm-screen-base)' }}>
-                <div className="text-xs font-mono opacity-70 uppercase mb-1">AI Suggestions</div>
-                <p className="text-xs opacity-70">Coming soon: suggested items for today.</p>
-              </div>
-
-              {/* Today assignments */}
-              <div className="retro-card p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <div className="text-xs font-mono opacity-70 uppercase">Today</div>
-                    <div className="text-sm font-semibold">{plannerDate}</div>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  {assignmentsForDay(plannerDate).length === 0 && (
-                    <p className="text-xs opacity-60">No items assigned.</p>
-                  )}
-                  {assignmentsForDay(plannerDate).map(id => {
-                    const ent = items.find(i => i.id === id)
-                    if (!ent) return null
-                    const cardStyle = {
-                      borderLeft: `4px solid ${getEntityColor(ent.type)}`,
-                      background: getEntityBackgroundColor(ent.type, 'muted', 0.08),
-                      opacity: ent.type === 'task' && ent.task?.status === 'completed' ? 0.6 : 1,
-                      textDecoration: ent.type === 'task' && ent.task?.status === 'completed' ? 'line-through' : 'none',
-                    }
-                    return (
-                      <div key={id} className="flex items-center justify-between retro-card p-2" style={cardStyle}>
-                        <div>
-                          <div className="text-sm font-semibold">{ent.text}</div>
-                          <div className="text-[10px] opacity-60 uppercase">{ent.type}</div>
-                          {ent.type === 'task' && (
-                            <div className="text-[10px] mt-1 flex items-center gap-2">
-                              <label className="flex items-center gap-1">
-                                <input
-                                  type="checkbox"
-                                  className="retro-checkbox"
-                                  checked={ent.task?.status === 'completed'}
-                                  onChange={() => toggleTaskStatus(id, ent.task?.status === 'completed' ? 'pending' : 'completed')}
-                                />
-                                <span>Status: {ent.task?.status || 'pending'}</span>
-                              </label>
-                            </div>
-                          )}
-                        </div>
-                        <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => removeFromDay(id, plannerDate)}>Remove</button>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Candidates */}
-              <div className="retro-card p-3">
-                <div className="text-xs font-mono opacity-70 uppercase mb-2">Add items</div>
-                <p className="text-xs opacity-60">Use the Add drawer to place items into the plan.</p>
-              </div>
-
-              {/* Week grid */}
-              <div className="retro-card p-3">
-                <div className="text-xs font-mono opacity-70 uppercase mb-2">Week</div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {plannerWeek.map(dayKey => (
-                    <div key={dayKey} className="retro-card p-2">
-                      <div className="text-xs font-semibold mb-1">{dayKey}</div>
-                      {assignmentsForDay(dayKey).length === 0 ? (
-                        <p className="text-[10px] opacity-60">Empty</p>
-                      ) : (
-                        <ul className="text-[11px] space-y-1">
-                          {assignmentsForDay(dayKey).slice(0,3).map(id => {
-                            const ent = items.find(i => i.id === id)
-                            const color = getEntityColor(ent?.type as EntityType)
-                            return <li key={id} style={{ color }}>{ent?.text || id}</li>
-                          })}
-                          {assignmentsForDay(dayKey).length > 3 && <li className="opacity-60">+ more</li>}
-                        </ul>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+          <PlannerScreen
+            onItemTap={handleEntityTap}
+            onTaskToggle={toggleTaskStatus}
+            onRemoveAssignment={(assignmentId, date) => removeFromDay(assignmentId, date)}
+          />
         )}
       </div>
 

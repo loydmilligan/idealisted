@@ -11,9 +11,10 @@
 
 'use client'
 
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { format, startOfWeek, addDays, isToday, isSameDay } from 'date-fns'
-import { PlanAssignmentWithItem } from '@/lib/plan-storage'
+import { DndContext, DragOverlay, useDraggable, useDroppable, DragEndEvent, DragStartEvent } from '@dnd-kit/core'
+import { PlanAssignmentWithItem, updateAssignmentLocal } from '@/lib/plan-storage'
 import { getEntityColor, getEntityBackgroundColor, EntityType } from '@/lib/entity-colors'
 
 interface WeekGridProps {
@@ -29,6 +30,8 @@ interface WeekGridProps {
   onTaskToggle?: (itemId: string, newStatus: string) => void
   /** Callback when an assignment is removed */
   onRemoveAssignment?: (assignmentId: string, date: string) => void
+  /** Callback when an assignment is moved to a different day */
+  onMoveAssignment?: (assignmentId: string, oldDate: string, newDate: string) => void
 }
 
 /**
@@ -60,14 +63,25 @@ const WeekDayColumn: React.FC<WeekDayColumnProps> = ({
   const dayName = format(date, 'EEE')
   const dayNumber = format(date, 'd')
 
-  // Column styling with today highlight
+  // Make this column a drop zone
+  const { setNodeRef, isOver } = useDroppable({
+    id: dateKey,
+  })
+
+  // Column styling with today highlight and drop zone feedback
   const columnStyle: React.CSSProperties = {
     borderLeft: isToday ? '3px solid var(--palm-primary, #4A90E2)' : undefined,
-    backgroundColor: isToday ? 'rgba(74, 144, 226, 0.05)' : undefined,
+    backgroundColor: isOver
+      ? 'rgba(74, 144, 226, 0.15)'
+      : isToday
+      ? 'rgba(74, 144, 226, 0.05)'
+      : undefined,
+    transition: 'background-color 0.2s ease',
   }
 
   return (
     <div
+      ref={setNodeRef}
       className="flex-1 min-w-0 border-r border-gray-200 last:border-r-0 flex flex-col"
       style={columnStyle}
     >
@@ -130,6 +144,15 @@ const WeekGridItem: React.FC<WeekGridItemProps> = ({
   const item = assignment.item
   const task = assignment.task
 
+  // Make this item draggable (must call hooks before any early returns)
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: assignment.id,
+    data: {
+      assignment,
+      currentDate: assignment.assigned_date,
+    },
+  })
+
   if (!item) return null
 
   const entityType = item.type as EntityType
@@ -138,7 +161,9 @@ const WeekGridItem: React.FC<WeekGridItemProps> = ({
   const cardStyle = {
     borderLeft: `3px solid ${getEntityColor(entityType)}`,
     background: getEntityBackgroundColor(entityType, 'muted', 0.08),
-    opacity: isCompleted ? 0.6 : 1,
+    opacity: isDragging ? 0.5 : isCompleted ? 0.6 : 1,
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    cursor: isDragging ? 'grabbing' : 'grab',
   }
 
   const textStyle = {
@@ -147,12 +172,14 @@ const WeekGridItem: React.FC<WeekGridItemProps> = ({
 
   return (
     <div
-      className="retro-card p-2 cursor-pointer hover:opacity-90 transition-opacity"
+      ref={setNodeRef}
+      className="retro-card p-2 hover:opacity-90 transition-opacity"
       style={cardStyle}
-      onClick={onTap}
+      {...listeners}
+      {...attributes}
     >
       <div className="flex items-start justify-between gap-1">
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0" onClick={onTap}>
           {/* Task checkbox */}
           {entityType === 'task' && (
             <div className="flex items-center gap-1 mb-1">
@@ -164,6 +191,7 @@ const WeekGridItem: React.FC<WeekGridItemProps> = ({
                   e.stopPropagation()
                   onTaskToggle?.(isCompleted ? 'pending' : 'completed')
                 }}
+                onClick={(e) => e.stopPropagation()}
               />
             </div>
           )}
@@ -194,10 +222,67 @@ const WeekGridItem: React.FC<WeekGridItemProps> = ({
             e.stopPropagation()
             onRemove?.()
           }}
+          onPointerDown={(e) => e.stopPropagation()}
           title="Remove"
         >
           ×
         </button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * DragOverlayItem - Ghost element that follows cursor during drag
+ */
+interface DragOverlayItemProps {
+  assignment: PlanAssignmentWithItem
+}
+
+const DragOverlayItem: React.FC<DragOverlayItemProps> = ({ assignment }) => {
+  const item = assignment.item
+  const task = assignment.task
+
+  if (!item) return null
+
+  const entityType = item.type as EntityType
+  const isCompleted = task?.status === 'completed'
+
+  const cardStyle = {
+    borderLeft: `3px solid ${getEntityColor(entityType)}`,
+    background: getEntityBackgroundColor(entityType, 'muted', 0.08),
+    opacity: 0.9,
+    cursor: 'grabbing',
+    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+  }
+
+  const textStyle = {
+    textDecoration: isCompleted ? 'line-through' : 'none',
+  }
+
+  return (
+    <div
+      className="retro-card p-2 w-[150px]"
+      style={cardStyle}
+    >
+      <div className="flex-1 min-w-0">
+        {/* Item text */}
+        <div className="text-[11px] font-semibold truncate" style={textStyle}>
+          {item.text}
+        </div>
+
+        {/* Type badge */}
+        <div className="mt-1">
+          <span
+            className="text-[8px] uppercase font-mono px-1 py-0.5 rounded"
+            style={{
+              background: getEntityColor(entityType),
+              color: 'white',
+            }}
+          >
+            {entityType}
+          </span>
+        </div>
       </div>
     </div>
   )
@@ -213,7 +298,10 @@ export const WeekGrid: React.FC<WeekGridProps> = ({
   onItemTap,
   onTaskToggle,
   onRemoveAssignment,
+  onMoveAssignment,
 }) => {
+  const [activeId, setActiveId] = useState<string | null>(null)
+
   // Calculate week dates based on selectedDate
   const weekDates = useMemo(() => {
     const selected = new Date(selectedDate + 'T00:00:00')
@@ -251,25 +339,87 @@ export const WeekGrid: React.FC<WeekGridProps> = ({
     return grouped
   }, [assignments])
 
+  // Get the active assignment being dragged
+  const activeAssignment = useMemo(() => {
+    if (!activeId) return null
+    return assignments.find(a => a.id === activeId)
+  }, [activeId, assignments])
+
+  /**
+   * Handle drag start - track which item is being dragged
+   */
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
+  }
+
+  /**
+   * Handle drag end - move item to new day if dropped on a different day
+   */
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    setActiveId(null)
+
+    // No valid drop target
+    if (!over) {
+      return
+    }
+
+    const assignmentId = active.id as string
+    const newDate = over.id as string
+    const currentDate = active.data.current?.currentDate as string
+
+    // Same day - no cross-day move (P2-T3 will handle reordering)
+    if (newDate === currentDate) {
+      return
+    }
+
+    // Move to different day
+    moveToDay(assignmentId, currentDate, newDate)
+  }
+
+  /**
+   * Move an assignment to a different day
+   * Updates localStorage and triggers background DB sync
+   */
+  const moveToDay = (assignmentId: string, oldDate: string, newDate: string) => {
+    // Update assignment's date and trigger sync
+    updateAssignmentLocal(oldDate, assignmentId, { assigned_date: newDate })
+
+    console.log(`[WeekGrid] Moved assignment ${assignmentId} from ${oldDate} to ${newDate}`)
+
+    // Notify parent to refresh data
+    onMoveAssignment?.(assignmentId, oldDate, newDate)
+  }
+
   return (
-    <div className="flex flex-col h-full">
-      {/* Week Grid */}
-      <div className="flex-1 flex overflow-hidden border border-gray-200 rounded-lg">
-        {weekDates.map(({ date, dateKey, isToday, isSelected }) => (
-          <WeekDayColumn
-            key={dateKey}
-            date={date}
-            dateKey={dateKey}
-            assignments={assignmentsByDate.get(dateKey) || []}
-            isToday={isToday}
-            isSelected={isSelected}
-            onDateSelect={() => onDateSelect?.(dateKey)}
-            onItemTap={onItemTap}
-            onTaskToggle={onTaskToggle}
-            onRemoveAssignment={(id) => onRemoveAssignment?.(id, dateKey)}
-          />
-        ))}
+    <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <div className="flex flex-col h-full">
+        {/* Week Grid */}
+        <div className="flex-1 flex overflow-hidden border border-gray-200 rounded-lg">
+          {weekDates.map(({ date, dateKey, isToday, isSelected }) => (
+            <WeekDayColumn
+              key={dateKey}
+              date={date}
+              dateKey={dateKey}
+              assignments={assignmentsByDate.get(dateKey) || []}
+              isToday={isToday}
+              isSelected={isSelected}
+              onDateSelect={() => onDateSelect?.(dateKey)}
+              onItemTap={onItemTap}
+              onTaskToggle={onTaskToggle}
+              onRemoveAssignment={(id) => onRemoveAssignment?.(id, dateKey)}
+            />
+          ))}
+        </div>
       </div>
-    </div>
+
+      {/* Drag Overlay - ghost element that follows cursor */}
+      <DragOverlay>
+        {activeAssignment ? (
+          <DragOverlayItem assignment={activeAssignment} />
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   )
 }

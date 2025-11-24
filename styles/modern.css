@@ -456,3 +456,141 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;  /* Chrome, Safari and Opera */
 }
+
+/* ===== MiniCalendar Component ===== */
+
+.mini-calendar {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-border-radius);
+  padding: var(--spacing-2);
+}
+
+/* Calendar header with navigation */
+.mini-cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-1);
+  margin-bottom: var(--spacing-2);
+}
+
+/* Week day labels row */
+.mini-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.mini-cal-weekday {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 4px 0;
+  text-transform: uppercase;
+}
+
+/* Calendar grid (7 columns) */
+.mini-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+/* Individual day cell */
+.mini-cal-day {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+/* Today indicator - bold with ring */
+.mini-cal-day-today {
+  font-weight: 700;
+  border: 2px solid var(--entity-task);
+  background: rgba(74, 144, 226, 0.1);
+}
+
+/* Selected date - filled background */
+.mini-cal-day-selected {
+  background: var(--entity-task);
+  color: white;
+  font-weight: 700;
+}
+
+.mini-cal-day-selected:hover {
+  background: var(--entity-task) !important;
+  filter: brightness(0.9);
+}
+
+/* Task count indicator container */
+.mini-cal-indicator {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Dot indicator (1-5 tasks) */
+.mini-cal-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--entity-task);
+}
+
+.mini-cal-day-selected .mini-cal-dot {
+  background: white;
+}
+
+/* Number indicator (6+ tasks) */
+.mini-cal-count {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--entity-task);
+  padding: 0 2px;
+}
+
+.mini-cal-day-selected .mini-cal-count {
+  color: white;
+}
+
+/* Hover states */
+.mini-cal-day:hover {
+  background: var(--bg-surface);
+}
+
+/* Focus states for accessibility */
+.mini-cal-day:focus {
+  outline: 2px solid var(--entity-task);
+  outline-offset: 2px;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .mini-calendar {
+    padding: var(--spacing-1);
+  }
+
+  .mini-cal-day {
+    padding: 2px;
+    font-size: 11px;
+  }
+
+  .mini-cal-weekday {
+    font-size: 9px;
+  }
+}
