@@ -18,7 +18,7 @@
 import React, { useState, useEffect } from 'react'
 import { SwipeableCard } from '../SwipeableCard'
 import { EntityCard } from '../EntityCard'
-import { EntityType, getEntityColor } from '@/lib/entity-colors'
+import { EntityType, getEntityColor, getEntityBackgroundColor } from '@/lib/entity-colors'
 import { motion } from 'framer-motion'
 
 interface TagInfo {
@@ -50,6 +50,7 @@ interface EntitiesScreenProps {
   onEntityTap: (entityId: string) => void
   onDelete: (entityId: string) => void
   onSwipeRightAction: (entityId: string, entityType: Exclude<EntityType, 'idea'>) => void
+  onTaskToggle?: (entityId: string, nextStatus: 'pending' | 'completed') => void
   className?: string
   tagsEnabled?: boolean
 }
@@ -59,6 +60,7 @@ export const EntitiesScreen: React.FC<EntitiesScreenProps> = ({
   onEntityTap,
   onDelete,
   onSwipeRightAction,
+  onTaskToggle,
   className = '',
   tagsEnabled = true,
 }) => {
@@ -262,7 +264,8 @@ export const EntitiesScreen: React.FC<EntitiesScreenProps> = ({
           <div className="space-y-3">
             {filteredEntities.map((entity) => {
               const swipeConfig = getSwipeConfig(entity.entityType)
-
+              const accent = getEntityColor(entity.entityType)
+              const bg = getEntityBackgroundColor(entity.entityType, 'muted', 0.08)
               return (
                 <SwipeableCard
                   key={entity.id}
@@ -280,6 +283,9 @@ export const EntitiesScreen: React.FC<EntitiesScreenProps> = ({
                     tags={entity.tags}
                     createdAt={entity.createdAt}
                     onTap={() => onEntityTap(entity.id)}
+                    accentColor={accent}
+                    backgroundColor={bg}
+                    onTaskToggle={entity.entityType === 'task' && onTaskToggle ? (next) => onTaskToggle(entity.id, next) : undefined}
                   />
                 </SwipeableCard>
               )

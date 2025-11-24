@@ -336,14 +336,6 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
             )}
           </div>
         </div>
-        <div className="flex justify-end mt-2">
-          <button
-            className="retro-btn retro-btn-secondary retro-btn-sm"
-            onClick={() => setNoteMenuOpen(prev => !prev)}
-          >
-            Pick note type
-          </button>
-        </div>
       </div>
 
       {/* Quick sort buttons */}

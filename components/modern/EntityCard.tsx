@@ -31,6 +31,9 @@ interface EntityCardProps {
   tags?: string[]
   createdAt: Date | string
   onTap: () => void
+  onTaskToggle?: (nextStatus: 'pending' | 'completed') => void
+  accentColor?: string
+  backgroundColor?: string
   className?: string
 }
 
@@ -42,6 +45,9 @@ export const EntityCard: React.FC<EntityCardProps> = ({
   tags = [],
   createdAt,
   onTap,
+  onTaskToggle,
+  accentColor,
+  backgroundColor,
   className = '',
 }) => {
   const timestamp = typeof createdAt === 'string' ? new Date(createdAt) : createdAt
@@ -85,11 +91,18 @@ export const EntityCard: React.FC<EntityCardProps> = ({
 
   // Capitalize entity type for display
   const entityLabel = entityType.charAt(0).toUpperCase() + entityType.slice(1)
+  const isCompletedTask = entityType === 'task' && metadata.status === 'completed'
 
   return (
     <div
       onClick={onTap}
       className={`retro-card retro-card-${entityType} ${className}`}
+      style={{
+        borderLeft: `4px solid ${accentColor || ''}`,
+        background: backgroundColor,
+        opacity: isCompletedTask ? 0.6 : 1,
+        textDecoration: isCompletedTask ? 'line-through' : 'none',
+      }}
     >
       {/* Entity Title with Status Badge for Tasks */}
       <div className="flex items-center gap-2 mb-1">
@@ -99,6 +112,17 @@ export const EntityCard: React.FC<EntityCardProps> = ({
             <span className="retro-status-icon">{statusBadge.icon}</span>
             <span className="retro-status-label">{statusBadge.label}</span>
           </span>
+        )}
+        {entityType === 'task' && onTaskToggle && (
+          <input
+            type="checkbox"
+            className="retro-checkbox"
+            checked={metadata.status === 'completed'}
+            onClick={(e) => {
+              e.stopPropagation()
+            }}
+            onChange={() => onTaskToggle(metadata.status === 'completed' ? 'pending' : 'completed')}
+          />
         )}
       </div>
 

@@ -253,6 +253,10 @@ function HomePageContent() {
   const [plannerDate, setPlannerDate] = useState<string>(todayKey)
   const [plannerAssignments, setPlannerAssignments] = useState<Record<string, string[]>>({})
   const [plannerFilter, setPlannerFilter] = useState<'all' | 'task' | 'note' | 'list'>('all')
+  const plannerSubheader = useMemo(() => {
+    const label = `Planner`
+    return `${label}`
+  }, [])
 
   const plannerWeek = useMemo(() => {
     const base = new Date(plannerDate + 'T00:00:00')
@@ -269,6 +273,39 @@ function HomePageContent() {
   const plannerCandidates = useMemo(() => {
     return items.filter(i => i.type !== 'idea' && (plannerFilter === 'all' || i.type === plannerFilter))
   }, [items, plannerFilter])
+
+  const assignedIds = useMemo(() => {
+    return new Set(Object.values(plannerAssignments).flat())
+  }, [plannerAssignments])
+
+  const plannerDrawerFilters = {
+    task: ['current', 'past_due', 'all'] as const,
+    note: ['all'] as const,
+    list: ['all'] as const,
+  }
+
+  const [plannerDrawer, setPlannerDrawer] = useState<{ type: 'task' | 'note' | 'list' | null; filter: string }>({
+    type: null,
+    filter: 'current'
+  })
+
+  const filteredDrawerItems = useMemo(() => {
+    if (!plannerDrawer.type) return []
+    const now = new Date()
+    const itemsByType = plannerCandidates.filter(i => i.type === plannerDrawer.type && !assignedIds.has(i.id))
+    if (plannerDrawer.type !== 'task') return itemsByType
+    return itemsByType.filter(i => {
+      const due = i.metadata?.dueDate ? new Date(i.metadata.dueDate) : null
+      const isCompleted = (i.metadata as any)?.status === 'completed'
+      if (plannerDrawer.filter === 'past_due') {
+        return !isCompleted && due && due < now
+      }
+      if (plannerDrawer.filter === 'current') {
+        return !isCompleted && (!due || due >= now)
+      }
+      return true
+    })
+  }, [plannerDrawer, plannerCandidates, assignedIds])
 
   const assignmentsForDay = (dayKey: string) => plannerAssignments[dayKey] || []
 
@@ -418,12 +455,8 @@ function HomePageContent() {
         // Send notification after successful capture
         // ntfyService.notifyIdeaCaptured(text) // Disabled - server-side only
 
-        // Flash appropriate tab
-        if (!entityType) {
-          // Captured to Unsorted (Inbox) - no color flash
-          tabNavRef.current?.triggerFlash('unsorted', null)
-        } else {
-          // Captured to Ready with entity type (not Files tab)
+        // Flash Ready when quick-sorted
+        if (entityType) {
           tabNavRef.current?.triggerFlash('ready', entityType)
         }
       }
@@ -1607,6 +1640,7 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
             unsortedCount={unsortedCount}
             readyCount={readyCount}
             onSettingsClick={() => setSettingsOpen(true)}
+            subHeaderText={activeTab === 'planner' ? plannerSubheader : undefined}
           />
 
           {/* Active Screen */}
@@ -1673,10 +1707,12 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
             <div className="retro-card p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="retro-header retro-header-sm">Planner</h2>
-                <div className="flex gap-2">
-                  <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => goWeek(-1)}>⟵ Week</button>
+                <div className="flex gap-2 items-center">
+                  <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => goWeek(-1)}>⟵</button>
+                  <div className="text-xs opacity-70">{plannerDate}</div>
+                  <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => goWeek(1)}>⟶</button>
                   <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => setPlannerDate(todayKey)}>Today</button>
-                  <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => goWeek(1)}>Week ⟶</button>
+                  <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => setPlannerDrawer({ type: 'task', filter: 'current' })}>Add</button>
                 </div>
               </div>
               <div className="flex gap-2 flex-wrap items-center text-xs">
@@ -1716,6 +1752,8 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
                     const cardStyle = {
                       borderLeft: `4px solid ${getEntityColor(ent.type)}`,
                       background: getEntityBackgroundColor(ent.type, 'muted', 0.08),
+                      opacity: ent.type === 'task' && ent.task?.status === 'completed' ? 0.6 : 1,
+                      textDecoration: ent.type === 'task' && ent.task?.status === 'completed' ? 'line-through' : 'none',
                     }
                     return (
                       <div key={id} className="flex items-center justify-between retro-card p-2" style={cardStyle}>
@@ -1723,14 +1761,16 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
                           <div className="text-sm font-semibold">{ent.text}</div>
                           <div className="text-[10px] opacity-60 uppercase">{ent.type}</div>
                           {ent.type === 'task' && (
-                            <div className="text-[10px] mt-1">
-                              Status: {ent.task?.status || 'pending'}
-                              <button
-                                className="retro-btn retro-btn-secondary retro-btn-sm ml-2"
-                                onClick={() => toggleTaskStatus(id, ent.task?.status === 'completed' ? 'pending' : 'completed')}
-                              >
-                                {ent.task?.status === 'completed' ? 'Mark pending' : 'Mark done'}
-                              </button>
+                            <div className="text-[10px] mt-1 flex items-center gap-2">
+                              <label className="flex items-center gap-1">
+                                <input
+                                  type="checkbox"
+                                  className="retro-checkbox"
+                                  checked={ent.task?.status === 'completed'}
+                                  onChange={() => toggleTaskStatus(id, ent.task?.status === 'completed' ? 'pending' : 'completed')}
+                                />
+                                <span>Status: {ent.task?.status || 'pending'}</span>
+                              </label>
                             </div>
                           )}
                         </div>
@@ -1744,26 +1784,7 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
               {/* Candidates */}
               <div className="retro-card p-3">
                 <div className="text-xs font-mono opacity-70 uppercase mb-2">Add items</div>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {plannerCandidates.map(ent => {
-                    const cardStyle = {
-                      borderLeft: `4px solid ${getEntityColor(ent.type)}`,
-                      background: getEntityBackgroundColor(ent.type, 'muted', 0.08),
-                    }
-                    return (
-                      <div key={ent.id} className="flex items-center justify-between retro-card p-2" style={cardStyle}>
-                        <div>
-                          <div className="text-sm font-semibold">{ent.text}</div>
-                          <div className="text-[10px] opacity-60 uppercase">{ent.type}</div>
-                          {ent.type === 'task' && (
-                            <div className="text-[10px] mt-1">Status: {ent.task?.status || 'pending'}</div>
-                          )}
-                        </div>
-                        <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => assignToDay(ent.id, plannerDate)}>Add</button>
-                      </div>
-                    )
-                  })}
-                </div>
+                <p className="text-xs opacity-60">Use the Add drawer to place items into the plan.</p>
               </div>
 
               {/* Week grid */}
@@ -2351,6 +2372,77 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
       </div>
       <div className="retro-device-button"></div>
     </div>
+  )
+}
+
+// Planner Drawer (slide-in)
+const PlannerDrawer = ({
+  drawer,
+  onClose,
+  filters,
+  setFilter,
+  items,
+  onAdd,
+}: {
+  drawer: { type: 'task' | 'note' | 'list' | null; filter: string }
+  onClose: () => void
+  filters: string[]
+  setFilter: (f: string) => void
+  items: Item[]
+  onAdd: (id: string) => void
+}) => {
+  if (!drawer.type) return null
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/60 z-[1002]" onClick={onClose} />
+      <motion.div
+        initial={{ x: '100%', opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: '100%', opacity: 0 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="fixed top-0 right-0 h-full w-full md:w-2/3 lg:w-1/2 z-[1003]"
+      >
+        <div className="h-full retro-card p-4 overflow-y-auto" style={{ background: 'var(--palm-bg-primary)' }}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="retro-header retro-header-sm">Add {drawer.type}</h3>
+            <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={onClose}>Close</button>
+          </div>
+          <div className="flex gap-2 mb-3">
+            {filters.map(f => (
+              <button
+                key={f}
+                className={`retro-btn retro-btn-sm ${drawer.filter === f ? 'retro-btn-primary' : 'retro-btn-secondary'}`}
+                onClick={() => setFilter(f)}
+              >
+                {f.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          <div className="space-y-2">
+            {items.length === 0 && <p className="text-xs opacity-60">No items available.</p>}
+            {items.map(ent => (
+              <div
+                key={ent.id}
+                className="retro-card p-2 flex items-center justify-between"
+                style={{
+                  borderLeft: `4px solid ${getEntityColor(ent.type)}`,
+                  background: getEntityBackgroundColor(ent.type, 'muted', 0.08),
+                  opacity: ent.type === 'task' && ent.task?.status === 'completed' ? 0.6 : 1,
+                  textDecoration: ent.type === 'task' && ent.task?.status === 'completed' ? 'line-through' : 'none',
+                }}
+              >
+                <div>
+                  <div className="text-sm font-semibold">{ent.text}</div>
+                  <div className="text-[10px] opacity-60 uppercase">{ent.type}</div>
+                  {ent.type === 'task' && <div className="text-[10px] mt-1">Status: {ent.task?.status || 'pending'}</div>}
+                </div>
+                <button className="retro-btn retro-btn-secondary retro-btn-sm" onClick={() => onAdd(ent.id)}>Add</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </motion.div>
+    </>
   )
 }
 
