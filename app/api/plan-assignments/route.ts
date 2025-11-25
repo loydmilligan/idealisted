@@ -36,29 +36,25 @@ interface PlanAssignmentWithItem extends PlanAssignment {
   }
 }
 
-// GET /api/plan-assignments - Get assignments by date
+// GET /api/plan-assignments - Get assignments by date (or all if no date provided)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const date = searchParams.get('date')
 
-    if (!date) {
-      return NextResponse.json(
-        { success: false, error: 'Date parameter is required (YYYY-MM-DD)' },
-        { status: 400 }
-      )
+    // Validate date format if provided
+    if (date) {
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+      if (!dateRegex.test(date)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid date format. Use YYYY-MM-DD' },
+          { status: 400 }
+        )
+      }
     }
 
-    // Validate date format
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/
-    if (!dateRegex.test(date)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid date format. Use YYYY-MM-DD' },
-        { status: 400 }
-      )
-    }
-
-    // Query assignments with joined item data, ordered by position
+    // Query assignments with joined item data
+    // If date is provided, filter by date. Otherwise return all assignments.
     const query = `
       SELECT
         pa.id,
@@ -94,11 +90,11 @@ export async function GET(request: NextRequest) {
       LEFT JOIN tasks t ON i.id = t.item_id
       LEFT JOIN notes n ON i.id = n.item_id
       LEFT JOIN projects p ON i.id = p.item_id
-      WHERE pa.assigned_date = ?
-      ORDER BY pa.position ASC
+      ${date ? 'WHERE pa.assigned_date = ?' : ''}
+      ORDER BY pa.assigned_date ASC, pa.position ASC
     `
 
-    const rows = db.prepare(query).all(date) as any[]
+    const rows = date ? db.prepare(query).all(date) as any[] : db.prepare(query).all() as any[]
 
     // Transform rows into PlanAssignmentWithItem objects
     const assignments: PlanAssignmentWithItem[] = rows.map(row => {

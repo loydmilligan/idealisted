@@ -618,6 +618,7 @@ body {
 .retro-btn-accent-task {
   border-color: var(--entity-task);
   color: var(--entity-task);
+  background: rgba(74, 144, 226, 0.15);
 }
 
 .retro-btn-accent-task:hover {
@@ -628,6 +629,7 @@ body {
 .retro-btn-accent-note {
   border-color: var(--entity-note);
   color: var(--entity-note);
+  background: rgba(243, 156, 18, 0.15);
 }
 
 .retro-btn-accent-note:hover {
@@ -638,6 +640,7 @@ body {
 .retro-btn-accent-project {
   border-color: var(--entity-project);
   color: var(--entity-project);
+  background: rgba(126, 211, 33, 0.2);
 }
 
 .retro-btn-accent-project:hover {
@@ -648,6 +651,7 @@ body {
 .retro-btn-accent-list {
   border-color: var(--entity-list);
   color: var(--entity-list);
+  background: rgba(155, 89, 182, 0.15);
 }
 
 .retro-btn-accent-list:hover {

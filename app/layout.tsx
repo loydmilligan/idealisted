@@ -1,5 +1,6 @@
 import './globals.css'
 import '../styles/retro.css'
+import '../styles/modern.css'
 import type { Metadata } from 'next'
 import '@/lib/init'
 

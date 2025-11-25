@@ -15,7 +15,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { format, addDays, subDays, isToday, isTomorrow, isYesterday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns'
-import { ChevronLeft, ChevronRight, Calendar, Loader2, LayoutGrid, LayoutList, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar, Loader2, CalendarDays, LayoutList, Plus } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   PlanAssignmentWithItem,
@@ -889,7 +889,7 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
               aria-label={viewMode === 'day' ? 'Switch to week view' : 'Switch to day view'}
               title={viewMode === 'day' ? 'Week view' : 'Day view'}
             >
-              {viewMode === 'day' ? <LayoutGrid size={18} /> : <LayoutList size={18} />}
+              {viewMode === 'day' ? <CalendarDays size={18} /> : <LayoutList size={18} />}
             </button>
 
             {/* Next Day Button */}
@@ -946,8 +946,8 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
             {calendarExpanded ? '▲ Hide Calendar' : '▼ Show Calendar'}
           </button>
 
-          {/* Calendar (always visible on desktop, collapsible on mobile) */}
-          <div className={`${calendarExpanded ? 'block' : 'hidden'} md:block`}>
+          {/* Calendar (collapsible on all screen sizes) */}
+          <div className={`${calendarExpanded ? 'block' : 'hidden'}`}>
             <MiniCalendar
               selectedDate={selectedDate}
               onDateSelect={handleDateSelect}
@@ -1075,19 +1075,6 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
           onComplete={handleEveningComplete}
         />
       )}
-
-      {/* Planner Drawer */}
-      <PlannerDrawer
-        isOpen={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        items={availableItems}
-        assignments={allAssignments}
-        selectedDate={new Date(selectedDate + 'T00:00:00')}
-        onAdd={(itemId) => {
-          assignToDay(itemId, selectedDate)
-          showToast(`Added to ${selectedDate}`, 'success')
-        }}
-      />
     </div>
   )
 }

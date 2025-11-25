@@ -181,10 +181,10 @@ export async function GET(request: NextRequest) {
       return item
     })
 
-    return NextResponse.json({ items: transformedItems })
+    return NextResponse.json({ success: true, items: transformedItems })
   } catch (error) {
     console.error('Error fetching items:', error)
-    return NextResponse.json({ error: 'Failed to fetch items' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to fetch items' }, { status: 500 })
   }
 }
 
