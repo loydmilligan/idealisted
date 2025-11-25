@@ -411,30 +411,63 @@ function seedTemplates() {
 
 // Initialize tables
 export function initializeDatabase() {
-  // Check if we need to migrate by dropping and recreating tables with new schema
+  // ⚠️ AUTO-MIGRATION DISABLED (2025-01-24)
+  // Previously, this function would drop all tables if schema changed.
+  // This caused data loss on every restart after schema changes.
+  // Now: Tables are only created if they don't exist (preserves data).
+  //
+  // IMPORTANT: If you need to change the schema:
+  // 1. Write a manual migration script
+  // 2. Test it on a backup of the database
+  // 3. Run it explicitly (don't rely on auto-migration)
+  // 4. See CLAUDE.md "Database Schema Changes" section for workflow
+  //
+  // Schema validation below will FAIL LOUDLY if schema is incompatible.
+
+  // Validate schema compatibility (non-destructive check)
   try {
-    // Test if the new schema exists by trying to insert test records
+    // Test if current schema is compatible by trying a test insert
     db.prepare(`INSERT INTO items (id, type, text, parsed, entity_type, created_at, updated_at) VALUES ('test', 'idea', 'test', 0, NULL, 1, 1)`).run()
     db.prepare(`INSERT INTO notes (id, item_id, subtype, content, frontmatter) VALUES ('test-note', 'test', 'general', 'test', '{}')`).run()
     db.prepare(`DELETE FROM notes WHERE id = 'test-note'`).run()
     db.prepare(`DELETE FROM items WHERE id = 'test'`).run()
+    // Schema is compatible
   } catch (e) {
-    // If it fails, we need to migrate - drop and recreate tables
-    console.log('Database schema outdated, migrating...')
+    // Schema incompatibility detected
+    // Check if tables don't exist yet (first run) vs. schema mismatch
+    const tablesExist = db.prepare(`SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name='items'`).get() as { count: number }
 
-    // Drop existing tables
-    db.exec(`DROP TABLE IF EXISTS list_items`)
-    db.exec(`DROP TABLE IF EXISTS lists`)
-    db.exec(`DROP TABLE IF EXISTS projects`)
-    db.exec(`DROP TABLE IF EXISTS notes`)
-    db.exec(`DROP TABLE IF EXISTS todos`)
-    db.exec(`DROP TABLE IF EXISTS tasks`)
-    db.exec(`DROP TABLE IF EXISTS plans`)
-    db.exec(`DROP TABLE IF EXISTS ai_suggestions`)
-    db.exec(`DROP TABLE IF EXISTS settings`)
-    db.exec(`DROP TABLE IF EXISTS items`)
+    if (tablesExist.count === 0) {
+      // First run - tables don't exist yet, will be created below
+      console.log('Database empty, creating initial schema...')
+    } else {
+      // Tables exist but schema doesn't match - FAIL LOUDLY
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.error('❌ DATABASE SCHEMA MISMATCH DETECTED')
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.error('')
+      console.error('The database schema does not match the code expectations.')
+      console.error('This typically means:')
+      console.error('  1. Code was updated with schema changes')
+      console.error('  2. Database needs to be migrated')
+      console.error('')
+      console.error('⚠️  AUTO-MIGRATION IS DISABLED (to preserve data)')
+      console.error('')
+      console.error('To fix this:')
+      console.error('  1. See CLAUDE.md "Database Schema Changes" section')
+      console.error('  2. Write a manual migration script')
+      console.error('  3. Test on a backup first')
+      console.error('  4. Run migration explicitly')
+      console.error('')
+      console.error('OR if data loss is acceptable:')
+      console.error('  rm -f data/idealisted.db*')
+      console.error('')
+      console.error('Error details:', e)
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
 
-    console.log('Old tables dropped, recreating with new schema...')
+      // Throw error to prevent app from starting with mismatched schema
+      throw new Error('DATABASE SCHEMA MISMATCH - Manual migration required. See console output above.')
+    }
   }
 
   // Items table - main entity

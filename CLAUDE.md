@@ -109,7 +109,10 @@ The application uses a unified entity model centered around `items` with special
 - **SQLite with better-sqlite3**: Located at `data/idealisted.db`
 - **WAL mode** enabled for better concurrency
 - **Foreign keys** enforced
-- **Migration strategy**: lib/db.ts:20-43 contains auto-migration logic that drops and recreates tables when schema changes
+- **Migration strategy**: ⚠️ **AUTO-MIGRATION DISABLED** (as of 2025-01-24)
+  - Previously: Dropped all tables on schema mismatch (caused data loss)
+  - Now: Manual migrations required (preserves data)
+  - See "Database Schema Changes" section below for workflow
 
 ### Tag System
 
@@ -318,6 +321,251 @@ Entity modals follow a dual-save button pattern with slide animations:
 - Modal animations: framer-motion slide up/down with spring physics (600ms)
 - AnimatePresence wrapper for smooth enter/exit transitions
 - Entity-specific styling via retro-bottom-sheet-{type} classes
+
+## Database Schema Changes
+
+**CRITICAL**: Auto-migration is DISABLED to preserve data. Schema changes require manual migration scripts.
+
+### Why Auto-Migration Was Disabled
+
+**Date**: 2025-01-24 (Batch 7)
+**Reason**: The previous auto-migration system dropped ALL tables whenever schema validation failed, causing complete data loss on every restart after any schema change. This happened during:
+- Code changes with schema modifications
+- Hot reloads during development
+- PM2 restarts
+- Build processes
+
+**Decision**: Disabled destructive auto-migration to preserve user data. The app will now FAIL LOUDLY if schema mismatches are detected.
+
+### How Schema Mismatch Detection Works
+
+The system validates schema compatibility on startup (lib/db.ts:413-471):
+
+1. **Test Insert**: Attempts to insert test records using the current schema
+2. **Success**: Schema is compatible, app starts normally
+3. **Failure**:
+   - If tables don't exist: Creates them (first run)
+   - If tables exist but schema doesn't match: **FAILS LOUDLY**
+
+### When Schema Mismatch Occurs
+
+You will see this error in the console:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+❌ DATABASE SCHEMA MISMATCH DETECTED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The database schema does not match the code expectations.
+This typically means:
+  1. Code was updated with schema changes
+  2. Database needs to be migrated
+
+⚠️  AUTO-MIGRATION IS DISABLED (to preserve data)
+
+To fix this:
+  1. See CLAUDE.md "Database Schema Changes" section
+  2. Write a manual migration script
+  3. Test on a backup first
+  4. Run migration explicitly
+
+OR if data loss is acceptable:
+  rm -f data/idealisted.db*
+```
+
+**The app will NOT start** until this is resolved. This ensures you cannot accidentally miss a required migration.
+
+### Workflow for Schema Changes
+
+**IMPORTANT**: Follow this checklist every time you need to change the database schema:
+
+#### Before Making Schema Changes
+
+1. **Document Current Schema**
+   ```bash
+   sqlite3 data/idealisted.db ".schema" > schema-backup-$(date +%Y%m%d).sql
+   ```
+
+2. **Backup Database**
+   ```bash
+   cp data/idealisted.db data/idealisted.db.backup-$(date +%Y%m%d)
+   cp data/idealisted.db-wal data/idealisted.db-wal.backup-$(date +%Y%m%d) 2>/dev/null || true
+   ```
+
+3. **Check for Existing Data**
+   ```bash
+   sqlite3 data/idealisted.db "SELECT COUNT(*) FROM items"
+   ```
+   - If count > 0: Migration required (preserve data)
+   - If count = 0: Can delete and recreate (no data loss)
+
+#### Making Schema Changes
+
+4. **Write Migration Script**
+   - Create `migrations/YYYYMMDD-description.sql`
+   - Use `ALTER TABLE` to add/modify columns
+   - Use transactions for safety
+   - Include rollback instructions in comments
+
+   Example migration:
+   ```sql
+   -- Migration: Add priority_v2 column to tasks
+   -- Date: 2025-01-24
+   -- Rollback: ALTER TABLE tasks DROP COLUMN priority_v2;
+
+   BEGIN TRANSACTION;
+
+   -- Add new column
+   ALTER TABLE tasks ADD COLUMN priority_v2 INTEGER DEFAULT 1;
+
+   -- Migrate data
+   UPDATE tasks SET priority_v2 = priority WHERE priority IS NOT NULL;
+
+   -- Verify migration
+   -- SELECT COUNT(*) FROM tasks WHERE priority_v2 IS NULL;
+
+   COMMIT;
+   ```
+
+5. **Update Schema Definition**
+   - Modify the CREATE TABLE statements in lib/db.ts
+   - Update the test insert in initializeDatabase() if needed
+   - Document the change in comments
+
+#### Testing Migration
+
+6. **Test on Backup First**
+   ```bash
+   cp data/idealisted.db data/idealisted.db.test
+   sqlite3 data/idealisted.db.test < migrations/YYYYMMDD-description.sql
+   ```
+
+7. **Verify Migration**
+   ```bash
+   sqlite3 data/idealisted.db.test ".schema tablename"
+   sqlite3 data/idealisted.db.test "SELECT * FROM items LIMIT 5"
+   ```
+
+8. **Test App with Migrated DB**
+   ```bash
+   mv data/idealisted.db data/idealisted.db.original
+   mv data/idealisted.db.test data/idealisted.db
+   pm2 restart idealisted
+   # Check logs: pm2 logs idealisted
+   # Test app in browser
+   ```
+
+#### Applying Migration
+
+9. **Run Migration on Production DB**
+   ```bash
+   sqlite3 data/idealisted.db < migrations/YYYYMMDD-description.sql
+   ```
+
+10. **Restart App**
+    ```bash
+    pm2 restart idealisted
+    pm2 logs idealisted --lines 50
+    ```
+
+11. **Verify App Starts**
+    - Check logs for schema mismatch errors
+    - If no errors: Migration successful ✅
+    - If errors: Restore backup and debug
+
+#### If Migration Fails
+
+12. **Restore Backup**
+    ```bash
+    pm2 stop idealisted
+    cp data/idealisted.db.backup-$(date +%Y%m%d) data/idealisted.db
+    cp data/idealisted.db-wal.backup-$(date +%Y%m%d) data/idealisted.db-wal 2>/dev/null || true
+    pm2 start idealisted
+    ```
+
+13. **Debug and Retry**
+    - Review migration script
+    - Check error logs
+    - Fix issues
+    - Test on backup again
+
+### Quick Reference: Common Schema Operations
+
+**Add column:**
+```sql
+ALTER TABLE tablename ADD COLUMN columnname TYPE DEFAULT value;
+```
+
+**Rename column (SQLite 3.25.0+):**
+```sql
+ALTER TABLE tablename RENAME COLUMN oldname TO newname;
+```
+
+**Drop column (SQLite 3.35.0+):**
+```sql
+ALTER TABLE tablename DROP COLUMN columnname;
+```
+
+**Add index:**
+```sql
+CREATE INDEX idx_name ON tablename(columnname);
+```
+
+**For older SQLite or complex changes:**
+```sql
+-- 1. Create new table with desired schema
+CREATE TABLE tablename_new (...);
+
+-- 2. Copy data
+INSERT INTO tablename_new SELECT ... FROM tablename;
+
+-- 3. Drop old table
+DROP TABLE tablename;
+
+-- 4. Rename new table
+ALTER TABLE tablename_new RENAME TO tablename;
+```
+
+### When Data Loss Is Acceptable
+
+If you're in early development and don't need to preserve data:
+
+```bash
+pm2 stop idealisted
+rm -f data/idealisted.db*
+pm2 start idealisted
+```
+
+The app will create fresh tables with the new schema automatically.
+
+### Checklist: Did I Follow the Workflow?
+
+Before declaring a schema change complete:
+
+- [ ] Backed up current database
+- [ ] Documented current schema
+- [ ] Wrote migration script with rollback instructions
+- [ ] Updated lib/db.ts CREATE TABLE statements
+- [ ] Tested migration on backup database
+- [ ] Verified app starts with migrated database
+- [ ] Checked that existing data is preserved
+- [ ] Committed migration script to git
+- [ ] Updated this section in CLAUDE.md if workflow changed
+
+### For Claude Code: Automatic Reminders
+
+**IMPORTANT**: When you (Claude Code) are asked to modify database schema:
+
+1. **STOP** - Do not modify lib/db.ts schema definitions directly
+2. **ASK** - Confirm with user if data preservation is needed
+3. **FOLLOW** - Use the workflow above if data must be preserved
+4. **TEST** - Always test migrations before applying to production DB
+5. **DOCUMENT** - Update CLAUDE.md if workflow needs refinement
+
+If you detect you're about to modify a CREATE TABLE statement:
+- Pause and ask: "This requires a database migration. Do we have data to preserve?"
+- If yes: Follow full migration workflow
+- If no: User can delete database and recreate
 
 ## Code Patterns
 
