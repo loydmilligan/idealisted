@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
 // PUT /api/items/[id]/reschedule - Reschedule a task
-// Placeholder for P3-T4 implementation
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -10,57 +9,47 @@ export async function PUT(
   try {
     const body = await request.json()
     const { option, targetDate } = body
+    const taskId = params.id
 
-    // TODO: Implement reschedule logic in P3-T4
-    // Options:
-    // - 'tomorrow': Move task to tomorrow
-    // - 'pick': Move task to targetDate
-    // - 'backlog': Remove from plan, keep in backlog
-    // - 'delete': Archive/delete the task
+    if (option === 'delete') {
+      // Delete the item entirely
+      db.prepare('DELETE FROM items WHERE id = ?').run(taskId)
+      return NextResponse.json({ success: true, item: null })
+    }
 
-    // For now, just update due_date for 'tomorrow' and 'pick' options
+    let newDueDate: number | null = null
+
     if (option === 'tomorrow') {
       const tomorrow = new Date()
       tomorrow.setDate(tomorrow.getDate() + 1)
-      const tomorrowTimestamp = tomorrow.getTime()
-
-      db.prepare(`
-        UPDATE tasks
-        SET due_date = ?
-        WHERE id = ?
-      `).run(tomorrowTimestamp, params.id)
-
-      return NextResponse.json({ success: true })
+      tomorrow.setHours(23, 59, 59, 999)
+      newDueDate = tomorrow.getTime()
+    } else if (option === 'pick' && targetDate) {
+      const targetDateObj = new Date(targetDate)
+      targetDateObj.setHours(23, 59, 59, 999)
+      newDueDate = targetDateObj.getTime()
+    } else if (option === 'backlog') {
+      newDueDate = null
+    } else {
+      return NextResponse.json(
+        { success: false, error: 'Invalid reschedule option or missing targetDate' },
+        { status: 400 }
+      )
     }
 
-    if (option === 'pick' && targetDate) {
-      const timestamp = new Date(targetDate).getTime()
+    // Update task due_date
+    db.prepare('UPDATE tasks SET due_date = ? WHERE item_id = ?')
+      .run(newDueDate, taskId)
 
-      db.prepare(`
-        UPDATE tasks
-        SET due_date = ?
-        WHERE id = ?
-      `).run(timestamp, params.id)
+    // Fetch updated item
+    const item = db.prepare('SELECT * FROM items WHERE id = ?').get(taskId)
 
-      return NextResponse.json({ success: true })
-    }
-
-    if (option === 'backlog') {
-      // Remove from plan_tasks (not implemented yet)
-      return NextResponse.json({ success: true })
-    }
-
-    if (option === 'delete') {
-      db.prepare('UPDATE items SET archived = 1 WHERE id = ?').run(params.id)
-      return NextResponse.json({ success: true })
-    }
-
-    return NextResponse.json(
-      { error: 'Invalid reschedule option' },
-      { status: 400 }
-    )
+    return NextResponse.json({ success: true, item })
   } catch (error) {
     console.error('Error rescheduling task:', error)
-    return NextResponse.json({ error: 'Failed to reschedule task' }, { status: 500 })
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to reschedule task'
+    }, { status: 500 })
   }
 }

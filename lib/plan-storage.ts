@@ -447,6 +447,24 @@ async function syncCreate(item: SyncQueueItem): Promise<boolean> {
  * Sync an update operation to server
  */
 async function syncUpdate(item: SyncQueueItem): Promise<boolean> {
+  // Check if this is a batch update (reorder operation)
+  const data = item.data as any
+  if (data.batch_updates && Array.isArray(data.batch_updates)) {
+    const response = await fetch('/api/plan-assignments/batch', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates: data.batch_updates })
+    })
+
+    if (!response.ok) {
+      const result = await response.json()
+      throw new Error(result.error || 'Batch update failed')
+    }
+
+    return true
+  }
+
+  // Regular single update
   const response = await fetch(`/api/plan-assignments/${item.id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -600,23 +618,22 @@ export function reorderAssignmentsLocal(date: string, assignmentIds: string[]): 
     .map((id, index) => {
       const assignment = assignmentMap.get(id)
       if (assignment) {
-        const updated = { ...assignment, position: index, updated_at: Date.now() }
-
-        // Queue position update
-        addToSyncQueue({
-          id,
-          date,
-          operation: 'update',
-          data: { position: index }
-        })
-
-        return updated
+        return { ...assignment, position: index, updated_at: Date.now() }
       }
       return null
     })
     .filter((a): a is PlanAssignmentWithItem => a !== null)
 
   setLocalAssignments(date, reordered)
+
+  // Queue batch position update for all reordered items
+  const batchUpdates = assignmentIds.map((id, index) => ({ id, position: index }))
+  addToSyncQueue({
+    id: `batch_reorder_${date}_${Date.now()}`,
+    date,
+    operation: 'update',
+    data: { batch_updates: batchUpdates } as any
+  })
 
   // Trigger debounced sync
   syncToServer(date)

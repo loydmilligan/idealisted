@@ -32,6 +32,8 @@ export function EveningReviewFlow({
   const [projectUpdates, setProjectUpdates] = useState<Record<string, { progress?: number; notes?: string }>>({})
   const [journalEntry, setJournalEntry] = useState('')
   const [rescheduledTasks, setRescheduledTasks] = useState<Record<string, string | null>>({})
+  const [datePickerTaskId, setDatePickerTaskId] = useState<string | null>(null)
+  const [customDate, setCustomDate] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
   const incompleteTasks = plan.tasks.filter(t => !completedTasks.has(t.id))
@@ -71,11 +73,30 @@ export function EveningReviewFlow({
     } else if (option === 'backlog') {
       setRescheduledTasks(prev => ({ ...prev, [taskId]: null }))
     } else if (option === 'pick') {
-      // This would open a date picker - for now just set to next week
-      const nextWeek = new Date()
-      nextWeek.setDate(nextWeek.getDate() + 7)
-      setRescheduledTasks(prev => ({ ...prev, [taskId]: nextWeek.toISOString().split('T')[0] }))
+      // Open date picker for this task
+      setDatePickerTaskId(taskId)
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      setCustomDate(tomorrow.toISOString().split('T')[0])
     }
+  }
+
+  const handleDatePicked = (taskId: string, date: string) => {
+    setRescheduledTasks(prev => ({ ...prev, [taskId]: date }))
+    setDatePickerTaskId(null)
+    setCustomDate('')
+  }
+
+  const handleMoveAllToTomorrow = () => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const tomorrowStr = tomorrow.toISOString().split('T')[0]
+
+    const updates: Record<string, string> = {}
+    incompleteTasks.forEach(task => {
+      updates[task.id] = tomorrowStr
+    })
+    setRescheduledTasks(prev => ({ ...prev, ...updates }))
   }
 
   const handleComplete = async () => {
@@ -107,9 +128,11 @@ export function EveningReviewFlow({
       // Step 5: Reschedule tasks
       for (const [taskId, dueDate] of Object.entries(rescheduledTasks)) {
         if (dueDate === 'DELETE') {
-          await apiClient.deleteItem(taskId)
+          await apiClient.rescheduleTask(taskId, 'delete')
+        } else if (dueDate === null) {
+          await apiClient.rescheduleTask(taskId, 'backlog')
         } else {
-          await apiClient.rescheduleTask(taskId, (dueDate || 'date') as any, dueDate || undefined)
+          await apiClient.rescheduleTask(taskId, 'pick', dueDate)
         }
       }
 
@@ -296,61 +319,107 @@ export function EveningReviewFlow({
                 All tasks completed! Great job!
               </div>
             ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto palm-scrollbar">
-                {incompleteTasks.map(task => (
-                  <RetroCard key={task.id} className="palm-list-item">
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">{task.item.text}</p>
+              <>
+                <div className="flex justify-end mb-2">
+                  <RetroButton
+                    onClick={handleMoveAllToTomorrow}
+                    variant="primary"
+                    size="sm"
+                  >
+                    Move All to Tomorrow
+                  </RetroButton>
+                </div>
 
-                      {rescheduledTasks[task.id] && (
-                        <div className="text-xs opacity-70 bg-green-500 bg-opacity-10 p-2 rounded">
-                          {rescheduledTasks[task.id] === 'DELETE'
-                            ? 'Will be deleted'
-                            : rescheduledTasks[task.id] === null
-                            ? 'Moved to backlog'
-                            : `Rescheduled to ${rescheduledTasks[task.id]}`
-                          }
+                <div className="space-y-2 max-h-64 overflow-y-auto palm-scrollbar">
+                  {incompleteTasks.map(task => (
+                    <RetroCard key={task.id} className="palm-list-item">
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">{task.item.text}</p>
+
+                        {rescheduledTasks[task.id] && (
+                          <div className="text-xs opacity-70 bg-green-500 bg-opacity-10 p-2 rounded">
+                            {rescheduledTasks[task.id] === 'DELETE'
+                              ? 'Will be deleted'
+                              : rescheduledTasks[task.id] === null
+                              ? 'Moved to backlog'
+                              : `Rescheduled to ${rescheduledTasks[task.id]}`
+                            }
+                          </div>
+                        )}
+
+                        {datePickerTaskId === task.id && (
+                          <div className="space-y-2 bg-[var(--retro-primary)] bg-opacity-10 p-2 rounded">
+                            <label className="text-xs font-medium">Select Date:</label>
+                            <input
+                              type="date"
+                              value={customDate}
+                              min={new Date().toISOString().split('T')[0]}
+                              onChange={(e) => setCustomDate(e.target.value)}
+                              className="w-full px-2 py-1 text-sm bg-[var(--retro-bg)] border-2 border-[var(--retro-primary)] rounded"
+                            />
+                            <div className="flex gap-2">
+                              <RetroButton
+                                onClick={() => handleDatePicked(task.id, customDate)}
+                                variant="primary"
+                                size="sm"
+                                className="text-xs flex-1"
+                              >
+                                Confirm
+                              </RetroButton>
+                              <RetroButton
+                                onClick={() => {
+                                  setDatePickerTaskId(null)
+                                  setCustomDate('')
+                                }}
+                                variant="secondary"
+                                size="sm"
+                                className="text-xs flex-1"
+                              >
+                                Cancel
+                              </RetroButton>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-1">
+                          <RetroButton
+                            onClick={() => handleReschedule(task.id, 'tomorrow')}
+                            variant={rescheduledTasks[task.id] ? 'secondary' : 'primary'}
+                            size="sm"
+                            className="text-xs"
+                          >
+                            Tomorrow
+                          </RetroButton>
+                          <RetroButton
+                            onClick={() => handleReschedule(task.id, 'pick')}
+                            variant="secondary"
+                            size="sm"
+                            className="text-xs"
+                          >
+                            Pick Date
+                          </RetroButton>
+                          <RetroButton
+                            onClick={() => handleReschedule(task.id, 'backlog')}
+                            variant="secondary"
+                            size="sm"
+                            className="text-xs"
+                          >
+                            Backlog
+                          </RetroButton>
+                          <RetroButton
+                            onClick={() => handleReschedule(task.id, 'delete')}
+                            variant="danger"
+                            size="sm"
+                            className="text-xs"
+                          >
+                            Delete
+                          </RetroButton>
                         </div>
-                      )}
-
-                      <div className="grid grid-cols-2 gap-1">
-                        <RetroButton
-                          onClick={() => handleReschedule(task.id, 'tomorrow')}
-                          variant={rescheduledTasks[task.id] ? 'secondary' : 'primary'}
-                          size="sm"
-                          className="text-xs"
-                        >
-                          Tomorrow
-                        </RetroButton>
-                        <RetroButton
-                          onClick={() => handleReschedule(task.id, 'pick')}
-                          variant="secondary"
-                          size="sm"
-                          className="text-xs"
-                        >
-                          Pick Date
-                        </RetroButton>
-                        <RetroButton
-                          onClick={() => handleReschedule(task.id, 'backlog')}
-                          variant="secondary"
-                          size="sm"
-                          className="text-xs"
-                        >
-                          Backlog
-                        </RetroButton>
-                        <RetroButton
-                          onClick={() => handleReschedule(task.id, 'delete')}
-                          variant="danger"
-                          size="sm"
-                          className="text-xs"
-                        >
-                          Delete
-                        </RetroButton>
                       </div>
-                    </div>
-                  </RetroCard>
-                ))}
-              </div>
+                    </RetroCard>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         )
@@ -412,8 +481,8 @@ export function EveningReviewFlow({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <RetroCard className="w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
+      <RetroCard className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="p-4 border-b-2 border-[var(--retro-primary)]">
           <div className="flex items-center justify-between mb-4">

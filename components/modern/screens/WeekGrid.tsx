@@ -13,8 +13,10 @@
 
 import React, { useMemo, useState } from 'react'
 import { format, startOfWeek, addDays, isToday, isSameDay } from 'date-fns'
-import { DndContext, DragOverlay, useDraggable, useDroppable, DragEndEvent, DragStartEvent } from '@dnd-kit/core'
-import { PlanAssignmentWithItem, updateAssignmentLocal } from '@/lib/plan-storage'
+import { DndContext, DragOverlay, useDroppable, DragEndEvent, DragStartEvent, PointerSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { PlanAssignmentWithItem, updateAssignmentLocal, reorderAssignmentsLocal } from '@/lib/plan-storage'
 import { getEntityColor, getEntityBackgroundColor, EntityType } from '@/lib/entity-colors'
 
 interface WeekGridProps {
@@ -32,6 +34,8 @@ interface WeekGridProps {
   onRemoveAssignment?: (assignmentId: string, date: string) => void
   /** Callback when an assignment is moved to a different day */
   onMoveAssignment?: (assignmentId: string, oldDate: string, newDate: string) => void
+  /** Callback when assignments are reordered within the same day */
+  onReorderAssignments?: (date: string, assignmentIds: string[]) => void
 }
 
 /**
@@ -82,7 +86,7 @@ const WeekDayColumn: React.FC<WeekDayColumnProps> = ({
   return (
     <div
       ref={setNodeRef}
-      className="flex-1 min-w-0 border-r border-gray-200 last:border-r-0 flex flex-col"
+      className="flex-1 min-w-[120px] sm:min-w-[140px] md:min-w-0 border-r border-gray-200 last:border-r-0 flex flex-col"
       style={columnStyle}
     >
       {/* Day Header */}
@@ -110,15 +114,20 @@ const WeekDayColumn: React.FC<WeekDayColumnProps> = ({
             No items
           </div>
         ) : (
-          assignments.map(assignment => (
-            <WeekGridItem
-              key={assignment.id}
-              assignment={assignment}
-              onTap={() => onItemTap?.(assignment.item_id)}
-              onTaskToggle={(status) => onTaskToggle?.(assignment.item_id, status)}
-              onRemove={() => onRemoveAssignment?.(assignment.id)}
-            />
-          ))
+          <SortableContext
+            items={assignments.map(a => a.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {assignments.map(assignment => (
+              <WeekGridItem
+                key={assignment.id}
+                assignment={assignment}
+                onTap={() => onItemTap?.(assignment.item_id)}
+                onTaskToggle={(status) => onTaskToggle?.(assignment.item_id, status)}
+                onRemove={() => onRemoveAssignment?.(assignment.id)}
+              />
+            ))}
+          </SortableContext>
         )}
       </div>
     </div>
@@ -144,8 +153,15 @@ const WeekGridItem: React.FC<WeekGridItemProps> = ({
   const item = assignment.item
   const task = assignment.task
 
-  // Make this item draggable (must call hooks before any early returns)
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  // Make this item sortable (must call hooks before any early returns)
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: assignment.id,
     data: {
       assignment,
@@ -162,7 +178,8 @@ const WeekGridItem: React.FC<WeekGridItemProps> = ({
     borderLeft: `3px solid ${getEntityColor(entityType)}`,
     background: getEntityBackgroundColor(entityType, 'muted', 0.08),
     opacity: isDragging ? 0.5 : isCompleted ? 0.6 : 1,
-    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    transform: CSS.Transform.toString(transform),
+    transition,
     cursor: isDragging ? 'grabbing' : 'grab',
   }
 
@@ -299,8 +316,24 @@ export const WeekGrid: React.FC<WeekGridProps> = ({
   onTaskToggle,
   onRemoveAssignment,
   onMoveAssignment,
+  onReorderAssignments,
 }) => {
   const [activeId, setActiveId] = useState<string | null>(null)
+
+  // Configure sensors for touch and pointer support
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px movement before drag starts
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250, // 250ms delay for touch to distinguish from scroll
+        tolerance: 5, // 5px tolerance for movement during delay
+      },
+    })
+  )
 
   // Calculate week dates based on selectedDate
   const weekDates = useMemo(() => {
@@ -353,7 +386,7 @@ export const WeekGrid: React.FC<WeekGridProps> = ({
   }
 
   /**
-   * Handle drag end - move item to new day if dropped on a different day
+   * Handle drag end - either reorder within same day or move to different day
    */
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
@@ -365,17 +398,47 @@ export const WeekGrid: React.FC<WeekGridProps> = ({
       return
     }
 
-    const assignmentId = active.id as string
-    const newDate = over.id as string
+    const activeId = active.id as string
+    const overId = over.id as string
     const currentDate = active.data.current?.currentDate as string
 
-    // Same day - no cross-day move (P2-T3 will handle reordering)
-    if (newDate === currentDate) {
+    // Check if we're reordering within the same day
+    const activeAssignment = assignments.find(a => a.id === activeId)
+    const overAssignment = assignments.find(a => a.id === overId)
+
+    // Both are assignments and on the same day - reorder within day
+    if (activeAssignment && overAssignment && activeAssignment.assigned_date === overAssignment.assigned_date) {
+      const date = activeAssignment.assigned_date
+      const dayAssignments = assignmentsByDate.get(date) || []
+
+      const oldIndex = dayAssignments.findIndex(a => a.id === activeId)
+      const newIndex = dayAssignments.findIndex(a => a.id === overId)
+
+      if (oldIndex !== newIndex) {
+        // Use arrayMove to compute new order
+        const reordered = arrayMove(dayAssignments, oldIndex, newIndex)
+
+        // Extract IDs in new order and update positions
+        const reorderedIds = reordered.map(a => a.id)
+
+        // Update local storage with new positions
+        reorderAssignmentsLocal(date, reorderedIds)
+
+        // Notify parent to update React state
+        onReorderAssignments?.(date, reorderedIds)
+
+        console.log(`[WeekGrid] Reordered ${activeId} from position ${oldIndex} to ${newIndex} on ${date}`)
+      }
       return
     }
 
-    // Move to different day
-    moveToDay(assignmentId, currentDate, newDate)
+    // Check if over is a date column (cross-day move)
+    const isDateColumn = weekDates.some(d => d.dateKey === overId)
+
+    if (isDateColumn && overId !== currentDate) {
+      // Move to different day
+      moveToDay(activeId, currentDate, overId)
+    }
   }
 
   /**
@@ -393,10 +456,10 @@ export const WeekGrid: React.FC<WeekGridProps> = ({
   }
 
   return (
-    <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex flex-col h-full">
         {/* Week Grid */}
-        <div className="flex-1 flex overflow-hidden border border-gray-200 rounded-lg">
+        <div className="flex-1 flex overflow-x-auto overflow-y-hidden border border-gray-200 rounded-lg">
           {weekDates.map(({ date, dateKey, isToday, isSelected }) => (
             <WeekDayColumn
               key={dateKey}

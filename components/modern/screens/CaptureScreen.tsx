@@ -20,6 +20,7 @@ interface RecapData {
   stats?: { tasks: number; notes: number; ideas: number }
   cached?: boolean
   error?: boolean
+  loadedAt?: number
 }
 
 interface RecentItem {
@@ -120,22 +121,81 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
       .catch(() => setAiEnabled(false))
   }, [])
 
-  // Fetch recap on mount
-  const loadRecap = async () => {
+  // Get today's date in YYYY-MM-DD format
+  const getTodayKey = (): string => {
+    const today = new Date()
+    return today.toISOString().split('T')[0]
+  }
+
+  // Get localStorage cache key for recap
+  const getRecapCacheKey = (): string => {
+    return `recap_cache_${getTodayKey()}`
+  }
+
+  // Load recap from localStorage cache
+  const loadRecapFromCache = (): RecapData | null => {
+    if (typeof window === 'undefined') return null
+    try {
+      const cacheKey = getRecapCacheKey()
+      const cached = localStorage.getItem(cacheKey)
+      if (cached) {
+        return JSON.parse(cached) as RecapData
+      }
+    } catch (e) {
+      console.error('Failed to load recap from cache:', e)
+    }
+    return null
+  }
+
+  // Save recap to localStorage cache
+  const saveRecapToCache = (data: RecapData): void => {
+    if (typeof window === 'undefined') return
+    try {
+      const cacheKey = getRecapCacheKey()
+      localStorage.setItem(cacheKey, JSON.stringify(data))
+    } catch (e) {
+      console.error('Failed to save recap to cache:', e)
+    }
+  }
+
+  // Fetch recap from API
+  const loadRecap = async (forceRefresh: boolean = false) => {
     setRecapLoading(true)
     setRecapError(null)
+
+    // Check cache first (unless forcing refresh)
+    if (!forceRefresh) {
+      const cached = loadRecapFromCache()
+      if (cached) {
+        setRecap({ ...cached, cached: true, loadedAt: cached.loadedAt || Date.now() })
+        setRecapLoading(false)
+        return
+      }
+    }
+
+    // Check if AI is enabled before fetching
+    if (!aiEnabled) {
+      setRecapError('AI features are disabled')
+      setRecapLoading(false)
+      return
+    }
+
     try {
       const res = await fetch('/api/ai/recap', { method: 'POST' })
       const data = await res.json()
       if (data.success) {
-        setRecap({
+        const recapData: RecapData = {
           summary: data.summary,
           quote: data.quote,
           fallback: data.fallback,
           stats: data.stats,
           cached: data.cached,
-          error: data.error
-        })
+          error: data.error,
+          loadedAt: Date.now()
+        }
+        setRecap(recapData)
+        // Save to cache for future use
+        saveRecapToCache(recapData)
       } else {
         // API returned success: false - recap might be disabled
         setRecapError(data.error || 'Recap unavailable')
@@ -651,11 +711,13 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {recap?.cached && (
-                <span className="text-[10px] opacity-50">cached</span>
+              {recap?.cached && recap?.loadedAt && (
+                <span className="text-[10px] opacity-50">
+                  {new Date(recap.loadedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
               )}
               <button
-                onClick={loadRecap}
+                onClick={() => loadRecap(true)}
                 disabled={recapLoading}
                 className="retro-btn retro-btn-secondary tap-target"
                 style={{
@@ -687,8 +749,14 @@ export const CaptureScreen: React.FC<CaptureScreenProps> = ({
 
           {/* Error state */}
           {recapError && !recap && (
-            <div className="text-sm opacity-60 py-2">
-              {recapError}
+            <div className="py-2">
+              <p className="text-sm opacity-60 mb-2">{recapError}</p>
+              <button
+                onClick={() => loadRecap(true)}
+                className="retro-btn retro-btn-secondary retro-btn-sm"
+              >
+                Retry
+              </button>
             </div>
           )}
 

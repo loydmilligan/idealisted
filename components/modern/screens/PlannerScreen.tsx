@@ -278,6 +278,7 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
   const [isLoading, setIsLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'day' | 'week'>('day')
   const [weekAssignments, setWeekAssignments] = useState<PlanAssignmentWithItem[]>([])
+  const [calendarExpanded, setCalendarExpanded] = useState(false)
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -701,6 +702,33 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
   }, [])
 
   /**
+   * Handle assignments reordered within same day
+   * Updates local state with new positions
+   */
+  const handleReorderAssignments = useCallback((date: string, assignmentIds: string[]) => {
+    setWeekAssignments(prev => {
+      // Create a map of assignments for quick lookup
+      const assignmentMap = new Map(prev.map(a => [a.id, a]))
+
+      // Rebuild array with updated positions for reordered items
+      const updated = prev.map(a => {
+        if (a.assigned_date === date) {
+          const newPosition = assignmentIds.indexOf(a.id)
+          if (newPosition !== -1) {
+            return { ...a, position: newPosition, updated_at: Date.now() }
+          }
+        }
+        return a
+      })
+
+      // Sort by position within each day
+      return updated.sort((a, b) => a.position - b.position)
+    })
+
+    console.log(`[PlannerScreen] Reordered ${assignmentIds.length} assignments on ${date}`)
+  }, [])
+
+  /**
    * Handle adding item to day from drawer
    */
   const handleAddToDay = useCallback(async (itemId: string) => {
@@ -908,13 +936,24 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
         </div>
       </div>
 
-        {/* Mini Calendar */}
+        {/* Mini Calendar - Collapsible on Mobile */}
         <div className="mt-3">
-          <MiniCalendar
-            selectedDate={selectedDate}
-            onDateSelect={handleDateSelect}
-            taskCounts={taskCounts}
-          />
+          {/* Toggle button (mobile only) */}
+          <button
+            className="md:hidden retro-btn retro-btn-secondary retro-btn-sm w-full mb-2"
+            onClick={() => setCalendarExpanded(!calendarExpanded)}
+          >
+            {calendarExpanded ? '▲ Hide Calendar' : '▼ Show Calendar'}
+          </button>
+
+          {/* Calendar (always visible on desktop, collapsible on mobile) */}
+          <div className={`${calendarExpanded ? 'block' : 'hidden'} md:block`}>
+            <MiniCalendar
+              selectedDate={selectedDate}
+              onDateSelect={handleDateSelect}
+              taskCounts={taskCounts}
+            />
+          </div>
         </div>
 
       {/* Main Content Area */}
@@ -935,6 +974,7 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
               onTaskToggle={handleTaskToggle}
               onRemoveAssignment={handleRemove}
               onMoveAssignment={handleMoveAssignment}
+              onReorderAssignments={handleReorderAssignments}
             />
           )}
         </div>

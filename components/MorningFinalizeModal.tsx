@@ -66,8 +66,8 @@ export function MorningFinalizeModal({ plan, tasks, onClose, onFinalize }: Morni
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <RetroCard className="w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
+      <RetroCard className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b-2 border-[var(--retro-primary)]">
           <h2 className="text-lg font-bold uppercase tracking-wide">
