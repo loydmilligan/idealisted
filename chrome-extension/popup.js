@@ -222,12 +222,29 @@ function setupEventListeners() {
   document.getElementById('openOptionsBtn')?.addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
   });
+
+  // Create task toggle
+  const createTaskCheckbox = document.getElementById('createTaskCheckbox');
+  const taskFields = document.getElementById('taskFields');
+
+  createTaskCheckbox?.addEventListener('change', (e) => {
+    if (e.target.checked) {
+      taskFields.classList.add('visible');
+    } else {
+      taskFields.classList.remove('visible');
+      document.getElementById('dueDateInput').value = '';
+      document.getElementById('reminderInput').value = '';
+    }
+  });
 }
 
 // Handle capture action
 async function handleCapture() {
   const captureBtn = document.getElementById('captureBtn');
   const statusDot = document.getElementById('statusDot');
+  const createTaskCheckbox = document.getElementById('createTaskCheckbox');
+  const dueDateInput = document.getElementById('dueDateInput');
+  const reminderInput = document.getElementById('reminderInput');
 
   captureBtn.disabled = true;
   captureBtn.textContent = 'Processing...';
@@ -238,7 +255,12 @@ async function handleCapture() {
     const result = await chrome.runtime.sendMessage({
       action: 'captureToIdeaListed',
       pageData: currentPageData,
-      config: config
+      config: config,
+      taskOptions: {
+        createTask: createTaskCheckbox?.checked || false,
+        dueDate: dueDateInput?.value || null,
+        reminder: reminderInput?.value || null
+      }
     });
 
     if (result.success) {

@@ -4,7 +4,7 @@
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'captureToIdeaListed') {
-    handleCapture(request.pageData, request.config)
+    handleCapture(request.pageData, request.config, request.taskOptions)
       .then(result => sendResponse(result))
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true; // Keep channel open for async response
@@ -12,15 +12,37 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // Main capture handler
-async function handleCapture(pageData, config) {
+async function handleCapture(pageData, config, taskOptions = {}) {
   try {
     // Step 1: Process with AI to generate structured note
     const processedNote = await processWithAI(pageData, config);
 
     // Step 2: Send to IdeaListed
-    const result = await sendToIdeaListed(processedNote, config);
+    const noteResult = await sendToIdeaListed(processedNote, config);
 
-    return { success: true, data: result };
+    let taskResult = null;
+
+    if (taskOptions?.createTask && noteResult?.item) {
+      taskResult = await createStudyTask({
+        pageData,
+        config,
+        note: processedNote,
+        noteItem: noteResult.item,
+        taskOptions
+      });
+
+      // Best-effort link back to the note with metadata/markdown
+      if (taskResult?.item) {
+        linkNoteToTask({
+          noteItem: noteResult.item,
+          taskItem: taskResult.item,
+          note: processedNote,
+          config
+        }).catch(err => console.warn('Failed to link note/task:', err));
+      }
+    }
+
+    return { success: true, data: { note: noteResult, task: taskResult } };
   } catch (error) {
     console.error('Capture error:', error);
     throw error;
@@ -395,6 +417,137 @@ ${pageData.description || 'No description available'}
 ## Related Links
 -
 `;
+}
+
+function parseDateOnly(value) {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return isNaN(date.getTime()) ? null : date.getTime();
+}
+
+function parseDateTime(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return isNaN(date.getTime()) ? null : date.getTime();
+}
+
+function formatDateForMarkdown(timestamp, includeTime = false) {
+  if (!timestamp) return 'Not set';
+  try {
+    const date = new Date(timestamp);
+    if (includeTime) {
+      return date.toLocaleString();
+    }
+    return date.toISOString().split('T')[0];
+  } catch (e) {
+    return 'Not set';
+  }
+}
+
+function buildItemLink(serverUrl, itemId) {
+  if (!serverUrl || !itemId) return null;
+  const base = serverUrl.replace(/\/$/, '');
+  return `${base}/api/items/${itemId}`;
+}
+
+async function createStudyTask({ pageData, config, note, noteItem, taskOptions }) {
+  const dueDateMs = parseDateOnly(taskOptions?.dueDate);
+  const reminderMs = parseDateTime(taskOptions?.reminder);
+  const noteTitle = noteItem?.text || pageData.title || 'Captured note';
+  const noteLink = buildItemLink(config.serverUrl, noteItem?.id);
+
+  const taskPayload = {
+    type: 'task',
+    text: `Study: ${noteTitle}`,
+    tags: note?.tags || [],
+    markdown_content: generateTaskMarkdown({
+      noteTitle,
+      noteLink,
+      noteId: noteItem?.id,
+      sourceUrl: pageData.url,
+      dueDateMs,
+      reminderMs
+    }),
+    template_id: 'task',
+    entity_type: 'task',
+    parsed: true,
+    metadata: {
+      related_note_id: noteItem?.id,
+      related_note_link: noteLink,
+      source_url: pageData.url
+    },
+    task: {
+      status: 'pending',
+      priority: 1,
+      due_date: dueDateMs,
+      reminder_datetime: reminderMs
+    }
+  };
+
+  return await sendToIdeaListed(taskPayload, config);
+}
+
+function generateTaskMarkdown({ noteTitle, noteLink, noteId, sourceUrl, dueDateMs, reminderMs }) {
+  const noteReference = noteLink
+    ? `[${noteTitle}](${noteLink})`
+    : `${noteTitle}${noteId ? ` (ID: ${noteId})` : ''}`;
+
+  return `# Study: ${noteTitle}
+
+**Status**: Not Started
+**Priority**: Medium
+**Due Date**: ${formatDateForMarkdown(dueDateMs)}
+**Reminder**: ${formatDateForMarkdown(reminderMs, true)}
+**Related Note**: ${noteReference}
+**Source**: [Open source](${sourceUrl})
+
+## Plan
+- [ ] Read the saved note
+- [ ] Revisit the source material
+- [ ] Summarize key takeaways inside the note
+`;
+}
+
+async function linkNoteToTask({ noteItem, taskItem, note, config }) {
+  if (!noteItem?.id || !taskItem?.id) return;
+
+  const taskLink = buildItemLink(config.serverUrl, taskItem.id);
+  const noteMetadata = safeParseMetadata(noteItem.metadata);
+
+  const updatedMetadata = {
+    ...noteMetadata,
+    related_task_id: taskItem.id,
+    related_task_link: taskLink
+  };
+
+  const existingMarkdown = noteItem.markdown_content || note?.markdown_content || '';
+  const linkLine = taskLink
+    ? `[${taskItem.text || 'Related task'}](${taskLink})`
+    : (taskItem.text || 'Related task');
+  const updatedMarkdown = existingMarkdown
+    ? `${existingMarkdown.trim()}\n\n---\n**Related Task:** ${linkLine}\n`
+    : `**Related Task:** ${linkLine}\n`;
+
+  await fetch(`${config.serverUrl}/api/items/${noteItem.id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      markdown_content: updatedMarkdown,
+      metadata: updatedMetadata
+    })
+  });
+}
+
+function safeParseMetadata(metadata) {
+  if (!metadata) return {};
+  if (typeof metadata === 'object') return { ...metadata };
+  try {
+    return JSON.parse(metadata);
+  } catch (e) {
+    return {};
+  }
 }
 
 // Send note to IdeaListed API

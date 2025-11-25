@@ -253,6 +253,68 @@
       line-height: 1.4;
     }
 
+    .field input[type="date"],
+    .field input[type="datetime-local"] {
+      width: 100%;
+      background: var(--palm-screen-light);
+      border: 2px solid;
+      border-top-color: var(--palm-border-dark);
+      border-left-color: var(--palm-border-dark);
+      border-bottom-color: var(--palm-border-light);
+      border-right-color: var(--palm-border-light);
+      color: var(--palm-text-dark);
+      padding: 8px;
+      font-family: 'Courier New', Monaco, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .field input[type="date"]:focus,
+    .field input[type="datetime-local"]:focus {
+      outline: none;
+      background: var(--palm-screen-base);
+    }
+
+    .checkbox-field {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      background: var(--palm-screen-light);
+      border: 2px solid;
+      border-top-color: var(--palm-border-dark);
+      border-left-color: var(--palm-border-dark);
+      border-bottom-color: var(--palm-border-light);
+      border-right-color: var(--palm-border-light);
+      margin-bottom: 10px;
+    }
+
+    .checkbox-field input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--entity-task);
+    }
+
+    .checkbox-label {
+      font-size: 12px;
+      font-weight: bold;
+      color: var(--palm-text-dark);
+      letter-spacing: 0.03em;
+    }
+
+    .task-fields {
+      display: none;
+      gap: 10px;
+    }
+
+    .task-fields .field {
+      flex: 1;
+    }
+
+    .task-fields.visible {
+      display: flex;
+      margin-bottom: 12px;
+    }
+
     .actions {
       display: flex;
       gap: 8px;
@@ -444,6 +506,22 @@
         <div class="preview">
           <div class="preview-label">Content Preview</div>
           <div class="preview-content" id="previewContent">Extracting...</div>
+        </div>
+
+        <div class="checkbox-field">
+          <input type="checkbox" id="createTaskCheckbox" />
+          <div class="checkbox-label">Create task to study this note</div>
+        </div>
+
+        <div class="task-fields" id="taskFields">
+          <div class="field">
+            <label for="dueDateInput">Due Date</label>
+            <input type="date" id="dueDateInput" />
+          </div>
+          <div class="field">
+            <label for="reminderInput">Reminder (Date & Time)</label>
+            <input type="datetime-local" id="reminderInput" />
+          </div>
         </div>
 
         <div id="messageArea"></div>
