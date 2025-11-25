@@ -1,6 +1,9 @@
 # Changelog
 
-# Changelog
+## 2025-11-24
+- **Sprint 3 Batch 8**: Week view drag-drop (reorder within day, move between days), auto-forward incomplete tasks with reschedule API, AI recap localStorage caching with timestamps, responsive layout improvements (touch sensors, collapsible calendar, mobile grid optimization).
+- **Sprint 3 Batch 9**: Comprehensive QA and documentation. Fixed test data generator to use API endpoints with proper template IDs (task, note-generic/meeting/research, project-standard, list-tasklist/shopping/bulleted). Verified markdown viewer opens correctly for all entity types (tasks, notes, projects, lists) instead of old editor. Planner week view, navigation, and mini calendar verified working.
+- **Test Infrastructure**: Created `scripts/generate-test-data.js` for comprehensive test data generation (10 tasks with due dates/reminders/subtasks, 4 notes of various types, 3 projects with linked tasks, 3 lists, 3 plan assignments, 3 unsorted ideas).
 
 ## 2025-01-15
 - Navigation: removed Unsorted tab; tabs now Capture / Ready / Planner / Files.
