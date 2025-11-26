@@ -295,6 +295,13 @@ export interface RecapConfig {
   threshold: number  // Minimum items required for summary mode (default: 3)
 }
 
+export interface ObsidianConfig {
+  enabled: boolean
+  vaultPath: string  // Absolute path to Obsidian vault (e.g., /mnt/obsidian/IdeaListed)
+  syncFrequency: 'manual' | 'hourly' | 'daily'
+  lastSyncTimestamp?: number  // Unix timestamp of last successful sync
+}
+
 export interface DailyReminderConfig {
   enabled: boolean
   time: string  // HH:MM format

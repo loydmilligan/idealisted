@@ -6,8 +6,9 @@ import { AISettingsTab } from './settings/AISettingsTab'
 import { NotificationsTab } from './settings/NotificationsTab'
 import { TagsTab } from './settings/TagsTab'
 import { AppearanceTab } from './settings/AppearanceTab'
+import { ObsidianTab } from './settings/ObsidianTab'
 
-type SettingsTab = 'ai' | 'notifications' | 'tags' | 'appearance'
+type SettingsTab = 'ai' | 'notifications' | 'tags' | 'appearance' | 'obsidian'
 
 interface SettingsModalProps {
   isOpen: boolean
@@ -58,6 +59,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             TAGS
           </button>
           <button
+            className={`retro-tab tap-target ${activeTab === 'obsidian' ? 'active' : ''}`}
+            onClick={() => setActiveTab('obsidian')}
+            style={{ touchAction: 'manipulation' }}
+          >
+            OBSIDIAN
+          </button>
+          <button
             className={`retro-tab tap-target ${activeTab === 'appearance' ? 'active' : ''}`}
             onClick={() => setActiveTab('appearance')}
             style={{ touchAction: 'manipulation' }}
@@ -71,6 +79,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
           {activeTab === 'ai' && <AISettingsTab />}
           {activeTab === 'notifications' && <NotificationsTab />}
           {activeTab === 'tags' && <TagsTab />}
+          {activeTab === 'obsidian' && <ObsidianTab />}
           {activeTab === 'appearance' && <AppearanceTab />}
         </div>
       </div>

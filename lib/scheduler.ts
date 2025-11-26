@@ -1,5 +1,6 @@
 import cron from 'node-cron'
 import { ntfyService } from './notify'
+import { createObsidianSyncService } from './obsidian-sync'
 import { format } from 'date-fns'
 
 // Use global variable to persist cron task across hot-reloads
@@ -10,6 +11,8 @@ declare global {
   var __daily_summary_is_running: boolean | undefined
   var __daily_reminder_cron_task: any | undefined
   var __daily_reminder_is_running: boolean | undefined
+  var __obsidian_sync_cron_task: any | undefined
+  var __obsidian_sync_is_running: boolean | undefined
 }
 
 class SchedulerService {
@@ -53,6 +56,19 @@ class SchedulerService {
     })
 
     console.log('[Scheduler] Daily reminder check cron started (every minute)')
+
+    // Obsidian Sync Check (Obsidian Integration)
+    if (global.__obsidian_sync_cron_task) {
+      global.__obsidian_sync_cron_task.stop()
+      global.__obsidian_sync_cron_task = undefined
+    }
+
+    // Run hourly at minute 0
+    global.__obsidian_sync_cron_task = cron.schedule('0 * * * *', async () => {
+      await this.checkAndSyncObsidian()
+    })
+
+    console.log('[Scheduler] Obsidian sync cron started (hourly)')
   }
 
   /**
@@ -71,6 +87,10 @@ class SchedulerService {
     if (global.__daily_reminder_cron_task) {
       global.__daily_reminder_cron_task.stop()
       global.__daily_reminder_cron_task = undefined
+    }
+    if (global.__obsidian_sync_cron_task) {
+      global.__obsidian_sync_cron_task.stop()
+      global.__obsidian_sync_cron_task = undefined
     }
     console.log('[Scheduler] All CRON tasks stopped')
   }
@@ -425,6 +445,52 @@ class SchedulerService {
       console.error('[Scheduler] Error in daily reminder check:', error)
     } finally {
       global.__daily_reminder_is_running = false
+    }
+  }
+
+  /**
+   * Check and sync to Obsidian vault
+   * Runs hourly via cron job (at minute 0)
+   * Exports new/updated notes and projects as markdown files
+   */
+  async checkAndSyncObsidian() {
+    // Prevent concurrent execution
+    if (global.__obsidian_sync_is_running) {
+      console.log('[Obsidian] Sync already running, skipping...')
+      return
+    }
+
+    global.__obsidian_sync_is_running = true
+    const startTime = Date.now()
+
+    try {
+      console.log('[Obsidian] Starting sync check...')
+
+      const syncService = await createObsidianSyncService()
+
+      if (!syncService) {
+        console.log('[Obsidian] Sync service not configured, skipping...')
+        return
+      }
+
+      const result = await syncService.sync()
+
+      const duration = Date.now() - startTime
+
+      if (result.success) {
+        console.log(
+          `[Obsidian] ✓ Sync completed in ${duration}ms (${result.itemsSynced} items synced)`
+        )
+        if (result.errors.length > 0) {
+          console.warn(`[Obsidian] Completed with ${result.errors.length} errors:`, result.errors)
+        }
+      } else {
+        console.error(`[Obsidian] ✗ Sync failed:`, result.errors)
+      }
+    } catch (error) {
+      console.error('[Obsidian] Error in sync check:', error)
+    } finally {
+      global.__obsidian_sync_is_running = false
     }
   }
 }

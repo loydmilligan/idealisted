@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { AIConfig, NtfyConfig, RecapConfig } from '@/types'
+import { AIConfig, NtfyConfig, RecapConfig, ObsidianConfig } from '@/types'
 
 // GET /api/settings - Get all settings
 export async function GET() {
@@ -66,6 +66,24 @@ export async function GET() {
       `).run('recap_config', JSON.stringify(defaultRecapConfig), Date.now())
 
       result.recap_config = defaultRecapConfig
+    }
+
+    // Initialize Obsidian config with default values if not present
+    if (!result.obsidian_config) {
+      const defaultObsidianConfig: ObsidianConfig = {
+        enabled: false,
+        vaultPath: '/mnt/obsidian/IdeaListed',
+        syncFrequency: 'hourly',
+        lastSyncTimestamp: undefined
+      }
+
+      // Save default config to database
+      db.prepare(`
+        INSERT OR REPLACE INTO settings (key, value, updated_at)
+        VALUES (?, ?, ?)
+      `).run('obsidian_config', JSON.stringify(defaultObsidianConfig), Date.now())
+
+      result.obsidian_config = defaultObsidianConfig
     }
 
     return NextResponse.json({ settings: result })

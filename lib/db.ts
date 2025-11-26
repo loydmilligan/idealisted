@@ -788,6 +788,17 @@ export function initializeDatabase() {
     // Column already exists, safe to ignore
   }
 
+  // Obsidian sync table - tracks exported files for one-way sync to Obsidian vault
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS obsidian_sync (
+      item_id TEXT PRIMARY KEY,
+      file_path TEXT NOT NULL,
+      file_hash TEXT NOT NULL,
+      last_synced_at INTEGER NOT NULL,
+      FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+    )
+  `)
+
   // Create indexes for performance
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_items_type ON items(type);
@@ -803,6 +814,7 @@ export function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_templates_entity_type ON templates(entity_type);
     CREATE INDEX IF NOT EXISTS idx_plan_assignments_date ON plan_assignments(assigned_date);
     CREATE INDEX IF NOT EXISTS idx_plan_assignments_item ON plan_assignments(item_id);
+    CREATE INDEX IF NOT EXISTS idx_obsidian_sync_item ON obsidian_sync(item_id);
   `)
 
   console.log('Database initialized successfully')
