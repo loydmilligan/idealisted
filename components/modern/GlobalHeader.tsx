@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Settings } from 'lucide-react'
+import { Settings, Cloud } from 'lucide-react'
 import { GridLogo } from './GridLogo'
 
 interface GlobalHeaderProps {
@@ -22,10 +22,39 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
   const [time, setTime] = useState(new Date())
   const [isFlashing, setIsFlashing] = useState(false)
   const [prevReadyCount, setPrevReadyCount] = useState(readyCount)
+  const [obsidianEnabled, setObsidianEnabled] = useState(false)
+  const [obsidianStatus, setObsidianStatus] = useState({
+    totalSynced: 0,
+    lastSync: null as number | null,
+  })
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 60000) // Update every minute
     return () => clearInterval(timer)
+  }, [])
+
+  // Fetch Obsidian sync status
+  useEffect(() => {
+    const fetchObsidianStatus = async () => {
+      try {
+        const response = await fetch('/api/obsidian/status')
+        const data = await response.json()
+        if (data.success) {
+          setObsidianEnabled(data.enabled)
+          setObsidianStatus({
+            totalSynced: data.totalSynced || 0,
+            lastSync: data.lastSync,
+          })
+        }
+      } catch (error) {
+        console.error('Failed to fetch Obsidian status:', error)
+      }
+    }
+
+    fetchObsidianStatus()
+    // Refresh status every 5 minutes
+    const statusTimer = setInterval(fetchObsidianStatus, 300000)
+    return () => clearInterval(statusTimer)
   }, [])
 
   // Flash animation when Ready count increases
@@ -75,6 +104,24 @@ export const GlobalHeader: React.FC<GlobalHeaderProps> = ({
         <div className="retro-header-right">
           <span className="retro-clock">{formatTime(time)}</span>
           <span className="retro-date">{formatDate(time)}</span>
+          {obsidianEnabled && (
+            <div
+              className="retro-obsidian-status tap-target"
+              style={{
+                position: 'relative',
+                display: 'inline-flex',
+                alignItems: 'center',
+                cursor: 'help',
+              }}
+              title={`Obsidian Sync: ${obsidianStatus.totalSynced} items synced${
+                obsidianStatus.lastSync
+                  ? ` • Last: ${new Date(obsidianStatus.lastSync).toLocaleTimeString()}`
+                  : ''
+              }`}
+            >
+              <Cloud size={18} style={{ color: 'var(--retro-success)' }} />
+            </div>
+          )}
           <button
             className="retro-settings-btn tap-target"
             onClick={onSettingsClick}

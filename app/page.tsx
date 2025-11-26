@@ -34,7 +34,8 @@ import { EntityType } from '@/lib/entity-colors'
 import { ItemWithRelations, AISuggestion } from '@/types'
 import { FrondNutLogo } from '@/components/ui/FrondNutLogo'
 import { getEntityColor, getEntityBackgroundColor } from '@/lib/entity-colors'
-// DISABLED (causes build error - server-side only): import { ntfyService } from '@/lib/notify'
+import { Pencil, Trash2, Archive, Sparkles, X } from 'lucide-react'
+// DISABLED (causes build error - server-side only): import { ntfyService} from '@/lib/notify'
 
 // Types
 interface Item extends Omit<ItemWithRelations, 'created_at' | 'type' | 'entity_type'> {
@@ -1022,9 +1023,29 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
 
       if (response.ok) {
         await fetchItems()
+        // Close viewer if it's open
+        setMarkdownViewerOpen(false)
       }
     } catch (error) {
       console.error('Failed to delete item:', error)
+    }
+  }
+
+  const handleArchive = async (itemId: string) => {
+    try {
+      const response = await fetch(`/api/items/${itemId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived: true }),
+      })
+
+      if (response.ok) {
+        await fetchItems()
+        // Close viewer if it's open
+        setMarkdownViewerOpen(false)
+      }
+    } catch (error) {
+      console.error('Failed to archive item:', error)
     }
   }
 
@@ -2137,23 +2158,97 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
                     }}>
                       {currentTemplate.name}
                     </h2>
-                    <button
-                      onClick={handleMarkdownViewerClose}
-                      className="retro-close-btn"
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--palm-bg-primary)',
-                        cursor: 'pointer',
-                        padding: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                      aria-label="Close"
-                    >
-                      ×
-                    </button>
+
+                    {/* Action Icons */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                    }}>
+                      {/* Edit Button */}
+                      <button
+                        onClick={handleMarkdownEdit}
+                        className="retro-icon-btn tap-target"
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--palm-bg-primary)',
+                          cursor: 'pointer',
+                          padding: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          touchAction: 'manipulation',
+                        }}
+                        title="Edit"
+                        aria-label="Edit"
+                      >
+                        <Pencil size={18} />
+                      </button>
+
+                      {/* Archive Button */}
+                      <button
+                        onClick={() => handleArchive(currentMarkdownItem.id)}
+                        className="retro-icon-btn tap-target"
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--palm-bg-primary)',
+                          cursor: 'pointer',
+                          padding: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          touchAction: 'manipulation',
+                        }}
+                        title="Archive"
+                        aria-label="Archive"
+                      >
+                        <Archive size={18} />
+                      </button>
+
+                      {/* Delete Button */}
+                      <button
+                        onClick={() => handleDelete(currentMarkdownItem.id)}
+                        className="retro-icon-btn tap-target"
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--palm-bg-primary)',
+                          cursor: 'pointer',
+                          padding: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          touchAction: 'manipulation',
+                        }}
+                        title="Delete"
+                        aria-label="Delete"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+
+                      {/* Close Button */}
+                      <button
+                        onClick={handleMarkdownViewerClose}
+                        className="retro-icon-btn tap-target"
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--palm-bg-primary)',
+                          cursor: 'pointer',
+                          padding: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          touchAction: 'manipulation',
+                        }}
+                        title="Close"
+                        aria-label="Close"
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Scrollable Content */}
@@ -2161,6 +2256,7 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
                     flex: 1,
                     overflowY: 'auto',
                     padding: '16px',
+                    paddingBottom: '80px', // Extra space to ensure content isn't hidden by footer
                   }}>
                     {currentMarkdownItem.type === 'project' && (
                       <div style={{ display: 'grid', gap: '12px', marginBottom: '16px' }}>
@@ -2218,63 +2314,6 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
                       </div>
                     )}
                     <MarkdownViewer content={currentMarkdownItem.markdown_content || ''} />
-                  </div>
-
-                  {/* Footer Actions */}
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    padding: '12px 16px',
-                    borderTop: '1px solid var(--palm-border)',
-                    background: 'var(--palm-screen-base)',
-                    flexShrink: 0,
-                  }}>
-                    <button
-                      onClick={handleMarkdownViewerClose}
-                      className="retro-btn retro-btn-secondary"
-                      style={{
-                        padding: '8px 16px',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                      }}
-                    >
-                      Close
-                    </button>
-                    {currentMarkdownItem.type === 'project' && (
-                      <button
-                        onClick={() => {
-                          setProjectContextId(currentMarkdownItem.project?.id || null)
-                          setTemplateSelectorEntityType('note')
-                          setTemplateSelectorOpen(true)
-                          setMarkdownViewerOpen(false)
-                        }}
-                        className="retro-btn retro-btn-secondary"
-                        style={{
-                          padding: '8px 16px',
-                          fontSize: '12px',
-                          fontWeight: 'bold',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.05em',
-                        }}
-                      >
-                        Add Note
-                      </button>
-                    )}
-                    <button
-                      onClick={handleMarkdownEdit}
-                      className="retro-btn retro-btn-primary"
-                      style={{
-                        padding: '8px 16px',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                      }}
-                    >
-                      Edit
-                    </button>
                   </div>
                 </div>
               </motion.div>
