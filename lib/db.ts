@@ -835,6 +835,9 @@ export default db
 export function updateTagUsage(addedTags: string[], removedTags: string[]) {
   const now = Date.now()
 
+  // Import tag icon utilities
+  const { generateTagIcon, loadUsedIconCombos, serializeTagIconForDB } = require('@/lib/tag-icons')
+
   // Validate and sanitize tag names
   const sanitizeTag = (tag: string): string | null => {
     if (!tag || typeof tag !== 'string') return null
@@ -849,30 +852,55 @@ export function updateTagUsage(addedTags: string[], removedTags: string[]) {
 
   // Use transaction for atomic updates
   const transaction = db.transaction(() => {
-    // Prepare statements outside loop for better performance
-    const insertStmt = db.prepare(`
-      INSERT INTO tags (id, name, color, category, usage_count, last_used_at, is_default, created_at)
-      VALUES (?, ?, '#999999', 'Other', 1, ?, 0, ?)
-      ON CONFLICT(name) DO UPDATE SET
-        usage_count = usage_count + 1,
-        last_used_at = ?
+    // Check which tags already exist
+    const checkStmt = db.prepare(`SELECT name FROM tags WHERE name = ?`)
+    const updateExistingStmt = db.prepare(`
+      UPDATE tags
+      SET usage_count = usage_count + 1,
+          last_used_at = ?
+      WHERE name = ?
     `)
 
-    const updateStmt = db.prepare(`
+    const updateRemovedStmt = db.prepare(`
       UPDATE tags
       SET usage_count = MAX(0, usage_count - 1)
       WHERE name = ?
     `)
 
-    // Increment for added tags
+    // Load used icon combinations once
+    const usedCombos = loadUsedIconCombos(db)
+
+    // Process added tags
     for (const tag of validAddedTags) {
-      const id = crypto.randomUUID()
-      insertStmt.run(id, tag, now, now, now)
+      const existing = checkStmt.get(tag)
+
+      if (existing) {
+        // Tag exists, just increment usage
+        updateExistingStmt.run(now, tag)
+      } else {
+        // New tag, generate icon and insert
+        const icon = generateTagIcon('other', usedCombos)
+        const iconFields = serializeTagIconForDB(icon)
+        const id = crypto.randomUUID()
+
+        db.prepare(`
+          INSERT INTO tags (id, name, color, category, usage_count, last_used_at, is_default, created_at,
+                           icon_foreground_color, icon_background_color, icon_shape, icon_texture, icon_background_shape)
+          VALUES (?, ?, ?, 'Other', 1, ?, 0, ?, ?, ?, ?, ?, ?)
+        `).run(
+          id, tag, null, now, now,
+          iconFields.icon_foreground_color,
+          iconFields.icon_background_color,
+          iconFields.icon_shape,
+          iconFields.icon_texture,
+          iconFields.icon_background_shape
+        )
+      }
     }
 
     // Decrement for removed tags
     for (const tag of validRemovedTags) {
-      updateStmt.run(tag)
+      updateRemovedStmt.run(tag)
     }
   })
 

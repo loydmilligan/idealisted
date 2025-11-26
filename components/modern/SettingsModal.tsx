@@ -48,7 +48,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
             onClick={() => setActiveTab('notifications')}
             style={{ touchAction: 'manipulation' }}
           >
-            NOTIF
+            NOTIFICATIONS
           </button>
           <button
             className={`retro-tab tap-target ${activeTab === 'tags' ? 'active' : ''}`}

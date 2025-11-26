@@ -1,20 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { nanoid } from 'nanoid'
+import { generateTagIcon, loadUsedIconCombos, serializeTagIconForDB } from '@/lib/tag-icons'
 
 interface TagInfo {
   name: string
   count: number
-  color: string
   category: string
+  icon_foreground_color?: string | null
+  icon_background_color?: string | null
+  icon_shape?: string | null
+  icon_texture?: string | null
+  icon_background_shape?: string | null
 }
 
 interface TagMetadata {
   id: string
   name: string
-  color: string
   category: string
   created_at: number
+  icon_foreground_color?: string | null
+  icon_background_color?: string | null
+  icon_shape?: string | null
+  icon_texture?: string | null
+  icon_background_shape?: string | null
 }
 
 // GET /api/tags - Get all tags with usage counts and metadata
@@ -44,7 +53,10 @@ export async function GET() {
 
     // Get tag metadata from database
     const tagMetadata = db.prepare(`
-      SELECT id, name, color, category, created_at FROM tags
+      SELECT id, name, category, created_at,
+             icon_foreground_color, icon_background_color,
+             icon_shape, icon_texture, icon_background_shape
+      FROM tags
     `).all() as TagMetadata[]
 
     const metadataMap = new Map<string, TagMetadata>()
@@ -59,8 +71,12 @@ export async function GET() {
         return {
           name,
           count,
-          color: meta?.color || '#868e96', // Default to grey
           category: meta?.category || 'Other',
+          icon_foreground_color: meta?.icon_foreground_color,
+          icon_background_color: meta?.icon_background_color,
+          icon_shape: meta?.icon_shape,
+          icon_texture: meta?.icon_texture,
+          icon_background_shape: meta?.icon_background_shape,
         }
       })
       .sort((a, b) => b.count - a.count)
@@ -82,18 +98,11 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, color, category } = body
+    const { name, category } = body
 
     if (!name?.trim()) {
       return NextResponse.json(
         { success: false, error: 'Tag name is required' },
-        { status: 400 }
-      )
-    }
-
-    if (!color) {
-      return NextResponse.json(
-        { success: false, error: 'Tag color is required' },
         { status: 400 }
       )
     }
@@ -118,23 +127,41 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Generate unique icon for this tag
+    const usedCombos = loadUsedIconCombos(db)
+    const icon = generateTagIcon(category?.toLowerCase() || 'other', usedCombos)
+    const iconFields = serializeTagIconForDB(icon)
+
     // Create tag metadata
     const id = nanoid()
     const now = Date.now()
 
     db.prepare(`
-      INSERT INTO tags (id, name, color, category, created_at)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(id, name.trim(), color, category || 'Other', now)
+      INSERT INTO tags (id, name, color, category, created_at,
+                       icon_foreground_color, icon_background_color,
+                       icon_shape, icon_texture, icon_background_shape)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id,
+      name.trim(),
+      null, // color field (deprecated, kept for backward compatibility)
+      category || 'Other',
+      now,
+      iconFields.icon_foreground_color,
+      iconFields.icon_background_color,
+      iconFields.icon_shape,
+      iconFields.icon_texture,
+      iconFields.icon_background_shape
+    )
 
     return NextResponse.json({
       success: true,
       tag: {
         id,
         name: name.trim(),
-        color,
         category: category || 'Other',
-        created_at: now
+        created_at: now,
+        ...iconFields
       }
     })
   } catch (error) {
@@ -150,7 +177,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
-    const { oldName, newName, color, category } = body
+    const { oldName, newName, category } = body
 
     if (!oldName || !newName) {
       return NextResponse.json(
@@ -167,17 +194,13 @@ export async function PUT(request: NextRequest) {
       `).get(oldName) as TagMetadata | undefined
 
       if (tagMeta) {
-        // Update existing metadata
+        // Update existing metadata (keep existing icon)
         const updates: string[] = []
         const params: any[] = []
 
         if (newName !== oldName) {
           updates.push('name = ?')
           params.push(newName)
-        }
-        if (color) {
-          updates.push('color = ?')
-          params.push(color)
         }
         if (category) {
           updates.push('category = ?')
@@ -192,13 +215,30 @@ export async function PUT(request: NextRequest) {
             WHERE id = ?
           `).run(...params)
         }
-      } else if (color || category) {
-        // Create metadata if it doesn't exist and we have color/category
+      } else if (category) {
+        // Create metadata if it doesn't exist - generate icon
+        const usedCombos = loadUsedIconCombos(db)
+        const icon = generateTagIcon(category?.toLowerCase() || 'other', usedCombos)
+        const iconFields = serializeTagIconForDB(icon)
+
         const id = nanoid()
         db.prepare(`
-          INSERT INTO tags (id, name, color, category, created_at)
-          VALUES (?, ?, ?, ?, ?)
-        `).run(id, newName, color || '#868e96', category || 'Other', Date.now())
+          INSERT INTO tags (id, name, color, category, created_at,
+                           icon_foreground_color, icon_background_color,
+                           icon_shape, icon_texture, icon_background_shape)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          id,
+          newName,
+          null, // color field (deprecated, kept for backward compatibility)
+          category || 'Other',
+          Date.now(),
+          iconFields.icon_foreground_color,
+          iconFields.icon_background_color,
+          iconFields.icon_shape,
+          iconFields.icon_texture,
+          iconFields.icon_background_shape
+        )
       }
 
       // Get all items with the old tag

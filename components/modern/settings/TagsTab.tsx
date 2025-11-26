@@ -2,19 +2,24 @@
 
 import React, { useState, useEffect } from 'react'
 import { Edit2, Trash2, Plus, Check, X } from 'lucide-react'
-import { DEFAULT_TAG_COLORS } from '@/lib/entity-colors'
+import { TagIcon } from '@/components/ui/TagIcon'
+import { parseTagIconFromDB } from '@/lib/tag-icons'
+import type { TagIcon as TagIconType } from '@/lib/tag-icons'
 
 interface TagInfo {
   name: string
   count: number
-  color: string
   category: string
+  icon_foreground_color?: string | null
+  icon_background_color?: string | null
+  icon_shape?: string | null
+  icon_texture?: string | null
+  icon_background_shape?: string | null
 }
 
 interface EditingTag {
   originalName: string
   newName: string
-  color: string
   category: string
 }
 
@@ -26,7 +31,6 @@ export const TagsTab: React.FC = () => {
   const [message, setMessage] = useState('')
   const [editingTag, setEditingTag] = useState<EditingTag | null>(null)
   const [newTagName, setNewTagName] = useState('')
-  const [newTagColor, setNewTagColor] = useState(DEFAULT_TAG_COLORS[0])
   const [newTagCategory, setNewTagCategory] = useState('Other')
   const [showAddForm, setShowAddForm] = useState(false)
 
@@ -59,7 +63,6 @@ export const TagsTab: React.FC = () => {
     setEditingTag({
       originalName: tag.name,
       newName: tag.name,
-      color: tag.color || DEFAULT_TAG_COLORS[0],
       category: tag.category || 'Other',
     })
   }
@@ -92,7 +95,6 @@ export const TagsTab: React.FC = () => {
         body: JSON.stringify({
           oldName: editingTag.originalName,
           newName: editingTag.newName,
-          color: editingTag.color,
           category: editingTag.category,
         }),
       })
@@ -139,7 +141,6 @@ export const TagsTab: React.FC = () => {
   const handleAddTag = () => {
     setShowAddForm(true)
     setNewTagName('')
-    setNewTagColor(DEFAULT_TAG_COLORS[0])
     setNewTagCategory('Other')
   }
 
@@ -162,7 +163,6 @@ export const TagsTab: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: trimmedName,
-          color: newTagColor,
           category: newTagCategory,
         }),
       })
@@ -205,55 +205,57 @@ export const TagsTab: React.FC = () => {
       {message && <div className="retro-message">{message}</div>}
 
       {showAddForm && (
-        <div className="retro-tag-form">
-          <input
-            type="text"
-            className="retro-input"
-            placeholder="Tag name"
-            value={newTagName}
-            onChange={(e) => setNewTagName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSaveNewTag()
-              if (e.key === 'Escape') handleCancelAdd()
-            }}
-            autoFocus
-          />
-          <select
-            className="retro-select"
-            value={newTagCategory}
-            onChange={(e) => setNewTagCategory(e.target.value)}
-          >
-            {TAG_CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-          <div className="retro-tag-color-picker">
-            {DEFAULT_TAG_COLORS.map((color) => (
-              <button
-                key={color}
-                className={`retro-color-swatch ${
-                  newTagColor === color ? 'active' : ''
-                }`}
-                style={{ backgroundColor: color }}
-                onClick={() => setNewTagColor(color)}
-                title={color}
-              />
-            ))}
+        <div className="retro-tag-form" style={{ marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.5rem' }}>
+            <input
+              type="text"
+              className="retro-input"
+              style={{
+                width: '100%',
+                padding: '0.5rem',
+                fontSize: '14px',
+                boxSizing: 'border-box'
+              }}
+              placeholder="Tag name"
+              value={newTagName}
+              onChange={(e) => setNewTagName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveNewTag()
+                if (e.key === 'Escape') handleCancelAdd()
+              }}
+              autoFocus
+            />
+            <select
+              className="retro-select"
+              style={{
+                width: '100%',
+                padding: '0.5rem',
+                fontSize: '14px'
+              }}
+              value={newTagCategory}
+              onChange={(e) => setNewTagCategory(e.target.value)}
+            >
+              {TAG_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
           </div>
-          <div className="retro-tag-form-actions">
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button
               className="retro-btn retro-btn-small retro-btn-primary"
               onClick={handleSaveNewTag}
             >
               <Check size={14} />
+              SAVE
             </button>
             <button
               className="retro-btn retro-btn-small retro-btn-secondary"
               onClick={handleCancelAdd}
             >
               <X size={14} />
+              CANCEL
             </button>
           </div>
         </div>
@@ -269,11 +271,17 @@ export const TagsTab: React.FC = () => {
             <div key={tag.name} className="retro-tag-item">
               {editingTag?.originalName === tag.name ? (
                 // Edit mode
-                <div className="retro-tag-edit-form">
-                  <div className="retro-tag-edit-row">
+                <div className="retro-tag-edit-form" style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.5rem' }}>
                     <input
                       type="text"
-                      className="retro-input retro-tag-input"
+                      className="retro-input"
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        fontSize: '14px',
+                        boxSizing: 'border-box'
+                      }}
                       value={editingTag.newName}
                       onChange={(e) =>
                         setEditingTag({ ...editingTag, newName: e.target.value })
@@ -286,6 +294,11 @@ export const TagsTab: React.FC = () => {
                     />
                     <select
                       className="retro-select"
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        fontSize: '14px'
+                      }}
                       value={editingTag.category}
                       onChange={(e) =>
                         setEditingTag({ ...editingTag, category: e.target.value })
@@ -297,21 +310,8 @@ export const TagsTab: React.FC = () => {
                         </option>
                       ))}
                     </select>
-                    <div className="retro-tag-color-picker">
-                      {DEFAULT_TAG_COLORS.map((color) => (
-                        <button
-                          key={color}
-                          className={`retro-color-swatch ${
-                            editingTag.color === color ? 'active' : ''
-                          }`}
-                          style={{ backgroundColor: color }}
-                          onClick={() => setEditingTag({ ...editingTag, color })}
-                          title={color}
-                        />
-                      ))}
-                    </div>
                   </div>
-                  <div className="retro-tag-edit-actions">
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button
                       className="retro-btn retro-btn-small retro-btn-primary"
                       onClick={handleSaveEdit}
@@ -332,10 +332,14 @@ export const TagsTab: React.FC = () => {
                 // View mode
                 <>
                   <div className="retro-tag-info">
-                    <div
-                      className="retro-tag-color-indicator"
-                      style={{ backgroundColor: tag.color }}
-                    />
+                    {(() => {
+                      const icon = parseTagIconFromDB(tag)
+                      return icon ? (
+                        <TagIcon icon={icon} size={20} className="retro-tag-icon" />
+                      ) : (
+                        <div className="retro-tag-icon-placeholder" />
+                      )
+                    })()}
                     <span className="retro-tag-name">{tag.name}</span>
                     <span className="retro-tag-category">[{tag.category}]</span>
                     <span className="retro-tag-count">({tag.count})</span>

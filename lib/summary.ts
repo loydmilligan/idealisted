@@ -1,4 +1,5 @@
 import { db } from './db'
+import { aiService } from './ai'
 
 export interface DailySummaryData {
   date: string // YYYY-MM-DD
@@ -100,11 +101,83 @@ export function generateDailySummary(date?: string): DailySummaryData {
 }
 
 /**
- * Format summary data into a human-readable message
+ * Format summary data into a human-readable message with AI enhancement
+ * @param summary - Summary data to format
+ * @param useAI - Whether to use AI for personalized message (default: true)
+ * @returns Formatted message for notification
+ */
+export async function formatSummaryMessage(summary: DailySummaryData, useAI: boolean = true): Promise<string> {
+  // If AI is enabled, try to generate personalized summary
+  if (useAI) {
+    try {
+      const aiEnabled = await aiService.isFeatureEnabled('daily_summary')
+      if (aiEnabled) {
+        const aiMessage = await generateAISummary(summary)
+        if (aiMessage) {
+          return aiMessage
+        }
+      }
+    } catch (error) {
+      console.error('[Summary] AI generation failed, using fallback:', error)
+      // Fall through to static formatter
+    }
+  }
+
+  // Fallback: Static formatter
+  return formatSummaryMessageStatic(summary)
+}
+
+/**
+ * Generate AI-enhanced summary message
+ * @param summary - Summary data
+ * @returns Personalized summary or null if AI fails
+ */
+async function generateAISummary(summary: DailySummaryData): Promise<string | null> {
+  if (!summary.hasActivity) {
+    return null // Use static fallback for no activity
+  }
+
+  // Build context for AI
+  const prompt = `Generate a brief, encouraging daily summary for ${formatDate(summary.date)}.
+
+Stats:
+- Ideas captured: ${summary.ideasCaptured}
+- Ideas converted to tasks/notes/projects: ${summary.ideasConverted}
+- Tasks completed: ${summary.tasksCompleted}
+- Tasks due today: ${summary.tasksDueToday}
+- Tasks due in next 3 days: ${summary.tasksDueSoon}
+
+Provide a 2-3 sentence summary that:
+1. Highlights key accomplishments with specific numbers
+2. Is encouraging and positive
+3. Mentions upcoming tasks if any
+4. Uses emoji sparingly (max 2-3)
+
+Keep it concise and motivational. Focus on momentum and progress.`
+
+  try {
+    const response = await aiService.chat(
+      prompt,
+      'You are a helpful productivity assistant that provides encouraging daily summaries.'
+    )
+
+    if (response.suggestion && response.suggestion.trim()) {
+      return response.suggestion.trim()
+    }
+
+    return null
+  } catch (error) {
+    console.error('[Summary] AI chat failed:', error)
+    return null
+  }
+}
+
+/**
+ * Format summary data into a human-readable message (static version)
  * @param summary - Summary data to format
  * @returns Formatted message for notification
  */
-export function formatSummaryMessage(summary: DailySummaryData): string {
+export function formatSummaryMessageStatic(summary: DailySummaryData): string {
   if (!summary.hasActivity) {
     return 'No activity today. Time to capture some ideas!'
   }

@@ -618,7 +618,6 @@ body {
 .retro-btn-accent-task {
   border-color: var(--entity-task);
   color: var(--entity-task);
-  background: rgba(74, 144, 226, 0.15);
 }
 
 .retro-btn-accent-task:hover {
@@ -629,7 +628,6 @@ body {
 .retro-btn-accent-note {
   border-color: var(--entity-note);
   color: var(--entity-note);
-  background: rgba(243, 156, 18, 0.15);
 }
 
 .retro-btn-accent-note:hover {
@@ -638,9 +636,8 @@ body {
 }
 
 .retro-btn-accent-project {
-  border-color: var(--entity-project);
-  color: var(--entity-project);
-  background: rgba(126, 211, 33, 0.2);
+  border-color: #5a9e1a; /* Darker green for better visibility */
+  color: #5a9e1a;
 }
 
 .retro-btn-accent-project:hover {
@@ -651,7 +648,6 @@ body {
 .retro-btn-accent-list {
   border-color: var(--entity-list);
   color: var(--entity-list);
-  background: rgba(155, 89, 182, 0.15);
 }
 
 .retro-btn-accent-list:hover {
@@ -2279,4 +2275,98 @@ body {
     font-size: 10px;
     padding: 6px 10px;
   }
+}
+
+/* ============================================
+   MINI CALENDAR
+   ============================================ */
+
+.mini-calendar {
+  width: 100%;
+}
+
+.mini-cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  gap: 0.5rem;
+}
+
+.mini-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.mini-cal-weekday {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.6;
+  padding: 4px;
+}
+
+.mini-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.mini-cal-day {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: 1px solid var(--palm-border-light);
+  background: var(--palm-bg-primary);
+  border-radius: 4px;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.mini-cal-day:hover {
+  background: var(--palm-border-light);
+  border-color: var(--retro-primary);
+}
+
+.mini-cal-day-today {
+  border: 2px solid var(--retro-primary);
+  font-weight: 700;
+}
+
+.mini-cal-day-selected {
+  background: var(--retro-primary);
+  color: var(--retro-bg);
+  font-weight: 700;
+}
+
+.mini-cal-indicator {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+}
+
+.mini-cal-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--retro-primary);
+}
+
+.mini-cal-day-selected .mini-cal-dot {
+  background: var(--retro-bg);
+}
+
+.mini-cal-count {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--retro-primary);
+}
+
+.mini-cal-day-selected .mini-cal-count {
+  color: var(--retro-bg);
 }

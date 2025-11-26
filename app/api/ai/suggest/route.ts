@@ -1,6 +1,153 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AISuggestion } from '@/types'
 import { aiService } from '@/lib/ai'
+import { db } from '@/lib/db'
+
+/**
+ * Sprint 2 - Phase 5: Search for existing lists and projects
+ * Performs fuzzy matching to find entities that might match user input
+ */
+function searchExistingEntities(text: string): {
+  lists: Array<{ id: string, name: string }>
+  projects: Array<{ id: string, name: string }>
+} {
+  const lowerText = text.toLowerCase()
+
+  // Search for existing lists
+  const lists = db.prepare(`
+    SELECT l.id, l.name, i.text
+    FROM lists l
+    JOIN items i ON i.id = l.item_id
+    WHERE i.archived = 0
+    ORDER BY l.name
+  `).all() as Array<{ id: string, name: string, text: string }>
+
+  // Search for existing projects
+  const projects = db.prepare(`
+    SELECT p.id, i.text
+    FROM projects p
+    JOIN items i ON i.id = p.item_id
+    WHERE i.archived = 0
+    ORDER BY i.text
+  `).all() as Array<{ id: string, text: string }>
+
+  // Fuzzy match function - checks if search text contains entity name or vice versa
+  const fuzzyMatch = (searchText: string, entityName: string): boolean => {
+    const search = searchText.toLowerCase().trim()
+    const entity = entityName.toLowerCase().trim()
+
+    // Direct substring match
+    if (search.includes(entity) || entity.includes(search)) {
+      return true
+    }
+
+    // Remove common words and check again
+    const cleanSearch = search.replace(/\b(list|project|the|a|an|my)\b/g, '').trim()
+    const cleanEntity = entity.replace(/\b(list|project|the|a|an|my)\b/g, '').trim()
+
+    if (cleanSearch.length < 3 || cleanEntity.length < 3) {
+      return false // Avoid false positives with very short strings
+    }
+
+    return cleanSearch.includes(cleanEntity) || cleanEntity.includes(cleanSearch)
+  }
+
+  // Find matching lists
+  const matchingLists = lists.filter(l =>
+    fuzzyMatch(lowerText, l.name) || fuzzyMatch(lowerText, l.text)
+  ).map(l => ({ id: l.id, name: l.name }))
+
+  // Find matching projects
+  const matchingProjects = projects.map(p => ({
+    id: p.id,
+    name: p.text
+  })).filter(p => fuzzyMatch(lowerText, p.name))
+
+  return {
+    lists: matchingLists,
+    projects: matchingProjects
+  }
+}
+
+/**
+ * Sprint 2 - Phase 5: Enhance suggestion with entity search results
+ * Checks if the suggestion should append to an existing entity instead of creating new
+ */
+function enhanceWithEntitySearch(suggestion: AISuggestion, originalText: string): AISuggestion {
+  // Only check for lists and projects
+  if (suggestion.suggested_type !== 'list' && suggestion.suggested_type !== 'project') {
+    suggestion.suggested_action = 'create_new'
+    return suggestion
+  }
+
+  // Search for matching entities
+  const matches = searchExistingEntities(originalText)
+
+  // Handle list suggestions
+  if (suggestion.suggested_type === 'list' && matches.lists.length > 0) {
+    const targetList = matches.lists[0] // Use the best match (first one)
+
+    // Extract items to append from the original text
+    const appendItems = extractItemsToAppend(originalText, suggestion)
+
+    return {
+      ...suggestion,
+      suggested_action: 'append_to_list',
+      target_entity_id: targetList.id,
+      target_entity_name: targetList.name,
+      append_items: appendItems.length > 0 ? appendItems : [originalText.trim()],
+      reasoning: `Found existing list "${targetList.name}". ${appendItems.length > 0 ? `Adding ${appendItems.length} item(s)` : 'Adding item'} to it instead of creating a new list.`
+    }
+  }
+
+  // Handle project suggestions
+  if (suggestion.suggested_type === 'project' && matches.projects.length > 0) {
+    const targetProject = matches.projects[0] // Use the best match (first one)
+
+    return {
+      ...suggestion,
+      suggested_action: 'add_to_project',
+      target_entity_id: targetProject.id,
+      target_entity_name: targetProject.name,
+      reasoning: `Found existing project "${targetProject.name}". This could be added as a task or note within that project.`
+    }
+  }
+
+  // No matches found - create new entity
+  suggestion.suggested_action = 'create_new'
+  return suggestion
+}
+
+/**
+ * Extract items to append from text input
+ * Handles patterns like "add milk, eggs, bread to shopping list"
+ */
+function extractItemsToAppend(text: string, suggestion: AISuggestion): string[] {
+  // Check for "add X to Y list" pattern
+  const addToListMatch = text.match(/add\s+(.+?)\s+to\s+(?:.+?)\s*(?:list|project)/i)
+
+  if (addToListMatch) {
+    const itemsText = addToListMatch[1].trim()
+
+    // Split by comma if multiple items
+    const items = itemsText.split(',').map(item => item.trim()).filter(item => item.length > 0)
+
+    if (items.length > 1) {
+      return items
+    }
+
+    // Single item
+    return [itemsText]
+  }
+
+  // Fallback: Use list_items from AI suggestion if available
+  if (suggestion.additional_fields.list_items && suggestion.additional_fields.list_items.length > 0) {
+    return suggestion.additional_fields.list_items
+  }
+
+  // Last resort: Return the whole text as a single item
+  return []
+}
 
 export async function POST(request: NextRequest) {
   let text: string = ''
@@ -94,15 +241,22 @@ Rules:
     // Parse the AI response
     try {
       const suggestion: AISuggestion = JSON.parse(aiResponse)
-      return NextResponse.json(suggestion)
+
+      // Sprint 2 - Phase 5: Check for existing entities to append to
+      const enhancedSuggestion = enhanceWithEntitySearch(suggestion, text)
+      return NextResponse.json(enhancedSuggestion)
     } catch (parseError) {
       console.error('Failed to parse AI response:', aiResponse)
-      return NextResponse.json(generateSmartFallback(text))
+      const fallbackSuggestion = generateSmartFallback(text)
+      const enhancedFallback = enhanceWithEntitySearch(fallbackSuggestion, text)
+      return NextResponse.json(enhancedFallback)
     }
 
   } catch (error) {
     console.error('AI suggestion error:', error)
-    return NextResponse.json(generateSmartFallback(text || 'unknown'))
+    const fallbackSuggestion = generateSmartFallback(text || 'unknown')
+    const enhancedFallback = enhanceWithEntitySearch(fallbackSuggestion, text || 'unknown')
+    return NextResponse.json(enhancedFallback)
   }
 }
 

@@ -145,6 +145,57 @@ export function AISuggestionPanel({
           )}
         </div>
 
+        {/* Sprint 2 Phase 5: Existing Entity Found Banner */}
+        {suggestion.suggested_action === 'append_to_list' && suggestion.target_entity_name && (
+          <div className="mb-3 p-3 border-2 border-green-500 bg-green-50 rounded">
+            <div className="flex items-start gap-2">
+              <span className="text-green-600 text-lg">📋</span>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-green-700 mb-1">
+                  Found Existing List
+                </p>
+                <p className="text-xs text-green-600 mb-2">
+                  "{suggestion.target_entity_name}"
+                </p>
+                {suggestion.append_items && suggestion.append_items.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-xs font-semibold text-green-700 mb-1">
+                      Items to add ({suggestion.append_items.length}):
+                    </p>
+                    <ul className="text-xs space-y-1">
+                      {suggestion.append_items.map((item, i) => (
+                        <li key={i} className="flex items-start gap-1 text-green-600">
+                          <span>•</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {suggestion.suggested_action === 'add_to_project' && suggestion.target_entity_name && (
+          <div className="mb-3 p-3 border-2 border-blue-500 bg-blue-50 rounded">
+            <div className="flex items-start gap-2">
+              <span className="text-blue-600 text-lg">📁</span>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-blue-700 mb-1">
+                  Found Existing Project
+                </p>
+                <p className="text-xs text-blue-600">
+                  "{suggestion.target_entity_name}"
+                </p>
+                <p className="text-xs text-blue-600 mt-2">
+                  This could be added as a task or note within the project.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Processed Text */}
         <div className="space-y-1">
           <p className="text-xs font-bold uppercase tracking-wide">Suggested Text:</p>
@@ -295,35 +346,109 @@ export function AISuggestionPanel({
 
         {/* Action Buttons */}
         <div className="space-y-2">
-          <RetroButton
-            onClick={() => onAcceptAndSave(suggestion)}
-            variant="primary"
-            size="md"
-            disabled={isProcessing || isCreating}
-            className="w-full"
-          >
-            ✓ Accept & Save
-          </RetroButton>
+          {/* Sprint 2 Phase 5: Different buttons for append actions */}
+          {suggestion.suggested_action === 'append_to_list' && suggestion.target_entity_id ? (
+            <>
+              <RetroButton
+                onClick={() => onAcceptAndSave(suggestion)}
+                variant="primary"
+                size="md"
+                disabled={isProcessing || isCreating}
+                className="w-full"
+              >
+                ✓ Add to List
+              </RetroButton>
+              <RetroButton
+                onClick={() => onAcceptAndEdit(suggestion)}
+                variant="secondary"
+                size="md"
+                disabled={isProcessing || isCreating}
+                className="w-full"
+              >
+                📋 View List & Add
+              </RetroButton>
+              <RetroButton
+                onClick={() => {
+                  // Remove append fields to force create new
+                  const newSuggestion = {
+                    ...suggestion,
+                    suggested_action: 'create_new' as const,
+                    target_entity_id: undefined,
+                    target_entity_name: undefined
+                  }
+                  onAcceptAndEdit(newSuggestion)
+                }}
+                variant="secondary"
+                size="md"
+                disabled={isProcessing || isCreating}
+                className="w-full"
+              >
+                ➕ Create New List Instead
+              </RetroButton>
+            </>
+          ) : suggestion.suggested_action === 'add_to_project' && suggestion.target_entity_id ? (
+            <>
+              <RetroButton
+                onClick={() => onAcceptAndEdit(suggestion)}
+                variant="primary"
+                size="md"
+                disabled={isProcessing || isCreating}
+                className="w-full"
+              >
+                📁 Add to Project
+              </RetroButton>
+              <RetroButton
+                onClick={() => {
+                  // Remove append fields to force create new
+                  const newSuggestion = {
+                    ...suggestion,
+                    suggested_action: 'create_new' as const,
+                    target_entity_id: undefined,
+                    target_entity_name: undefined
+                  }
+                  onAcceptAndEdit(newSuggestion)
+                }}
+                variant="secondary"
+                size="md"
+                disabled={isProcessing || isCreating}
+                className="w-full"
+              >
+                ➕ Create New Instead
+              </RetroButton>
+            </>
+          ) : (
+            <>
+              <RetroButton
+                onClick={() => onAcceptAndSave(suggestion)}
+                variant="primary"
+                size="md"
+                disabled={isProcessing || isCreating}
+                className="w-full"
+              >
+                ✓ Accept & Save
+              </RetroButton>
 
-          <RetroButton
-            onClick={() => onAcceptAndEdit(suggestion)}
-            variant="secondary"
-            size="md"
-            disabled={isProcessing || isCreating}
-            className="w-full"
-          >
-            ✏️ Accept & Edit
-          </RetroButton>
+              <RetroButton
+                onClick={() => onAcceptAndEdit(suggestion)}
+                variant="secondary"
+                size="md"
+                disabled={isProcessing || isCreating}
+                className="w-full"
+              >
+                ✏️ Accept & Edit
+              </RetroButton>
 
-          <RetroButton
-            onClick={() => onOverrideAndEdit()}
-            variant="secondary"
-            size="md"
-            disabled={isProcessing || isCreating}
-            className="w-full"
-          >
-            🔄 Override & Edit
-          </RetroButton>
+              <RetroButton
+                onClick={() => onOverrideAndEdit()}
+                variant="secondary"
+                size="md"
+                disabled={isProcessing || isCreating}
+                className="w-full"
+              >
+                🔄 Override & Edit
+              </RetroButton>
+            </>
+          )}
         </div>
       </div>
     </RetroCard>

@@ -278,7 +278,8 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
   const [isLoading, setIsLoading] = useState(true)
   const [viewMode, setViewMode] = useState<'day' | 'week'>('day')
   const [weekAssignments, setWeekAssignments] = useState<PlanAssignmentWithItem[]>([])
-  const [calendarExpanded, setCalendarExpanded] = useState(false)
+  const [calendarExpanded, setCalendarExpanded] = useState(false) // Default: collapsed
+  const [planTab, setPlanTab] = useState<'tasks' | 'additional'>('tasks') // Default: tasks tab
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -936,26 +937,6 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
         </div>
       </div>
 
-        {/* Mini Calendar - Collapsible on Mobile */}
-        <div className="mt-3">
-          {/* Toggle button (mobile only) */}
-          <button
-            className="md:hidden retro-btn retro-btn-secondary retro-btn-sm w-full mb-2"
-            onClick={() => setCalendarExpanded(!calendarExpanded)}
-          >
-            {calendarExpanded ? '▲ Hide Calendar' : '▼ Show Calendar'}
-          </button>
-
-          {/* Calendar (collapsible on all screen sizes) */}
-          <div className={`${calendarExpanded ? 'block' : 'hidden'}`}>
-            <MiniCalendar
-              selectedDate={selectedDate}
-              onDateSelect={handleDateSelect}
-              taskCounts={taskCounts}
-            />
-          </div>
-        </div>
-
       {/* Main Content Area */}
       {viewMode === 'week' ? (
         // Week View
@@ -1001,28 +982,93 @@ export const PlannerScreen: React.FC<PlannerScreenProps> = ({
               </p>
             </div>
           ) : (
-            // Assignments List
+            // Assignments List with Tabs
             <div className="space-y-2">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="retro-section-title text-xs font-mono opacity-70 uppercase">
-                  Planned Items ({assignments.length})
-                </h3>
-                {isLoading && (
-                  <Loader2 size={14} className="animate-spin opacity-40" />
-                )}
-              </div>
+              {/* Plan Tabs */}
+              {(() => {
+                const taskAssignments = assignments.filter(a => a.item?.type === 'task')
+                const additionalAssignments = assignments.filter(a => a.item?.type !== 'task')
 
-              {assignments.map(assignment => (
-                <PlannerItem
-                  key={assignment.id}
-                  assignment={assignment}
-                  onTap={() => onItemTap?.(assignment.item_id)}
-                  onTaskToggle={(status) => handleTaskToggle(assignment.item_id, status)}
-                  onRemove={() => handleRemove(assignment.id, selectedDate)}
-                />
-              ))}
+                return (
+                  <>
+                    <div className="flex gap-2 mb-3">
+                      <button
+                        className={`retro-btn retro-btn-sm ${
+                          planTab === 'tasks' ? 'retro-btn-primary' : 'retro-btn-secondary'
+                        }`}
+                        onClick={() => setPlanTab('tasks')}
+                      >
+                        Planned Tasks ({taskAssignments.length})
+                      </button>
+                      <button
+                        className={`retro-btn retro-btn-sm ${
+                          planTab === 'additional' ? 'retro-btn-primary' : 'retro-btn-secondary'
+                        }`}
+                        onClick={() => setPlanTab('additional')}
+                      >
+                        Additional Info ({additionalAssignments.length})
+                      </button>
+                    </div>
+
+                    {/* Tab Content */}
+                    {planTab === 'tasks' ? (
+                      taskAssignments.length === 0 ? (
+                        <div className="retro-card p-4 text-center">
+                          <p className="text-xs opacity-60">No tasks planned for this day</p>
+                        </div>
+                      ) : (
+                        taskAssignments.map(assignment => (
+                          <PlannerItem
+                            key={assignment.id}
+                            assignment={assignment}
+                            onTap={() => onItemTap?.(assignment.item_id)}
+                            onTaskToggle={(status) => handleTaskToggle(assignment.item_id, status)}
+                            onRemove={() => handleRemove(assignment.id, selectedDate)}
+                          />
+                        ))
+                      )
+                    ) : (
+                      additionalAssignments.length === 0 ? (
+                        <div className="retro-card p-4 text-center">
+                          <p className="text-xs opacity-60">No additional info planned for this day</p>
+                        </div>
+                      ) : (
+                        additionalAssignments.map(assignment => (
+                          <PlannerItem
+                            key={assignment.id}
+                            assignment={assignment}
+                            onTap={() => onItemTap?.(assignment.item_id)}
+                            onTaskToggle={(status) => handleTaskToggle(assignment.item_id, status)}
+                            onRemove={() => handleRemove(assignment.id, selectedDate)}
+                          />
+                        ))
+                      )
+                    )}
+                  </>
+                )
+              })()}
             </div>
           )}
+
+          {/* Mini Calendar - Collapsed by default, at bottom */}
+          <div className="mt-4 px-4">
+            {/* Toggle button */}
+            <button
+              className="retro-btn retro-btn-secondary retro-btn-sm w-full mb-2"
+              onClick={() => setCalendarExpanded(!calendarExpanded)}
+            >
+              {calendarExpanded ? '▲ Hide Calendar' : '▼ Show Calendar'}
+            </button>
+
+            {/* Calendar */}
+            <div className={`${calendarExpanded ? 'block' : 'hidden'}`}>
+              <MiniCalendar
+                selectedDate={selectedDate}
+                onDateSelect={handleDateSelect}
+                taskCounts={taskCounts}
+              />
+            </div>
+          </div>
         </div>
       )}
 

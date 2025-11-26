@@ -185,16 +185,16 @@ Provide a brief, encouraging summary (2-3 sentences) of today's project work. Fo
     const highlights: string[] = []
 
     if (snapshot.stats.tasksCompleted > 0) {
-      highlights.push(`${snapshot.stats.tasksCompleted} task${snapshot.stats.tasksCompleted > 1 ? 's' : ''} completed`)
+      highlights.push(`completed ${snapshot.stats.tasksCompleted} task${snapshot.stats.tasksCompleted > 1 ? 's' : ''}`)
     }
 
     if (snapshot.stats.ideasConverted > 0) {
-      highlights.push(`${snapshot.stats.ideasConverted} idea${snapshot.stats.ideasConverted > 1 ? 's' : ''} converted`)
+      highlights.push(`converted ${snapshot.stats.ideasConverted} idea${snapshot.stats.ideasConverted > 1 ? 's' : ''}`)
     }
 
     if (projectHighlights.length > 0) {
       const topProject = projectHighlights[0].split(':')[0]
-      highlights.push(`progress on ${topProject}`)
+      highlights.push(`made progress on ${topProject}`)
     }
 
     const message = highlights.length > 0

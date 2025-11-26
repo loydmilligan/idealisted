@@ -117,6 +117,11 @@ export interface AISuggestion {
     markdown_sections?: Record<string, string>  // Pre-filled sections
   }
   reasoning: string
+  // Sprint 2 - Phase 5: Append to existing entities
+  suggested_action?: 'create_new' | 'append_to_list' | 'add_to_project'
+  target_entity_id?: string       // ID of existing list/project
+  target_entity_name?: string     // Name of existing list/project
+  append_items?: string[]         // Items to append to list
 }
 
 export interface Todo {
@@ -274,6 +279,7 @@ export interface ReminderConfig {
 export interface DailySummaryConfig {
   enabled: boolean
   times: string[]  // Array of HH:mm time strings (e.g., ['09:00', '12:00', '18:00'])
+  customTime?: string  // Optional custom time "HH:mm" (Sprint 2 - Task 4.2)
   includeMetrics: {
     ideasCaptured: boolean
     ideasConverted: boolean

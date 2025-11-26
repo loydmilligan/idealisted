@@ -124,6 +124,33 @@ export function PlannerDrawer({
     return item.task?.due_date && item.task.due_date < Date.now()
   }
 
+  // Helper: Check if item is due today or tomorrow
+  const isDueSoon = (item: Item) => {
+    if (!item.task?.due_date) return false
+    const dueDate = new Date(item.task.due_date)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const dayAfter = new Date(today)
+    dayAfter.setDate(dayAfter.getDate() + 2)
+
+    const dueTime = dueDate.getTime()
+    const todayTime = today.getTime()
+    const tomorrowTime = tomorrow.getTime()
+    const dayAfterTime = dayAfter.getTime()
+
+    return dueTime >= todayTime && dueTime < dayAfterTime
+  }
+
+  // Group items into sections
+  const groupedItems = {
+    overdue: sortedItems.filter(item => isPastDue(item)),
+    soon: sortedItems.filter(item => !isPastDue(item) && isDueSoon(item)),
+    noDate: sortedItems.filter(item => !item.task?.due_date),
+    later: sortedItems.filter(item => !isPastDue(item) && !isDueSoon(item) && item.task?.due_date)
+  }
+
   // Helper: Check if item is planned for a specific date
   const isPlannedFor = (itemId: string, date: string): boolean => {
     return assignments.some((a) => a.item_id === itemId && a.assigned_date === date)
@@ -259,8 +286,8 @@ export function PlannerDrawer({
                 </button>
               </div>
 
-              {/* Items List */}
-              <div className="space-y-2">
+              {/* Items List - Grouped by Due Date */}
+              <div className="space-y-3">
                 {sortedItems.length === 0 && (
                   <div className="text-center py-6">
                     <p className="text-xs opacity-60">
@@ -281,108 +308,176 @@ export function PlannerDrawer({
                     )}
                   </div>
                 )}
-                {sortedItems.map((item) => {
-                  const plannedForToday = isPlannedFor(item.id, selectedDateStr)
-                  const assignedDates = getAssignedDates(item.id)
-                  const otherDates = assignedDates.filter(d => d !== selectedDateStr)
-                  const pastDue = isPastDue(item)
 
-                  return (
-                    <div
-                      key={item.id}
-                      className="retro-card p-2 flex items-start justify-between gap-2"
-                      style={{
-                        borderLeft: `4px solid ${
-                          pastDue ? '#ef4444' : getEntityColor(item.type)
-                        }`,
-                        background: pastDue
-                          ? 'rgba(239, 68, 68, 0.1)'
-                          : getEntityBackgroundColor(item.type, 'muted', 0.08),
-                        opacity:
-                          plannedForToday ||
-                          (item.type === 'task' && item.task?.status === 'completed')
-                            ? 0.6
-                            : 1,
-                        textDecoration:
-                          item.type === 'task' &&
-                          item.task?.status === 'completed'
-                            ? 'line-through'
-                            : 'none',
-                      }}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <div className="text-sm font-semibold">{item.text}</div>
-                          {pastDue && (
-                            <span className="text-[9px] px-1.5 py-0.5 bg-red-500 text-white rounded uppercase font-bold">
-                              OVERDUE
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[10px] opacity-60 uppercase mt-0.5">
-                          {item.type}
-                        </div>
-                        {item.type === 'task' && (
-                          <div className="text-[10px] mt-1 space-y-0.5">
-                            <div>Status: {item.task?.status || 'pending'}</div>
-                            {item.task?.priority && (
-                              <div>Priority: {item.task.priority}</div>
-                            )}
-                            {item.task?.due_date && (
-                              <div>
-                                Due:{' '}
-                                {new Date(item.task.due_date).toLocaleDateString()}
-                              </div>
+                {/* Helper function to render item card */}
+                {(() => {
+                  const renderItem = (item: Item) => {
+                    const plannedForToday = isPlannedFor(item.id, selectedDateStr)
+                    const assignedDates = getAssignedDates(item.id)
+                    const otherDates = assignedDates.filter(d => d !== selectedDateStr)
+                    const pastDue = isPastDue(item)
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="retro-card p-2 flex items-start justify-between gap-2"
+                        style={{
+                          borderLeft: `4px solid ${
+                            pastDue ? '#ef4444' : getEntityColor(item.type)
+                          }`,
+                          background: pastDue
+                            ? 'rgba(239, 68, 68, 0.1)'
+                            : getEntityBackgroundColor(item.type, 'muted', 0.08),
+                          opacity:
+                            plannedForToday ||
+                            (item.type === 'task' && item.task?.status === 'completed')
+                              ? 0.6
+                              : 1,
+                          textDecoration:
+                            item.type === 'task' &&
+                            item.task?.status === 'completed'
+                              ? 'line-through'
+                              : 'none',
+                        }}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm font-semibold">{item.text}</div>
+                            {pastDue && (
+                              <span className="text-[9px] px-1.5 py-0.5 bg-red-500 text-white rounded uppercase font-bold">
+                                OVERDUE
+                              </span>
                             )}
                           </div>
-                        )}
-
-                        {/* Assignment Status Badges */}
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {plannedForToday && (
-                            <span
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
-                              style={{
-                                background: 'var(--retro-primary)',
-                                color: 'var(--retro-bg)',
-                                opacity: 0.8,
-                              }}
-                            >
-                              ✓ Already planned
-                            </span>
+                          <div className="text-[10px] opacity-60 uppercase mt-0.5">
+                            {item.type}
+                          </div>
+                          {item.type === 'task' && (
+                            <div className="text-[10px] mt-1 space-y-0.5">
+                              <div>Status: {item.task?.status || 'pending'}</div>
+                              {item.task?.priority && (
+                                <div>Priority: {item.task.priority}</div>
+                              )}
+                              {item.task?.due_date && (
+                                <div>
+                                  Due:{' '}
+                                  {new Date(item.task.due_date).toLocaleDateString()}
+                                </div>
+                              )}
+                            </div>
                           )}
-                          {otherDates.map((date) => (
-                            <span
-                              key={date}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
-                              style={{
-                                background: 'var(--retro-secondary)',
-                                color: 'var(--retro-text-primary)',
-                                opacity: 0.7,
-                              }}
-                              title={`Planned for ${date}`}
-                            >
-                              📅 {formatDateBadge(date)}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
 
-                      <button
-                        className="retro-btn retro-btn-secondary retro-btn-sm shrink-0"
-                        onClick={() => onAdd(item.id)}
-                        disabled={plannedForToday}
-                        style={{
-                          opacity: plannedForToday ? 0.5 : 1,
-                          cursor: plannedForToday ? 'not-allowed' : 'pointer',
-                        }}
-                        title={plannedForToday ? 'Already on this day' : 'Add to plan'}
-                      >
-                        Add
-                      </button>
-                    </div>
+                          {/* Assignment Status Badges */}
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {plannedForToday && (
+                              <span
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                                style={{
+                                  background: 'var(--retro-primary)',
+                                  color: 'var(--retro-bg)',
+                                  opacity: 0.8,
+                                }}
+                              >
+                                ✓ Already planned
+                              </span>
+                            )}
+                            {otherDates.map((date) => (
+                              <span
+                                key={date}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                                style={{
+                                  background: 'var(--retro-secondary)',
+                                  color: 'var(--retro-text-primary)',
+                                  opacity: 0.7,
+                                }}
+                                title={`Planned for ${date}`}
+                              >
+                                📅 {formatDateBadge(date)}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <button
+                          className="retro-btn retro-btn-secondary retro-btn-sm shrink-0"
+                          onClick={() => onAdd(item.id)}
+                          disabled={plannedForToday}
+                          style={{
+                            opacity: plannedForToday ? 0.5 : 1,
+                            cursor: plannedForToday ? 'not-allowed' : 'pointer',
+                          }}
+                          title={plannedForToday ? 'Already on this day' : 'Add to plan'}
+                        >
+                          Add
+                        </button>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <>
+                      {/* Overdue Section */}
+                      {groupedItems.overdue.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="text-xs font-bold uppercase tracking-wide text-red-500">
+                              ⚠️ Overdue ({groupedItems.overdue.length})
+                            </div>
+                            <div className="flex-1 h-px bg-red-500 opacity-30"></div>
+                          </div>
+                          <div className="space-y-2">
+                            {groupedItems.overdue.map(renderItem)}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Due Soon (Today/Tomorrow) Section */}
+                      {groupedItems.soon.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--retro-primary)' }}>
+                              🔔 Today/Tomorrow ({groupedItems.soon.length})
+                            </div>
+                            <div className="flex-1 h-px opacity-30" style={{ background: 'var(--retro-primary)' }}></div>
+                          </div>
+                          <div className="space-y-2">
+                            {groupedItems.soon.map(renderItem)}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* No Due Date Section */}
+                      {groupedItems.noDate.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="text-xs font-bold uppercase tracking-wide opacity-70">
+                              📋 No Due Date ({groupedItems.noDate.length})
+                            </div>
+                            <div className="flex-1 h-px bg-current opacity-20"></div>
+                          </div>
+                          <div className="space-y-2">
+                            {groupedItems.noDate.map(renderItem)}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Later Section */}
+                      {groupedItems.later.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="text-xs font-bold uppercase tracking-wide opacity-50">
+                              📅 Later ({groupedItems.later.length})
+                            </div>
+                            <div className="flex-1 h-px bg-current opacity-20"></div>
+                          </div>
+                          <div className="space-y-2">
+                            {groupedItems.later.map(renderItem)}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )
-                })}
+                })()}
               </div>
             </div>
           </motion.div>

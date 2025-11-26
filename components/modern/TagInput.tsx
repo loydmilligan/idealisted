@@ -15,12 +15,18 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { EntityType } from '@/lib/entity-colors'
+import { TagIcon } from '@/components/ui/TagIcon'
+import { parseTagIconFromDB } from '@/lib/tag-icons'
 
 interface TagInfo {
   name: string
   count: number
-  color: string
   category: string
+  icon_foreground_color?: string | null
+  icon_background_color?: string | null
+  icon_shape?: string | null
+  icon_texture?: string | null
+  icon_background_shape?: string | null
 }
 
 interface TagInputProps {
@@ -118,10 +124,9 @@ export const TagInput: React.FC<TagInputProps> = ({
     inputRef.current?.focus()
   }
 
-  // Get tag color from allTags or use default
-  const getTagColor = (tagName: string): string => {
-    const tag = allTags.find(t => t.name === tagName)
-    return tag?.color || '#868e96'
+  // Get tag icon data from allTags
+  const getTagInfo = (tagName: string): TagInfo | null => {
+    return allTags.find(t => t.name === tagName) || null
   }
 
   // Handle keyboard navigation (and mobile enter-as-tab behavior)
@@ -172,25 +177,35 @@ export const TagInput: React.FC<TagInputProps> = ({
 
       {/* Tag chips display */}
       <div className="retro-tag-chips">
-        {value.map((tag) => (
-          <div
-            key={tag}
-            className="retro-tag-chip"
-            style={{
-              backgroundColor: getTagColor(tag),
-            }}
-          >
-            <span className="retro-tag-chip-text">{tag}</span>
-            <button
-              type="button"
-              className="retro-tag-chip-remove"
-              onClick={() => removeTag(tag)}
-              aria-label={`Remove ${tag}`}
+        {value.map((tag) => {
+          const tagInfo = getTagInfo(tag)
+          const icon = tagInfo ? parseTagIconFromDB(tagInfo) : null
+          return (
+            <div
+              key={tag}
+              className="retro-tag-chip"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                backgroundColor: '#f0f0f0',
+                padding: '4px 8px',
+                borderRadius: '4px'
+              }}
             >
-              <X size={12} />
-            </button>
-          </div>
-        ))}
+              {icon && <TagIcon icon={icon} size={16} />}
+              <span className="retro-tag-chip-text">{tag}</span>
+              <button
+                type="button"
+                className="retro-tag-chip-remove"
+                onClick={() => removeTag(tag)}
+                aria-label={`Remove ${tag}`}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )
+        })}
 
         {/* Input field */}
         <input
@@ -212,21 +227,26 @@ export const TagInput: React.FC<TagInputProps> = ({
       {/* Autocomplete dropdown */}
       {showDropdown && filteredTags.length > 0 && (
         <div ref={dropdownRef} className="retro-tag-dropdown">
-          {filteredTags.map((tag, index) => (
-            <div
-              key={tag.name}
-              className={`retro-tag-dropdown-item ${focusedIndex === index ? 'focused' : ''}`}
-              onClick={() => addTag(tag.name)}
-              onMouseEnter={() => setFocusedIndex(index)}
-            >
+          {filteredTags.map((tag, index) => {
+            const icon = parseTagIconFromDB(tag)
+            return (
               <div
-                className="retro-tag-dropdown-color"
-                style={{ backgroundColor: tag.color }}
-              />
-              <span className="retro-tag-dropdown-name">{tag.name}</span>
-              <span className="retro-tag-dropdown-count">({tag.count})</span>
-            </div>
-          ))}
+                key={tag.name}
+                className={`retro-tag-dropdown-item ${focusedIndex === index ? 'focused' : ''}`}
+                onClick={() => addTag(tag.name)}
+                onMouseEnter={() => setFocusedIndex(index)}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px' }}
+              >
+                {icon ? (
+                  <TagIcon icon={icon} size={16} />
+                ) : (
+                  <div style={{ width: '16px', height: '16px' }} />
+                )}
+                <span className="retro-tag-dropdown-name">{tag.name}</span>
+                <span className="retro-tag-dropdown-count">({tag.count})</span>
+              </div>
+            )
+          })}
         </div>
       )}
 

@@ -859,6 +859,60 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
     }
   }
 
+  // Sprint 2 Phase 5: Handle Accept & Save with append logic
+  const handleAcceptAndSave = async (suggestion: AISuggestion) => {
+    // Check if this is an append operation
+    if (suggestion.suggested_action === 'append_to_list' && suggestion.target_entity_id && suggestion.append_items) {
+      try {
+        setIsCreatingItem(true)
+        setCreationError(null)
+
+        // Call bulk list items endpoint
+        const response = await fetch('/api/list-items/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            listId: suggestion.target_entity_id,
+            items: suggestion.append_items
+          })
+        })
+
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.error || 'Failed to append items')
+        }
+
+        // Success! Refresh items and clear state
+        await fetchItems()
+        setAiSuggestion(null)
+        setCapturedText('')
+        setCurrentAIItem(null)
+        setCreationError(null)
+
+        // Flash Files tab with list color
+        tabNavRef.current?.triggerFlash('files', 'list')
+
+        console.log('[Accept & Save] Successfully appended items to list')
+      } catch (error) {
+        console.error('[Accept & Save] Failed to append items:', error)
+        setCreationError('Failed to append items to list. Please try again.')
+      } finally {
+        setIsCreatingItem(false)
+      }
+      return
+    }
+
+    // For add_to_project, we need to open the editor with project context
+    if (suggestion.suggested_action === 'add_to_project' && suggestion.target_entity_id) {
+      // This should open the editor - for now just fall back to regular creation
+      await handleAcceptSuggestion(suggestion.suggested_type)
+      return
+    }
+
+    // Default: create new entity
+    await handleAcceptSuggestion(suggestion.suggested_type)
+  }
+
   // Handle template selection (Task 4.4)
   const handleTemplateSelected = (template: Template) => {
     setCurrentTemplate(template)
@@ -1174,6 +1228,27 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
   }
 
   // ===== Entity Handlers =====
+  // Helper: Generate markdown content from list items
+  const generateListMarkdown = (list: any): string => {
+    if (!list?.items || list.items.length === 0) {
+      return '*(No items yet)*'
+    }
+
+    const listType = (list.list_type || 'bulleted').toLowerCase()
+
+    return list.items
+      .map((item: any, index: number) => {
+        const checkbox = listType === 'tasklist' || listType === 'shopping'
+          ? (item.done ? '- [x] ' : '- [ ] ')
+          : listType === 'numbered'
+          ? `${index + 1}. `
+          : '- '
+
+        return `${checkbox}${item.text}`
+      })
+      .join('\n')
+  }
+
   const handleEntityTap = async (entityId: string) => {
     const entity = items.find(i => i.id === entityId)
     if (!entity) return
@@ -1183,8 +1258,13 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
     const data = await response.json()
     const fullEntity = data.item
 
-    // Check if this is a markdown entity
-    if (fullEntity.markdown_content) {
+    // Check if this is a markdown entity (or a list, which should always use markdown viewer)
+    if (fullEntity.markdown_content || fullEntity.type === 'list') {
+      // Generate markdown for lists without markdown_content
+      if (fullEntity.type === 'list' && !fullEntity.markdown_content && fullEntity.list) {
+        fullEntity.markdown_content = generateListMarkdown(fullEntity.list)
+      }
+
       const inferTemplateId = () => {
         if (fullEntity.template_id) return fullEntity.template_id
         if (fullEntity.type === 'list') {
@@ -1652,7 +1732,7 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
             onDismissSuggestion={handleDismissSuggestion}
             onOverrideAndEdit={handleOverrideAndEdit}
             onAcceptAndEdit={handleAcceptAndEdit}
-            onAcceptAndSave={async (suggestion) => await handleAcceptSuggestion(suggestion.suggested_type)}
+            onAcceptAndSave={handleAcceptAndSave}
           />
         )}
 

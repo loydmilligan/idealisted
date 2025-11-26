@@ -348,9 +348,13 @@ export async function PUT(
     }
 
     if (body.task) {
-      const existingTask = db.prepare('SELECT id FROM tasks WHERE item_id = ?').get(params.id)
+      const existingTask = db.prepare('SELECT id, status FROM tasks WHERE item_id = ?').get(params.id) as { id: string; status: string } | undefined
 
       if (existingTask) {
+        // Check if task is being marked as completed
+        const wasCompleted = existingTask.status === 'completed'
+        const isNowCompleted = body.task.status === 'completed'
+
         const updateTask = db.prepare(`
           UPDATE tasks
           SET status = ?, priority = ?, tags = ?, estimated_time = ?, project_id = ?, due_date = ?, reminder_datetime = ?
@@ -366,6 +370,31 @@ export async function PUT(
           body.task.reminder_datetime || null,
           params.id
         )
+
+        // Send task completed notification if status changed to completed
+        if (!wasCompleted && isNowCompleted) {
+          // Async notification - don't block the response
+          (async () => {
+            try {
+              // Load notification settings
+              const ntfySettings = db.prepare('SELECT value FROM settings WHERE key = ?').get('ntfy_config') as { value: string } | undefined
+              const eventSettings = db.prepare('SELECT value FROM settings WHERE key = ?').get('notification_events') as { value: string } | undefined
+
+              if (ntfySettings && eventSettings) {
+                const ntfyConfig = JSON.parse(ntfySettings.value)
+                const events = JSON.parse(eventSettings.value)
+
+                if (ntfyConfig.enabled && events.taskCompleted) {
+                  const { ntfyService } = await import('@/lib/notify')
+                  await ntfyService.notifyTaskCompleted(existingItem.text)
+                }
+              }
+            } catch (error) {
+              console.error('[Task Completed] Failed to send notification:', error)
+              // Don't fail the request even if notification fails
+            }
+          })()
+        }
 
         // TODO (P6-T6): Check if this was the last incomplete task for today's plan
         // If so, trigger milestone notification via /api/notify/milestone-all-tasks-complete

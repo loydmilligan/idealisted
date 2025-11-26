@@ -50,7 +50,10 @@ export const AISettingsTab: React.FC = () => {
       const settingsResponse = await fetch('/api/settings')
       const settingsData = await settingsResponse.json()
       if (settingsData.settings?.ai_config) {
-        setConfig(settingsData.settings.ai_config)
+        setConfig({
+          ...config, // Start with defaults
+          ...settingsData.settings.ai_config, // Override with saved values
+        })
       }
 
       // Load feature settings
@@ -201,6 +204,10 @@ export const AISettingsTab: React.FC = () => {
         return 'AI Tag Suggestions'
       case 'daily_summary':
         return 'AI Daily Summary'
+      case 'list_append_ai':
+        return 'AI List Item Suggestions'
+      case 'project_ai_add':
+        return 'AI Project Suggestions'
       default:
         return featureName
     }
@@ -214,6 +221,10 @@ export const AISettingsTab: React.FC = () => {
         return 'AI-powered tag recommendations when creating or editing entities. Prioritizes existing tags.'
       case 'daily_summary':
         return 'AI-generated summary in daily review notification. Requires notifications enabled.'
+      case 'list_append_ai':
+        return 'AI suggestions for adding items to existing lists. E.g., "add milk to grocery list".'
+      case 'project_ai_add':
+        return 'AI suggestions for adding tasks and notes to existing projects.'
       default:
         return ''
     }

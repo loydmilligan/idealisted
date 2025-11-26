@@ -1,4 +1,3 @@
-import axios from 'axios'
 import { NtfyConfig } from '../types/index'
 
 interface NotificationEvents {
@@ -88,20 +87,36 @@ class NtfyService {
       }
 
       // Prepare headers (ntfy.sh uses headers for metadata, body for message text)
-      // Sanitize header values: remove newlines and limit length
+      // Sanitize header values: remove newlines, non-ASCII characters, and limit length
+      // HTTP/1.1 headers must only contain ASCII characters (0x20-0x7E)
       const sanitizeHeader = (str: string, maxLength: number = 256) => {
-        return str.replace(/[\r\n]/g, ' ').substring(0, maxLength).trim()
+        return str
+          .replace(/[\r\n]/g, ' ')                    // Remove newlines
+          .replace(/[^\x20-\x7E]/g, '')               // Remove non-ASCII characters (emojis, etc.)
+          .replace(/\s+/g, ' ')                       // Collapse multiple spaces
+          .substring(0, maxLength)
+          .trim()
       }
 
-      const headers: any = {
-        'Title': sanitizeHeader(title, 100),
-        'Priority': config.priority || priority,
+      // Prepare headers using ntfy.sh conventions
+      // ALL header values must be plain ASCII strings
+      const sanitizedTitle = sanitizeHeader(title, 100)
+      const sanitizedPriority = String(config.priority || priority)
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Title': sanitizedTitle,
+        'Priority': sanitizedPriority,
         'Tags': 'brain,lightbulb'
       }
 
       // Add actions as JSON header if provided
+      // Sanitize actions JSON - ensure it only contains valid HTTP header characters
       if (actions && actions.length > 0) {
-        headers['Actions'] = JSON.stringify(actions)
+        const actionsJson = JSON.stringify(actions)
+        // Remove any non-ASCII characters from the JSON string
+        const sanitizedActions = actionsJson.replace(/[^\x20-\x7E]/g, '')
+        headers['Actions'] = sanitizedActions
       }
 
       // Add basic auth if username and password are provided
@@ -114,25 +129,34 @@ class NtfyService {
       // Sanitize message body - remove excessive newlines but keep formatting
       const sanitizedMessage = message.replace(/\n{3,}/g, '\n\n').trim()
 
-      const response = await axios.post(
-        `${config.server}/${config.topic}`,
-        sanitizedMessage,  // Plain text message in body
-        { headers }
-      )
+      // Use fetch instead of axios to avoid header transformation issues
+      const response = await fetch(`${config.server}/${config.topic}`, {
+        method: 'POST',
+        headers,
+        body: sanitizedMessage
+      })
 
-      return { success: true, id: response.data.id }
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      return { success: true, id: data.id }
     } catch (error) {
       console.error('Failed to send ntfy notification:', error)
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      console.error('Headers that failed:', JSON.stringify(headers, null, 2))
+      console.error('Title value:', JSON.stringify(title))
+      console.error('Sanitized title:', JSON.stringify(headers['Title']))
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
       }
     }
   }
 
   async notifyAISuggestion(
-    itemId: string, 
-    suggestion: string, 
+    itemId: string,
+    suggestion: string,
     suggestionType: string
   ) {
     const actions = [
@@ -155,8 +179,8 @@ class NtfyService {
     ]
 
     return this.sendNotification(
-      `💡 AI Suggestion: ${suggestionType}`,
-      suggestion,
+      `AI Suggestion: ${suggestionType}`,
+      `💡 ${suggestion}`,
       actions,
       'high'
     )
@@ -164,8 +188,8 @@ class NtfyService {
 
   async notifyPlanReady(planDate: string, taskCount: number) {
     return this.sendNotification(
-      '📅 Daily Plan Ready',
-      `Your plan for ${planDate} has ${taskCount} tasks ready to go.`,
+      'Daily Plan Ready',
+      `📅 Your plan for ${planDate} has ${taskCount} tasks ready to go.`,
       [
         {
           action: 'view',
@@ -179,8 +203,8 @@ class NtfyService {
 
   async notifyTaskDue(taskText: string, dueTime: string) {
     return this.sendNotification(
-      '⏰ Task Due Soon',
-      `"${taskText}" is due at ${dueTime}`,
+      'Task Due Soon',
+      `⏰ "${taskText}" is due at ${dueTime}`,
       [
         {
           action: 'complete',
@@ -200,8 +224,8 @@ class NtfyService {
 
   async notifyCaptureSuccess(text: string) {
     return this.sendNotification(
-      '✅ Idea Captured',
-      `"${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`,
+      'Idea Captured',
+      `✅ "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`,
       [
         {
           action: 'view',
@@ -228,8 +252,8 @@ class NtfyService {
 
     const entityLabel = entityType.charAt(0).toUpperCase() + entityType.slice(1)
     return this.sendNotification(
-      '📋 Idea Sorted',
-      `"${text.substring(0, 50)}${text.length > 50 ? '...' : ''}" → ${entityLabel}`,
+      'Idea Sorted',
+      `📋 "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}" → ${entityLabel}`,
       [],
       'low'
     )
@@ -242,8 +266,8 @@ class NtfyService {
 
     const entityLabel = entityType.charAt(0).toUpperCase() + entityType.slice(1)
     return this.sendNotification(
-      '✨ Entity Created',
-      `${entityLabel}: "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}"`,
+      'Entity Created',
+      `✨ ${entityLabel}: "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}"`,
       [],
       'default'
     )
@@ -255,8 +279,8 @@ class NtfyService {
     }
 
     return this.sendNotification(
-      '✅ Task Completed',
-      `"${taskText.substring(0, 50)}${taskText.length > 50 ? '...' : ''}"`,
+      'Task Completed',
+      `✅ "${taskText.substring(0, 50)}${taskText.length > 50 ? '...' : ''}"`,
       [],
       'default'
     )
@@ -270,8 +294,8 @@ class NtfyService {
 
     const baseURL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
     return this.sendNotification(
-      '📅 Plan Finalized!',
-      `Your plan for ${date} is set with ${taskCount} task${taskCount !== 1 ? 's' : ''}.`,
+      'Plan Finalized!',
+      `📅 Your plan for ${date} is set with ${taskCount} task${taskCount !== 1 ? 's' : ''}.`,
       [
         {
           action: 'view',
@@ -290,8 +314,8 @@ class NtfyService {
 
     const pct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
     return this.sendNotification(
-      '🌙 Evening Review Complete!',
-      `${date}: ${completedCount}/${totalCount} tasks done (${pct}%). Great job!`,
+      'Evening Review Complete!',
+      `🌙 ${date}: ${completedCount}/${totalCount} tasks done (${pct}%). Great job!`,
       [],
       'default'
     )
@@ -303,8 +327,8 @@ class NtfyService {
     }
 
     return this.sendNotification(
-      '🎉 All Tasks Completed!',
-      `Congratulations! You've completed all tasks for ${date}.`,
+      'All Tasks Completed!',
+      `🎉 Congratulations! You've completed all tasks for ${date}.`,
       [],
       'high'
     )

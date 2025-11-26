@@ -5,10 +5,6 @@ import { NtfyConfig, ReminderConfig, DailySummaryConfig } from '@/types'
 
 interface NotificationEvents {
   taskCompleted: boolean
-  taskDueSoon: boolean
-  ideaCaptured: boolean
-  ideaSorted: boolean
-  entityCreated: boolean
 }
 
 export const NotificationsTab: React.FC = () => {
@@ -22,15 +18,6 @@ export const NotificationsTab: React.FC = () => {
   })
   const [events, setEvents] = useState<NotificationEvents>({
     taskCompleted: true,
-    taskDueSoon: true,
-    ideaCaptured: true,
-    ideaSorted: true,
-    entityCreated: true,
-  })
-  const [dailyReview, setDailyReview] = useState({
-    enabled: true,
-    time: '18:00',
-    includeAiSummary: true,
   })
   const [reminderConfig, setReminderConfig] = useState<ReminderConfig>({
     enabled: false,
@@ -57,7 +44,8 @@ export const NotificationsTab: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
-  const [testingReview, setTestingReview] = useState(false)
+  const [testingSummary, setTestingSummary] = useState(false)
+  const [testingReminder, setTestingReminder] = useState(false)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
@@ -81,9 +69,6 @@ export const NotificationsTab: React.FC = () => {
       }
       if (settingsData.settings?.notification_events) {
         setEvents(settingsData.settings.notification_events)
-      }
-      if (settingsData.settings?.daily_review) {
-        setDailyReview(settingsData.settings.daily_review)
       }
       if (reminderData.success && reminderData.config) {
         setReminderConfig(reminderData.config)
@@ -169,7 +154,6 @@ export const NotificationsTab: React.FC = () => {
           body: JSON.stringify({
             ntfy_config: config,
             notification_events: events,
-            daily_review: dailyReview,
             daily_summary_config: dailySummaryConfig,
           }),
         }),
@@ -218,7 +202,6 @@ export const NotificationsTab: React.FC = () => {
         body: JSON.stringify({
           ntfy_config: config,
           notification_events: events,
-          daily_review: dailyReview,
         }),
       })
 
@@ -254,31 +237,51 @@ export const NotificationsTab: React.FC = () => {
     }
   }
 
-  const handleTestReview = async () => {
-    setTestingReview(true)
+  // Sprint 2 - Task 4.3: Test Summary Button
+  const handleTestSummary = async () => {
+    setTestingSummary(true)
     setMessage('')
 
     try {
-      const response = await fetch('/api/review', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          includeAI: dailyReview.includeAiSummary,
-          test: true  // Don't persist snapshot to disk
-        }),
+      const response = await fetch('/api/summary/test', {
+        method: 'POST'
       })
 
       if (response.ok) {
-        setMessage('✓ Daily review notification sent successfully')
+        setMessage('✓ Test summary sent')
       } else {
         const data = await response.json()
-        setMessage(`✗ Daily review test failed: ${data.error || 'Unknown error'}`)
+        setMessage(`✗ Test failed: ${data.error || 'Unknown error'}`)
       }
     } catch (error) {
-      setMessage('✗ Test error: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      setMessage('✗ Connection failed')
     } finally {
-      setTestingReview(false)
-      setTimeout(() => setMessage(''), 3000)
+      setTestingSummary(false)
+      setTimeout(() => setMessage(''), 5000)
+    }
+  }
+
+  // Sprint 2 - Task 4.4: Test Reminder Button
+  const handleTestReminder = async () => {
+    setTestingReminder(true)
+    setMessage('')
+
+    try {
+      const response = await fetch('/api/reminders/test', {
+        method: 'POST'
+      })
+
+      if (response.ok) {
+        setMessage('✓ Test reminder sent')
+      } else {
+        const data = await response.json()
+        setMessage(`✗ Test failed: ${data.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      setMessage('✗ Connection failed')
+    } finally {
+      setTestingReminder(false)
+      setTimeout(() => setMessage(''), 5000)
     }
   }
 
@@ -376,7 +379,7 @@ export const NotificationsTab: React.FC = () => {
 
       <hr className="retro-divider" />
 
-      <h3 className="retro-section-title">EVENT NOTIFICATIONS</h3>
+      <h3 className="retro-section-title">OTHER EVENTS</h3>
 
       <label className="retro-checkbox-label">
         <input
@@ -385,96 +388,12 @@ export const NotificationsTab: React.FC = () => {
           checked={events.taskCompleted}
           onChange={(e) => setEvents({ ...events, taskCompleted: e.target.checked })}
         />
-        Task completed
-      </label>
-
-      <label className="retro-checkbox-label">
-        <input
-          type="checkbox"
-          className="retro-checkbox"
-          checked={events.taskDueSoon}
-          onChange={(e) => setEvents({ ...events, taskDueSoon: e.target.checked })}
-        />
-        Task due soon (1 hour)
-      </label>
-
-      <label className="retro-checkbox-label">
-        <input
-          type="checkbox"
-          className="retro-checkbox"
-          checked={events.ideaCaptured}
-          onChange={(e) => setEvents({ ...events, ideaCaptured: e.target.checked })}
-        />
-        New idea captured
-      </label>
-
-      <label className="retro-checkbox-label">
-        <input
-          type="checkbox"
-          className="retro-checkbox"
-          checked={events.ideaSorted}
-          onChange={(e) => setEvents({ ...events, ideaSorted: e.target.checked })}
-        />
-        Idea sorted to Ready
-      </label>
-
-      <label className="retro-checkbox-label">
-        <input
-          type="checkbox"
-          className="retro-checkbox"
-          checked={events.entityCreated}
-          onChange={(e) => setEvents({ ...events, entityCreated: e.target.checked })}
-        />
-        Entity created
+        Notify when task is completed
       </label>
 
       <hr className="retro-divider" />
 
-      <h3 className="retro-section-title">DAILY REVIEW REMINDER</h3>
-
-      <label className="retro-checkbox-label">
-        <input
-          type="checkbox"
-          className="retro-checkbox"
-          checked={dailyReview.enabled}
-          onChange={(e) => setDailyReview({ ...dailyReview, enabled: e.target.checked })}
-        />
-        Enable daily review
-      </label>
-
-      <div className="retro-form-group">
-        <label className="retro-form-label">Time</label>
-        <input
-          type="time"
-          className="retro-input"
-          value={dailyReview.time}
-          onChange={(e) => setDailyReview({ ...dailyReview, time: e.target.value })}
-        />
-      </div>
-
-      <label className="retro-checkbox-label">
-        <input
-          type="checkbox"
-          className="retro-checkbox"
-          checked={dailyReview.includeAiSummary}
-          onChange={(e) => setDailyReview({ ...dailyReview, includeAiSummary: e.target.checked })}
-        />
-        Include AI summary
-      </label>
-
-      <div className="retro-button-row">
-        <button
-          className="retro-btn retro-btn-secondary"
-          onClick={handleTestReview}
-          disabled={testingReview || !config.enabled || !config.topic}
-        >
-          {testingReview ? 'TESTING...' : 'TEST DAILY REVIEW'}
-        </button>
-      </div>
-
-      <hr className="retro-divider" />
-
-      <h3 className="retro-section-title">TASK REMINDER PREFERENCES</h3>
+      <h3 className="retro-section-title">TASK REMINDERS</h3>
 
       <label className="retro-checkbox-label">
         <input
@@ -483,17 +402,8 @@ export const NotificationsTab: React.FC = () => {
           checked={reminderConfig.enabled}
           onChange={(e) => setReminderConfig({ ...reminderConfig, enabled: e.target.checked })}
         />
-        Enable task reminders
+        Send reminders when tasks are due
       </label>
-      <p style={{
-        fontSize: '11px',
-        color: 'var(--retro-text-secondary)',
-        marginTop: '4px',
-        marginLeft: '24px',
-        marginBottom: '16px'
-      }}>
-        Automatically send notifications for tasks with due dates
-      </p>
 
       <div className="retro-form-group">
         <label className="retro-form-label">Default reminder timing</label>
@@ -546,17 +456,8 @@ export const NotificationsTab: React.FC = () => {
             })}
             disabled={!reminderConfig.enabled}
           />
-          Enable quiet hours
+          Suppress notifications during these hours
         </label>
-        <p style={{
-          fontSize: '11px',
-          color: 'var(--retro-text-secondary)',
-          marginTop: '4px',
-          marginLeft: '24px',
-          marginBottom: '12px'
-        }}>
-          Suppress notifications during specified time range
-        </p>
       </div>
 
       {reminderConfig.quietHours.enabled && (
@@ -593,14 +494,7 @@ export const NotificationsTab: React.FC = () => {
       )}
 
       <div className="retro-form-group">
-        <label className="retro-form-label">Priority filter</label>
-        <p style={{
-          fontSize: '11px',
-          color: 'var(--retro-text-secondary)',
-          marginBottom: '8px'
-        }}>
-          Only send reminders for tasks with these priority levels
-        </p>
+        <label className="retro-form-label">Priority filter (send reminders for these levels only)</label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {[
             { value: 1, label: 'Low (1)' },
@@ -632,9 +526,20 @@ export const NotificationsTab: React.FC = () => {
         </div>
       </div>
 
+      {/* Sprint 2 - Task 4.4: Test Reminder Button */}
+      <div className="retro-button-row" style={{ marginTop: '12px' }}>
+        <button
+          className="retro-btn retro-btn-secondary"
+          onClick={handleTestReminder}
+          disabled={testingReminder || !reminderConfig.enabled || !config.enabled}
+        >
+          {testingReminder ? 'TESTING...' : 'TEST REMINDER'}
+        </button>
+      </div>
+
       <hr className="retro-divider" />
 
-      <h3 className="retro-section-title">DAILY SUMMARY PREFERENCES</h3>
+      <h3 className="retro-section-title">AI DAILY SUMMARY</h3>
 
       <label className="retro-checkbox-label">
         <input
@@ -644,7 +549,7 @@ export const NotificationsTab: React.FC = () => {
           onChange={(e) => setDailySummaryConfig({ ...dailySummaryConfig, enabled: e.target.checked })}
           disabled={!config.enabled}
         />
-        Enable daily summary notifications
+        Send AI-generated activity summaries
       </label>
       <p style={{
         fontSize: '11px',
@@ -653,18 +558,11 @@ export const NotificationsTab: React.FC = () => {
         marginLeft: '24px',
         marginBottom: '16px'
       }}>
-        Periodic digest of your daily activity. Requires AI features and notifications enabled.
+        Requires AI features + Notifications enabled
       </p>
 
       <div className="retro-form-group">
-        <label className="retro-form-label">Summary times</label>
-        <p style={{
-          fontSize: '11px',
-          color: 'var(--retro-text-secondary)',
-          marginBottom: '8px'
-        }}>
-          Choose when to receive daily summaries
-        </p>
+        <label className="retro-form-label">Summary times (when to receive summaries)</label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {[
             { value: '09:00', label: 'Morning (9:00 AM)' },
@@ -691,7 +589,76 @@ export const NotificationsTab: React.FC = () => {
               {time.label}
             </label>
           ))}
+
+          {/* Custom time option (Sprint 2 - Task 4.2) */}
+          <label
+            className="retro-checkbox-label"
+            style={!dailySummaryConfig.enabled || !config.enabled ? { opacity: 0.5 } : {}}
+          >
+            <input
+              type="checkbox"
+              className="retro-checkbox"
+              checked={!!dailySummaryConfig.customTime}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  // Enable custom time with default of 2 PM
+                  const defaultTime = '14:00'
+                  setDailySummaryConfig({
+                    ...dailySummaryConfig,
+                    customTime: defaultTime,
+                    times: [...dailySummaryConfig.times, defaultTime]
+                  })
+                } else {
+                  // Disable custom time and remove it from times array
+                  setDailySummaryConfig({
+                    ...dailySummaryConfig,
+                    customTime: undefined,
+                    times: dailySummaryConfig.times.filter(t => t !== dailySummaryConfig.customTime)
+                  })
+                }
+              }}
+              disabled={!dailySummaryConfig.enabled || !config.enabled}
+            />
+            Custom time
+          </label>
+
+          {/* Time picker (shown when custom enabled) */}
+          {dailySummaryConfig.customTime && (
+            <input
+              type="time"
+              className="retro-input"
+              style={{
+                marginLeft: '24px',
+                width: '150px',
+                opacity: !dailySummaryConfig.enabled || !config.enabled ? 0.5 : 1
+              }}
+              value={dailySummaryConfig.customTime}
+              onChange={(e) => {
+                const oldTime = dailySummaryConfig.customTime
+                const newTime = e.target.value
+
+                // Update custom time and replace it in times array
+                setDailySummaryConfig({
+                  ...dailySummaryConfig,
+                  customTime: newTime,
+                  times: dailySummaryConfig.times.map(t => t === oldTime ? newTime : t)
+                })
+              }}
+              disabled={!dailySummaryConfig.enabled || !config.enabled}
+            />
+          )}
         </div>
+      </div>
+
+      {/* Sprint 2 - Task 4.3: Test Summary Button */}
+      <div className="retro-button-row" style={{ marginTop: '12px' }}>
+        <button
+          className="retro-btn retro-btn-secondary"
+          onClick={handleTestSummary}
+          disabled={testingSummary || !dailySummaryConfig.enabled || !config.enabled}
+        >
+          {testingSummary ? 'TESTING...' : 'TEST SUMMARY'}
+        </button>
       </div>
 
       {message && (
