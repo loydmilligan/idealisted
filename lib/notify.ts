@@ -68,8 +68,8 @@ class NtfyService {
   }
 
   async sendNotification(
-    title: string, 
-    message: string, 
+    title: string,
+    message: string,
     actions?: Array<{
       action: string
       label: string
@@ -78,6 +78,9 @@ class NtfyService {
     }>,
     priority: NtfyConfig['priority'] = 'default'
   ) {
+    // Declare headers outside try block so it's accessible in catch block
+    let headers: Record<string, string> = {}
+
     try {
       await this.loadConfig()
       const config = this.getConfig()
@@ -103,7 +106,7 @@ class NtfyService {
       const sanitizedTitle = sanitizeHeader(title, 100)
       const sanitizedPriority = String(config.priority || priority)
 
-      const headers: Record<string, string> = {
+      headers = {
         'Content-Type': 'text/plain; charset=utf-8',
         'Title': sanitizedTitle,
         'Priority': sanitizedPriority,

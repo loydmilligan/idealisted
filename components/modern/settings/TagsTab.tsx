@@ -10,11 +10,11 @@ interface TagInfo {
   name: string
   count: number
   category: string
-  icon_foreground_color?: string | null
-  icon_background_color?: string | null
-  icon_shape?: string | null
-  icon_texture?: string | null
-  icon_background_shape?: string | null
+  icon_foreground_color: string | null
+  icon_background_color: string | null
+  icon_shape: string | null
+  icon_texture: string | null
+  icon_background_shape: string | null
 }
 
 interface EditingTag {

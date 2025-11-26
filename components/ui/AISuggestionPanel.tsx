@@ -155,7 +155,7 @@ export function AISuggestionPanel({
                   Found Existing List
                 </p>
                 <p className="text-xs text-green-600 mb-2">
-                  "{suggestion.target_entity_name}"
+                  &quot;{suggestion.target_entity_name}&quot;
                 </p>
                 {suggestion.append_items && suggestion.append_items.length > 0 && (
                   <div className="mt-2">
@@ -186,7 +186,7 @@ export function AISuggestionPanel({
                   Found Existing Project
                 </p>
                 <p className="text-xs text-blue-600">
-                  "{suggestion.target_entity_name}"
+                  &quot;{suggestion.target_entity_name}&quot;
                 </p>
                 <p className="text-xs text-blue-600 mt-2">
                   This could be added as a task or note within the project.
