@@ -210,15 +210,10 @@ class NtfyService {
       `⏰ "${taskText}" is due at ${dueTime}`,
       [
         {
-          action: 'complete',
-          label: 'Mark Complete',
-          url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/todos/complete`,
-          clear: true
-        },
-        {
-          action: 'snooze',
-          label: 'Snooze',
-          clear: true
+          action: 'view',
+          label: 'View Task',
+          url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/?tab=files&type=task`,
+          clear: false
         }
       ],
       'urgent'
