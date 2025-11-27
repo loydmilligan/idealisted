@@ -238,13 +238,13 @@ function parseAIResponse(aiResponse, pageData, noteType) {
   const markdownContent = parsedData?.content || generateFallbackContent(pageData, noteType);
   const title = parsedData?.title || generateFallbackTitle(pageData, noteType);
 
-  // Map noteType to note subtype (video -> video, research -> research, link -> link)
+  // Map noteType to note subtype (video -> youtube, research -> research, link -> generic)
   const subtypeMap = {
-    video: 'video',
+    video: 'youtube',  // YouTube videos get subtype 'youtube' (matches note-youtube template)
     research: 'research',
-    link: 'link'
+    link: 'generic'  // Generic links get subtype 'generic' (matches note-generic template)
   };
-  const subtype = subtypeMap[noteType] || 'general';
+  const subtype = subtypeMap[noteType] || 'generic';
 
   // Build note with markdown_content and template_id for new markdown viewer
   const note = {
@@ -315,40 +315,33 @@ function generateFallbackTags(pageData, noteType) {
 
 // Fallback content generation
 function generateFallbackContent(pageData, noteType) {
-  const now = new Date().toISOString().split('T')[0];
-
   if (noteType === 'video') {
-    return `---
-type: video
-created: ${now}
-url: ${pageData.url}
-channel: ${pageData.channel || 'Unknown'}
-duration: ${pageData.duration || 'Unknown'}
-status: to-watch
----
+    // Match the note-youtube template format exactly
+    return `# ${pageData.title}
 
-# ${pageData.title}
+**URL**: ${pageData.url}
+**Duration**: ${pageData.duration || 'Unknown'}
+**Status**: Not Watched
 
-## Video Info
+## Key Concepts
+
 - **Channel**: ${pageData.channel || 'Unknown'}
-- **Duration**: ${pageData.duration || 'Unknown'}
 - **Published**: ${pageData.publishDate || 'Unknown'}
 - **Views**: ${pageData.views || 'Unknown'}
 
-## Why I Saved This
-- [ ] Add your notes here
+## Timestamps
 
-## Key Timestamps
-- 0:00 - Start
 
-## Main Takeaways
--
 
-## Action Items
-- [ ]
+## AI Summary
 
-## Description
-${pageData.description?.substring(0, 1000) || 'No description available'}
+
+
+## My Notes
+
+**Why I Saved This:**
+
+${pageData.description?.substring(0, 500) || 'No description available'}
 `;
   }
 
