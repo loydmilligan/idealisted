@@ -1049,6 +1049,41 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
     }
   }
 
+  const handleSuggestLinks = async (noteId: string) => {
+    try {
+      // Show loading indicator
+      console.log('Suggesting links for note:', noteId)
+
+      const response = await fetch(`/api/notes/${noteId}/links?max=5&confidence=0.6&autoApply=true`)
+      const data = await response.json()
+
+      if (data.success) {
+        const totalLinks = data.suggested_links.length + data.auto_applied_links.length
+
+        if (totalLinks === 0) {
+          alert('No related notes found. Try creating more notes with similar topics!')
+        } else {
+          const appliedMsg = data.auto_applied_links.length > 0
+            ? `${data.auto_applied_links.length} high-confidence links auto-applied.\n`
+            : ''
+          const suggestedMsg = data.suggested_links.length > 0
+            ? `${data.suggested_links.length} suggestions pending review.`
+            : ''
+
+          alert(`✓ Link analysis complete!\n\n${appliedMsg}${suggestedMsg}\n\nLinks will appear in the "Related Notes" section when synced to Obsidian.`)
+
+          // Refresh items to update sync status
+          await fetchItems()
+        }
+      } else {
+        alert(`Error suggesting links: ${data.error}`)
+      }
+    } catch (error) {
+      console.error('Failed to suggest links:', error)
+      alert('Failed to suggest links. Make sure AI is enabled in settings.')
+    }
+  }
+
   const handleAIAction = async (itemId: string, action: string) => {
     try {
       const endpoint = action === 'sort' ? 'parse' : 'convert'
@@ -2185,6 +2220,29 @@ const buildPreFillData = (suggestion: AISuggestion, template: Template): PreFill
                       >
                         <Pencil size={18} />
                       </button>
+
+                      {/* Suggest Links Button (Notes only) */}
+                      {currentMarkdownItem.type === 'note' && (
+                        <button
+                          onClick={() => handleSuggestLinks(currentMarkdownItem.id)}
+                          className="retro-icon-btn tap-target"
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--palm-bg-primary)',
+                            cursor: 'pointer',
+                            padding: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            touchAction: 'manipulation',
+                          }}
+                          title="Suggest Links"
+                          aria-label="Suggest Links"
+                        >
+                          <Sparkles size={18} />
+                        </button>
+                      )}
 
                       {/* Archive Button */}
                       <button

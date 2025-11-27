@@ -23,6 +23,7 @@ import { db } from './db'
 import { createHash } from 'crypto'
 import * as fs from 'fs'
 import * as path from 'path'
+import { noteLinkingService } from './note-linking'
 
 interface SyncResult {
   success: boolean
@@ -172,14 +173,30 @@ export class ObsidianSyncService {
    */
   private mapSubtypeToFolder(subtype: string): string {
     const folderMap: Record<string, string> = {
-      'video': 'youtube',      // YouTube videos
-      'general': 'generic',    // General notes
-      'research': 'research',  // Research notes
-      'link': 'links',         // Web links
-      'file': 'files',         // File notes
-      'contact': 'contacts',   // Contact notes
-      'meeting': 'meetings',   // Meeting notes
-      'media': 'media'         // Media notes (images, etc.)
+      // Media
+      'video': 'youtube',           // YouTube videos
+      'media': 'media',             // Images, audio, etc.
+
+      // Specialized research
+      '3d-model': '3d-models',      // 3D printing models (Thingiverse, Thangs, etc.)
+      'political': 'political',     // Political articles with bias analysis
+      'travel': 'travel',           // Travel research (planning vs inspiration)
+
+      // Tech/Code
+      'code-repo': 'code/repos',    // GitHub, GitLab, Bitbucket repos
+      'code-snippet': 'code/snippets', // StackOverflow, Gist, Pastebin
+      'electronics': 'electronics', // Hackster, Instructables, Hackaday
+      'smart-home': 'smart-home',   // Home Assistant, ESPHome, devices
+
+      // General knowledge work
+      'research': 'research',       // Research notes
+      'meeting': 'meetings',        // Meeting notes
+      'contact': 'contacts',        // Contact notes
+
+      // Catch-all
+      'general': 'generic',         // General notes
+      'link': 'links',              // Web links
+      'file': 'files'               // File notes
     }
     return folderMap[subtype] || 'generic'
   }
@@ -253,7 +270,41 @@ export class ObsidianSyncService {
       content = this.addMediaEmbed(content, item.subtype)
     }
 
+    // Insert wiki-style links for approved note links (Obsidian integration)
+    if (item.type === 'note') {
+      content = this.insertWikiLinks(item.id, content)
+    }
+
     return `${frontmatter}\n${content}`
+  }
+
+  /**
+   * Insert wiki-style [[links]] for approved note relationships
+   */
+  private insertWikiLinks(noteId: string, content: string): string {
+    try {
+      const approvedLinks = noteLinkingService.getApprovedLinks(noteId)
+
+      if (approvedLinks.length === 0) {
+        return content
+      }
+
+      // Add a "Related Notes" section at the end with wiki links
+      const linkSection = '\n\n## Related Notes\n\n' +
+        approvedLinks.map(link => {
+          const linkText = `[[${link.target_title}]]`
+          // Add link type as context if not just 'related'
+          if (link.link_type !== 'related') {
+            return `- ${linkText} *(${link.link_type})*`
+          }
+          return `- ${linkText}`
+        }).join('\n')
+
+      return content + linkSection
+    } catch (error) {
+      console.error('Error inserting wiki links:', error)
+      return content
+    }
   }
 
   /**

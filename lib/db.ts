@@ -799,6 +799,24 @@ export function initializeDatabase() {
     )
   `)
 
+  // Note links table - AI-suggested relationships between notes
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS note_links (
+      id TEXT PRIMARY KEY,
+      source_note_id TEXT NOT NULL,
+      target_note_id TEXT NOT NULL,
+      link_type TEXT DEFAULT 'related' CHECK (link_type IN ('related', 'references', 'builds-on', 'contradicts', 'similar')),
+      confidence REAL CHECK (confidence >= 0.0 AND confidence <= 1.0),
+      ai_reason TEXT,
+      status TEXT DEFAULT 'suggested' CHECK (status IN ('suggested', 'approved', 'rejected', 'auto-applied')),
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER,
+      FOREIGN KEY (source_note_id) REFERENCES items(id) ON DELETE CASCADE,
+      FOREIGN KEY (target_note_id) REFERENCES items(id) ON DELETE CASCADE,
+      UNIQUE(source_note_id, target_note_id)
+    )
+  `)
+
   // Create indexes for performance
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_items_type ON items(type);
@@ -815,6 +833,9 @@ export function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_plan_assignments_date ON plan_assignments(assigned_date);
     CREATE INDEX IF NOT EXISTS idx_plan_assignments_item ON plan_assignments(item_id);
     CREATE INDEX IF NOT EXISTS idx_obsidian_sync_item ON obsidian_sync(item_id);
+    CREATE INDEX IF NOT EXISTS idx_note_links_source ON note_links(source_note_id);
+    CREATE INDEX IF NOT EXISTS idx_note_links_target ON note_links(target_note_id);
+    CREATE INDEX IF NOT EXISTS idx_note_links_status ON note_links(status);
   `)
 
   console.log('Database initialized successfully')
