@@ -380,7 +380,7 @@ ${pageData.description?.substring(0, 500) || 'No description available'}
   if (noteType === 'research') {
     return `---
 type: research
-created: ${now}
+created: ${new Date().toISOString()}
 url: ${pageData.url}
 author: ${pageData.author || 'Unknown'}
 source: ${pageData.siteName || pageData.domain}
@@ -418,7 +418,7 @@ ${pageData.articleContent?.substring(0, 2000) || 'No content extracted'}
   // Link fallback
   return `---
 type: link
-created: ${now}
+created: ${new Date().toISOString()}
 url: ${pageData.url}
 domain: ${pageData.domain}
 status: saved
