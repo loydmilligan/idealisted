@@ -228,9 +228,59 @@ export class ObsidianSyncService {
     ].filter(Boolean).join('\n')
 
     // Use markdown_content if available, otherwise create basic markdown
-    const content = item.markdown_content || this.generateBasicMarkdown(item)
+    let content = item.markdown_content || this.generateBasicMarkdown(item)
+
+    // Add media embeds for YouTube and media notes
+    if (item.type === 'note' && (item.subtype === 'youtube' || item.subtype === 'media')) {
+      content = this.addMediaEmbed(content, item.subtype)
+    }
 
     return `${frontmatter}\n${content}`
+  }
+
+  /**
+   * Add media embed syntax to markdown content
+   * Extracts URL field and adds appropriate embed at the top
+   */
+  private addMediaEmbed(content: string, subtype: string): string {
+    // Extract URL field value from markdown
+    // Pattern: **URL**: https://example.com/video
+    const urlMatch = content.match(/\*\*URL\*\*:\s*(.+)$/m)
+
+    if (!urlMatch || !urlMatch[1].trim()) {
+      // No URL found, return content as-is
+      return content
+    }
+
+    const url = urlMatch[1].trim()
+
+    // Determine embed syntax based on subtype and URL pattern
+    let embedCode = ''
+
+    if (subtype === 'youtube' || url.includes('youtube.com') || url.includes('youtu.be')) {
+      // YouTube embed using Media Extended plugin syntax
+      embedCode = `![](${url})\n\n`
+    } else if (url.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
+      // Image embed
+      embedCode = `![](${url})\n\n`
+    } else if (url.match(/\.(mp4|webm|mov)$/i)) {
+      // Video embed
+      embedCode = `![](${url})\n\n`
+    } else {
+      // Generic media link (not auto-embedded)
+      embedCode = `[View Media](${url})\n\n`
+    }
+
+    // Insert embed code right after the title (first line starting with #)
+    const titleMatch = content.match(/^(#\s+.+)$/m)
+
+    if (titleMatch) {
+      const titleEnd = titleMatch.index! + titleMatch[0].length
+      return content.slice(0, titleEnd) + '\n\n' + embedCode + content.slice(titleEnd)
+    }
+
+    // Fallback: prepend to content
+    return embedCode + content
   }
 
   /**
