@@ -231,7 +231,7 @@ export class ObsidianSyncService {
     let content = item.markdown_content || this.generateBasicMarkdown(item)
 
     // Add media embeds for YouTube and media notes
-    if (item.type === 'note' && (item.subtype === 'youtube' || item.subtype === 'media')) {
+    if (item.type === 'note' && (item.subtype === 'video' || item.subtype === 'media')) {
       content = this.addMediaEmbed(content, item.subtype)
     }
 
@@ -257,7 +257,7 @@ export class ObsidianSyncService {
     // Determine embed syntax based on subtype and URL pattern
     let embedCode = ''
 
-    if (subtype === 'youtube' || url.includes('youtube.com') || url.includes('youtu.be')) {
+    if (subtype === 'video' || url.includes('youtube.com') || url.includes('youtu.be')) {
       // YouTube embed using Media Extended plugin syntax
       embedCode = `![](${url})\n\n`
     } else if (url.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {

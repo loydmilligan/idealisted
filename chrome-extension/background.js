@@ -238,13 +238,13 @@ function parseAIResponse(aiResponse, pageData, noteType) {
   const markdownContent = parsedData?.content || generateFallbackContent(pageData, noteType);
   const title = parsedData?.title || generateFallbackTitle(pageData, noteType);
 
-  // Map noteType to note subtype (video -> youtube, research -> research, link -> generic)
+  // Map noteType to note subtype (video -> video, research -> research, link -> link)
   const subtypeMap = {
-    video: 'youtube',  // YouTube videos get subtype 'youtube' (matches note-youtube template)
+    video: 'video',  // YouTube videos get subtype 'video' (DB constraint allows 'video', template is 'note-youtube')
     research: 'research',
-    link: 'generic'  // Generic links get subtype 'generic' (matches note-generic template)
+    link: 'link'
   };
-  const subtype = subtypeMap[noteType] || 'generic';
+  const subtype = subtypeMap[noteType] || 'general';
 
   // Build note with markdown_content and template_id for new markdown viewer
   const note = {
