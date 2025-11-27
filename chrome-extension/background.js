@@ -234,9 +234,9 @@ function parseAIResponse(aiResponse, pageData, noteType) {
     }
   }
 
-  // Generate the markdown content
-  const markdownContent = parsedData?.content || generateFallbackContent(pageData, noteType);
+  // Generate the markdown content - ALWAYS use template format to ensure required fields
   const title = parsedData?.title || generateFallbackTitle(pageData, noteType);
+  const markdownContent = generateTemplateContent(pageData, noteType, parsedData);
 
   // Map noteType to note subtype (video -> video, research -> research, link -> link)
   const subtypeMap = {
@@ -311,6 +311,38 @@ function generateFallbackTags(pageData, noteType) {
   }
 
   return [...new Set(tags)].slice(0, 5);
+}
+
+// Generate template content - always use template format with AI content injected
+function generateTemplateContent(pageData, noteType, parsedData) {
+  if (noteType === 'video') {
+    // ALWAYS use template format for YouTube notes to ensure required fields
+    return `# ${pageData.title}
+
+**URL**: ${pageData.url}
+**Duration**: ${pageData.duration || 'Unknown'}
+**Status**: Not Watched
+
+## Key Concepts
+
+${parsedData?.keyTakeaways ? parsedData.keyTakeaways.map(t => `- ${t}`).join('\n') : '- **Channel**: ' + (pageData.channel || 'Unknown') + '\n- **Published**: ' + (pageData.publishDate || 'Unknown') + '\n- **Views**: ' + (pageData.views || 'Unknown')}
+
+## Timestamps
+
+
+
+## AI Summary
+
+${parsedData?.summary || ''}
+
+## My Notes
+
+${parsedData?.content || pageData.description?.substring(0, 500) || 'No description available'}
+`;
+  }
+
+  // For other types, fall back to the old function
+  return generateFallbackContent(pageData, noteType);
 }
 
 // Fallback content generation

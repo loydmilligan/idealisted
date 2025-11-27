@@ -168,6 +168,23 @@ export class ObsidianSyncService {
   }
 
   /**
+   * Map note subtype to Obsidian folder name
+   */
+  private mapSubtypeToFolder(subtype: string): string {
+    const folderMap: Record<string, string> = {
+      'video': 'youtube',      // YouTube videos
+      'general': 'generic',    // General notes
+      'research': 'research',  // Research notes
+      'link': 'links',         // Web links
+      'file': 'files',         // File notes
+      'contact': 'contacts',   // Contact notes
+      'meeting': 'meetings',   // Meeting notes
+      'media': 'media'         // Media notes (images, etc.)
+    }
+    return folderMap[subtype] || 'generic'
+  }
+
+  /**
    * Determine file path for an item
    */
   private getFilePath(item: SyncableItem): string {
@@ -190,9 +207,10 @@ export class ObsidianSyncService {
         const safeProjectName = sanitize(item.project_name)
         return path.join(this.vaultPath, 'projects', safeProjectName, filename)
       } else {
-        // Standalone note - organize by subtype
-        const subtype = item.subtype || 'generic'
-        return path.join(this.vaultPath, subtype, filename)
+        // Standalone note - organize by subtype with folder name mapping
+        const subtype = item.subtype || 'general'
+        const folderName = this.mapSubtypeToFolder(subtype)
+        return path.join(this.vaultPath, folderName, filename)
       }
     } else if (item.type === 'project') {
       // Projects get their own folder with a hub note
